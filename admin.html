@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0c0c0d"/>
+  <title>Admin — Satyam's Store</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<!-- ════ LOADER (hamster, original colours) ════ -->
+<div id="page-loader">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:18px">
+    <div class="wheel-and-hamster" role="img" aria-label="Loading">
+      <div class="wheel"></div>
+      <div class="hamster"><div class="hamster__body">
+        <div class="hamster__head"><div class="hamster__ear"></div><div class="hamster__eye"></div><div class="hamster__nose"></div></div>
+        <div class="hamster__limb hamster__limb--fr"></div><div class="hamster__limb hamster__limb--fl"></div>
+        <div class="hamster__limb hamster__limb--br"></div><div class="hamster__limb hamster__limb--bl"></div>
+        <div class="hamster__tail"></div>
+      </div></div>
+      <div class="spoke"></div>
+    </div>
+    <p class="loader-label">Loading<span class="loader-dots"></span></p>
+  </div>
+</div>
+
+<!-- ════ LOGIN ════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-icon"><i data-lucide="lock" style="width:18px;height:18px"></i></div>
+    <div class="login-title">Admin Access</div>
+    <p class="login-sub">Enter password to continue</p>
+    <form onsubmit="doLogin(event)">
+      <div class="login-input-wrap">
+        <input id="pw" type="password" class="login-input" placeholder="Password" autofocus autocomplete="current-password"/>
+        <button type="button" class="eye-btn" onclick="togglePw()">
+          <i data-lucide="eye" id="eye-icon" style="width:14px;height:14px"></i>
+        </button>
+      </div>
+      <div class="login-error" id="login-err"></div>
+      <button type="submit" class="login-btn">Login</button>
+    </form>
+    <a href="index.html" class="login-back">
+      <i data-lucide="arrow-left" style="width:11px;height:11px"></i> Back to store
+    </a>
+  </div>
+</div>
+
+<!-- ════ ADMIN CONTENT ════ -->
+<div id="admin-content" style="display:none">
+
+  <nav class="site-nav">
+    <div class="nav-inner">
+      <a class="nav-brand" href="index.html">
+        <div class="nav-brand-icon"><i data-lucide="zap" style="width:13px;height:13px"></i></div>
+        <span class="nav-brand-name">Satyam's Store</span>
+      </a>
+      <div class="nav-links">
+        <a class="nav-link" href="index.html"><i data-lucide="shopping-bag" style="width:12px;height:12px"></i> Store</a>
+        <!-- Icon-only admin link (no label) -->
+        <a class="nav-link-icon active" href="admin.html" title="Admin">
+          <i data-lucide="settings" style="width:14px;height:14px"></i>
+        </a>
+        <button class="nav-logout-btn" onclick="logout()" title="Logout">
+          <i data-lucide="log-out" style="width:14px;height:14px"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page-wrap" style="padding-top:calc(54px + 16px);padding-bottom:40px">
+    <div class="page-title">Admin Panel</div>
+
+    <!-- Tab bar: Products/Orders | Sales -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-admin" onclick="switchTab('admin')">
+        <i data-lucide="package" style="width:12px;height:12px"></i> Products & Orders
+      </button>
+      <button class="tab-btn" id="tab-sales" onclick="switchTab('sales')">
+        <i data-lucide="bar-chart-2" style="width:12px;height:12px"></i> Sales History
+      </button>
+    </div>
+
+    <!-- ── TAB: Products & Orders ── -->
+    <div class="tab-panel active" id="panel-admin">
+
+      <!-- Pending Orders -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title-row">
+          <span style="display:flex;align-items:center;gap:7px;font-size:.82rem;font-weight:600;color:var(--t1)">
+            <i data-lucide="clock" style="width:13px;height:13px;color:var(--amber)"></i>
+            Pending Orders
+            <span id="pending-count" style="display:none;background:rgba(201,145,43,.12);border:1px solid rgba(201,145,43,.2);color:var(--amber);font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:99px"></span>
+          </span>
+          <button onclick="loadPendingOrders()" class="btn-sm">
+            <i data-lucide="refresh-cw" style="width:10px;height:10px" id="pending-refresh"></i> Refresh
+          </button>
+        </div>
+        <div id="pending-loading" style="text-align:center;padding:20px;color:var(--t3);font-size:.76rem">
+          <div class="spinner" style="width:22px;height:22px;margin:0 auto 6px"></div>Loading…
+        </div>
+        <div id="pending-empty" class="hidden" style="text-align:center;padding:20px;color:var(--t3);font-size:.76rem">No pending orders</div>
+        <div id="pending-table" class="hidden" style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Time / Date</th><th>Items</th><th style="text-align:right">Total</th><th></th></tr></thead>
+            <tbody id="pending-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="admin-grid">
+
+        <!-- Add Product + Stats -->
+        <div>
+          <div class="card">
+            <div class="card-title"><i data-lucide="plus-circle" style="width:12px;height:12px"></i> Add Product</div>
+            <form id="add-form" onsubmit="submitAdd(event)">
+              <div class="field"><label>Name <span class="req">*</span></label><input id="f-name" type="text" required placeholder="e.g. KitKat"/></div>
+              <div class="form-row2">
+                <div class="field"><label>Price ₹ <span class="req">*</span></label><input id="f-price" type="number" step="0.01" min="0" required placeholder="20" inputmode="decimal"/></div>
+                <div class="field"><label>Stock <span class="req">*</span></label><input id="f-stock" type="number" min="0" required placeholder="50" inputmode="numeric"/></div>
+              </div>
+              <div class="field"><label>Barcode</label><input id="f-barcode" type="text" placeholder="Optional"/></div>
+              <div class="field"><label>Image URL</label><input id="f-image" type="url" placeholder="https://…"/></div>
+              <button type="submit" id="add-btn" class="btn-primary" style="width:100%;margin-top:2px">
+                <i data-lucide="plus" style="width:12px;height:12px"></i>
+                <span id="add-lbl">Add Product</span>
+              </button>
+            </form>
+          </div>
+
+          <div class="card" style="margin-top:12px">
+            <div class="card-title"><i data-lucide="bar-chart-2" style="width:12px;height:12px"></i> Stock Stats</div>
+            <div class="stats-grid">
+              <div class="stat-box"><div id="st-total" class="stat-val">—</div><div class="stat-lbl">Products</div></div>
+              <div class="stat-box"><div id="st-out" class="stat-val" style="color:var(--red)">—</div><div class="stat-lbl">Out of Stock</div></div>
+              <div class="stat-box"><div id="st-low" class="stat-val" style="color:var(--amber)">—</div><div class="stat-lbl">Low ≤5</div></div>
+              <div class="stat-box"><div id="st-ok" class="stat-val" style="color:var(--green)">—</div><div class="stat-lbl">In Stock</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Products Table -->
+        <div class="card">
+          <div class="card-title-row">
+            <span style="display:flex;align-items:center;gap:6px;font-size:.82rem;font-weight:600;color:var(--t1)">
+              <i data-lucide="package" style="width:13px;height:13px;color:var(--t2)"></i> Products
+            </span>
+            <button onclick="loadProducts()" class="btn-sm">
+              <i data-lucide="refresh-cw" style="width:10px;height:10px" id="prod-refresh"></i> Sync
+            </button>
+          </div>
+          <div id="prod-loading" style="text-align:center;padding:28px;color:var(--t3);font-size:.76rem">
+            <div class="spinner" style="width:22px;height:22px;margin:0 auto 6px"></div>Fetching products…
+          </div>
+          <div id="prod-error" class="hidden" style="text-align:center;padding:24px;color:var(--red);font-size:.76rem">
+            <p>Failed to load.</p>
+            <button onclick="loadProducts()" class="btn-sm" style="margin-top:8px">Retry</button>
+          </div>
+          <div id="prod-empty" class="hidden" style="text-align:center;padding:24px;color:var(--t3);font-size:.76rem">No products yet.</div>
+          <div id="prod-table" class="hidden" style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr></thead>
+              <tbody id="prod-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── TAB: Sales History ── -->
+    <div class="tab-panel" id="panel-sales">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div style="font-size:.85rem;font-weight:600;color:var(--t1)">Sales History</div>
+        <div style="display:flex;align-items:center;gap:7px">
+          <select id="date-select" class="date-select" onchange="loadSales()"></select>
+          <button onclick="loadSales()" class="btn-sm">
+            <i data-lucide="refresh-cw" style="width:10px;height:10px" id="refresh-icon"></i> Refresh
+          </button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:13px">
+        <div class="stat-box"><div id="s-count" class="stat-val">—</div><div class="stat-lbl">Sales</div></div>
+        <div class="stat-box"><div id="s-revenue" class="stat-val" style="color:var(--green)">—</div><div class="stat-lbl">Revenue ₹</div></div>
+        <div class="stat-box"><div id="s-avg" class="stat-val">—</div><div class="stat-lbl">Avg Order</div></div>
+      </div>
+
+      <div class="card">
+        <div id="sales-loading" style="text-align:center;padding:28px;color:var(--t3);font-size:.76rem">
+          <div class="spinner" style="width:22px;height:22px;margin:0 auto 6px"></div>Loading sales…
+        </div>
+        <div id="sales-empty" class="hidden" style="text-align:center;padding:28px;color:var(--t3);font-size:.76rem">
+          <i data-lucide="inbox" style="width:26px;height:26px;opacity:.18;margin-bottom:7px;display:block"></i>
+          No sales for this date.
+        </div>
+        <div id="sales-table" class="hidden" style="overflow-x:auto">
+          <table class="sales-tbl">
+            <thead><tr><th>Time</th><th>Items</th><th style="text-align:right">Total</th></tr></thead>
+            <tbody id="sales-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════ MODALS ════ -->
+<div id="del-modal" class="overlay hidden">
+  <div class="modal" style="max-width:320px;text-align:center">
+    <div class="del-icon" style="margin-bottom:11px"><i data-lucide="trash-2" style="width:20px;height:20px;color:var(--red)"></i></div>
+    <div class="modal-title">Delete Product?</div>
+    <p id="del-name" class="modal-sub" style="margin:5px 0 16px"></p>
+    <div class="modal-actions">
+      <button id="del-btn" onclick="confirmDelete()" class="btn-danger"><i data-lucide="trash-2" style="width:11px;height:11px"></i> Delete</button>
+      <button class="btn-ghost" onclick="closeDelModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="approve-modal" class="overlay hidden">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-head">
+      <div class="modal-title">Approve Order?</div>
+      <button class="modal-close" onclick="closeApproveModal()"><i data-lucide="x" style="width:13px;height:13px"></i></button>
+    </div>
+    <div id="approve-details" class="receipt-box"></div>
+    <p style="font-size:.72rem;color:var(--t3);margin-bottom:12px">This will record the sale and reduce stock.</p>
+    <div class="modal-actions">
+      <button id="approve-btn" onclick="confirmApprove()" class="btn-primary">
+        <i data-lucide="check-circle" style="width:12px;height:12px"></i> Approve
+      </button>
+      <button class="btn-ghost" onclick="closeApproveModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="shared.js"></script>
+<script>
+const PASS = '@satyam64136';
+const SK = 'ss_admin_auth';
+
+let allProducts    = [];
+let deleteTargetId = null;
+let approveTarget  = null;
+const pendingOrdersMap = new Map();
+
+/* ═══════════════════════════════
+   TAB SWITCHER
+   ═══════════════════════════════ */
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  if (name === 'sales') {
+    populateDates();
+    loadSales();
+  }
+  lucide.createIcons();
+}
+
+/* ═══════════════════════════════
+   AUTH
+   ═══════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();
+  hideLoader();   // always hide loader immediately on DOMContentLoaded
+  if (sessionStorage.getItem(SK) === 'true') showAdmin();
+  const pw = document.getElementById('pw');
+  if (pw) pw.focus();
+});
+
+function doLogin(e) {
+  e.preventDefault();
+  const pw  = document.getElementById('pw');
+  const err = document.getElementById('login-err');
+  if (pw.value === PASS) {
+    sessionStorage.setItem(SK, 'true');
+    showAdmin();
+  } else {
+    pw.classList.add('error');
+    err.textContent = 'Incorrect password.';
+    pw.value = '';
+    setTimeout(() => pw.classList.remove('error'), 500);
+    pw.focus();
+  }
+}
+
+function togglePw() {
+  const pw   = document.getElementById('pw');
+  const icon = document.getElementById('eye-icon');
+  pw.type = pw.type === 'password' ? 'text' : 'password';
+  icon.setAttribute('data-lucide', pw.type === 'password' ? 'eye' : 'eye-off');
+  lucide.createIcons();
+}
+
+function logout() { sessionStorage.removeItem(SK); location.href = 'index.html'; }
+
+async function showAdmin() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('admin-content').style.display = 'block';
+  lucide.createIcons();
+  await Promise.all([loadProducts(), loadPendingOrders()]);
+}
+
+/* ═══════════════════════════════
+   PRODUCTS
+   ═══════════════════════════════ */
+async function loadProducts() {
+  const icon = document.getElementById('prod-refresh');
+  if (icon) icon.style.animation = 'spin .7s linear infinite';
+  setProdState('loading');
+  try {
+    const raw = await gasGet('getProducts');
+    allProducts = parseProducts(raw);
+    renderProducts();
+    renderStats();
+  } catch(e) {
+    setProdState('error');
+  } finally {
+    if (icon) icon.style.animation = 'none';
+  }
+}
+
+function setProdState(s) {
+  document.getElementById('prod-loading').classList.toggle('hidden', s !== 'loading');
+  document.getElementById('prod-error').classList.toggle('hidden',   s !== 'error');
+  document.getElementById('prod-empty').classList.toggle('hidden',   s !== 'empty');
+  document.getElementById('prod-table').classList.toggle('hidden',   s !== 'data');
+}
+
+function renderProducts() {
+  if (!allProducts.length) { setProdState('empty'); return; }
+  setProdState('data');
+  document.getElementById('prod-tbody').innerHTML = allProducts.map(p => {
+    const cls = p.stock === 0 ? 'badge-out' : p.stock <= 5 ? 'badge-low' : 'badge-ok';
+    const stockLbl = p.stock === 0 ? 'Out' : String(p.stock);
+    return `<tr class="prod-row">
+      <td class="prod-name" data-label="Name">${esc(p.name)}</td>
+      <td class="prod-price" data-label="Price">₹${p.price.toFixed(2)}</td>
+      <td class="prod-stock-ctrl" data-label="Stock">
+        <div class="stock-ctrl">
+          <button class="stock-ctrl-btn minus" onclick="adjustStock('${esc(p.id)}',-1)" title="Decrease">−</button>
+          <span class="stock-val">${stockLbl}</span>
+          <button class="stock-ctrl-btn plus" onclick="adjustStock('${esc(p.id)}',1)" title="Increase">+</button>
+        </div>
+      </td>
+      <td class="prod-badge" data-label="Status"><span class="badge ${cls}">${p.stock === 0 ? 'Out' : p.stock <= 5 ? 'Low' : 'OK'}</span></td>
+      <td class="prod-del">
+        <button class="tbl-del" onclick="askDelete('${esc(p.id)}','${esc(p.name.replace(/'/g,''))}')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function adjustStock(id, delta) {
+  const p = allProducts.find(x => x.id === id);
+  if (!p) return;
+  const newStock = Math.max(0, p.stock + delta);
+  if (newStock === p.stock && delta < 0) { toast('Stock is already 0'); return; }
+  if (newStock === p.stock && delta > 0) return;
+  // Optimistically update immediately for responsive UI
+  p.stock = newStock;
+  renderProducts();
+  renderStats();
+  try {
+    // Send exact number (including 0) — no-cors post, fire and forget
+    await gasPost({ action: 'updateStock', id: String(id), stock: newStock });
+    toast(`${p.name}: stock → ${newStock}`);
+  } catch(e) {
+    toast('Saved locally — will sync');
+  }
+}
+
+function renderStats() {
+  document.getElementById('st-total').textContent = allProducts.length;
+  document.getElementById('st-out').textContent   = allProducts.filter(p => p.stock === 0).length;
+  document.getElementById('st-low').textContent   = allProducts.filter(p => p.stock > 0 && p.stock <= 5).length;
+  document.getElementById('st-ok').textContent    = allProducts.filter(p => p.stock > 5).length;
+}
+
+async function submitAdd(e) {
+  e.preventDefault();
+  const name    = document.getElementById('f-name').value.trim();
+  const price   = parseFloat(document.getElementById('f-price').value);
+  const stock   = parseInt(document.getElementById('f-stock').value, 10);
+  const barcode = document.getElementById('f-barcode').value.trim();
+  const image   = document.getElementById('f-image').value.trim();
+  if (!name || isNaN(price) || isNaN(stock)) { toast('Fill required fields'); return; }
+  const btn = document.getElementById('add-btn');
+  const lbl = document.getElementById('add-lbl');
+  btn.disabled = true; lbl.textContent = 'Saving…';
+  try {
+    await gasPost({ action: 'addProduct', name, price, stock, image, barcode });
+    toast(`"${name}" added`);
+    document.getElementById('add-form').reset();
+    await delay(1800);
+    await loadProducts();
+  } catch(err) { toast('Network error'); }
+  finally { btn.disabled = false; lbl.textContent = 'Add Product'; }
+}
+
+function askDelete(id, name) {
+  deleteTargetId = id;
+  document.getElementById('del-name').textContent = `"${name}" will be removed permanently.`;
+  document.getElementById('del-modal').classList.remove('hidden');
+  lucide.createIcons();
+}
+function closeDelModal() { document.getElementById('del-modal').classList.add('hidden'); deleteTargetId = null; }
+async function confirmDelete() {
+  if (!deleteTargetId) return;
+  const btn = document.getElementById('del-btn');
+  btn.disabled = true; btn.textContent = 'Deleting…';
+  try {
+    await gasPost({ action: 'deleteProduct', id: deleteTargetId });
+    toast('Deleted'); closeDelModal();
+    await delay(1800); await loadProducts();
+  } catch(e) { toast('Delete failed'); }
+  finally { btn.disabled = false; btn.textContent = 'Delete'; deleteTargetId = null; }
+}
+
+/* ═══════════════════════════════
+   PENDING ORDERS
+   ═══════════════════════════════ */
+async function loadPendingOrders() {
+  const icon = document.getElementById('pending-refresh');
+  if (icon) icon.style.animation = 'spin .7s linear infinite';
+  setPendingState('loading');
+  try {
+    const raw = await gasGet('getPendingOrders');
+    pendingOrdersMap.clear();
+    (raw || []).forEach(row => {
+      const orderId = String(row[0] || '').trim();
+      if (orderId) {
+        pendingOrdersMap.set(orderId, {
+          orderId,
+          date:     String(row[1] || ''),
+          time:     String(row[2] || ''),
+          items:    String(row[3] || ''),
+          total:    String(row[4] || '0'),
+          products: safeParseProducts(row[5]),
+        });
+      }
+    });
+    renderPendingOrders();
+  } catch(e) {
+    setPendingState('empty');
+    toast('Could not load pending orders');
+  } finally {
+    if (icon) icon.style.animation = 'none';
+  }
+}
+
+function safeParseProducts(raw) {
+  if (!raw) return [];
+  try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; }
+  catch(e) { return []; }
+}
+
+function setPendingState(s) {
+  document.getElementById('pending-loading').classList.toggle('hidden', s !== 'loading');
+  document.getElementById('pending-empty').classList.toggle('hidden',   s !== 'empty');
+  document.getElementById('pending-table').classList.toggle('hidden',   s !== 'data');
+}
+
+function renderPendingOrders() {
+  const countEl = document.getElementById('pending-count');
+  if (pendingOrdersMap.size === 0) {
+    setPendingState('empty');
+    countEl.style.display = 'none';
+    return;
+  }
+  setPendingState('data');
+  countEl.style.display = 'inline';
+  countEl.textContent = pendingOrdersMap.size;
+  document.getElementById('pending-tbody').innerHTML =
+    [...pendingOrdersMap.values()].map(order => `
+    <tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--t2);white-space:nowrap">
+        ${esc(order.time)}<br><span style="font-size:.62rem;color:var(--t3)">${esc(order.date)}</span>
+      </td>
+      <td style="font-size:.73rem;color:var(--t2);max-width:200px">${esc(order.items)}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--t1);white-space:nowrap">
+        ₹${parseFloat(order.total).toFixed(2)}
+      </td>
+      <td>
+        <div style="display:flex;gap:5px;align-items:center">
+          <button class="btn-sm approve" onclick="askApprove('${esc(order.orderId)}')">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            Approve
+          </button>
+          <button class="btn-sm reject" onclick="rejectOrder('${esc(order.orderId)}')" title="Reject order">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>`).join('');
+  lucide.createIcons();
+}
+
+function askApprove(orderId) {
+  const order = pendingOrdersMap.get(orderId);
+  if (!order) { toast('Order not found'); return; }
+  approveTarget = order;
+  document.getElementById('approve-details').innerHTML = `
+    <div class="r-header">Order: ${esc(orderId)}</div>
+    <div style="font-size:.68rem;color:var(--t2);padding:4px 0;border-bottom:1px solid var(--b1);line-height:1.6">${esc(order.items)}</div>
+    <div class="r-total"><span>Total</span><span>₹${parseFloat(order.total).toFixed(2)}</span></div>`;
+  document.getElementById('approve-modal').classList.remove('hidden');
+  lucide.createIcons();
+}
+function closeApproveModal() { document.getElementById('approve-modal').classList.add('hidden'); approveTarget = null; }
+
+function rejectOrder(orderId) {
+  if (!pendingOrdersMap.has(orderId)) { toast('Order not found'); return; }
+  // Remove from local map immediately
+  pendingOrdersMap.delete(orderId);
+  renderPendingOrders();
+  toast('Order rejected');
+  // Fire-and-forget: mark as rejected in sheet (no stock change, no approval logic)
+  gasPost({ action: 'rejectOrder', orderId }).catch(() => {});
+}
+
+async function confirmApprove() {
+  if (!approveTarget) return;
+  const btn = document.getElementById('approve-btn');
+  btn.disabled = true; btn.textContent = 'Approving…';
+  try {
+    await gasPost({
+      action: 'approveOrder', orderId: approveTarget.orderId,
+      date: approveTarget.date, time: approveTarget.time,
+      items: approveTarget.items, total: approveTarget.total,
+      products: approveTarget.products,
+    });
+    toast('Order approved — sale recorded');
+    closeApproveModal();
+    await delay(1800);
+    await Promise.all([loadProducts(), loadPendingOrders()]);
+  } catch(e) { toast('Approval failed'); }
+  finally { btn.disabled = false; btn.textContent = 'Approve'; }
+}
+
+/* ═══════════════════════════════
+   SALES HISTORY
+   ═══════════════════════════════ */
+let datesPopulated = false;
+function populateDates() {
+  if (datesPopulated) return;
+  datesPopulated = true;
+  const sel = document.getElementById('date-select');
+  const today = new Date();
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(today); d.setDate(today.getDate() - i);
+    const label = d.toLocaleDateString('en-IN');
+    const opt = document.createElement('option');
+    opt.value = label;
+    opt.textContent = i === 0 ? `Today (${label})` : label;
+    if (i === 0) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+function setSalesState(s) {
+  document.getElementById('sales-loading').classList.toggle('hidden', s !== 'loading');
+  document.getElementById('sales-empty').classList.toggle('hidden',   s !== 'empty');
+  document.getElementById('sales-table').classList.toggle('hidden',   s !== 'data');
+}
+
+async function loadSales() {
+  const date = document.getElementById('date-select').value || new Date().toLocaleDateString('en-IN');
+  const icon = document.getElementById('refresh-icon');
+  if (icon) icon.style.animation = 'spin .7s linear infinite';
+  setSalesState('loading');
+  try {
+    const raw = await gasGet('getSalesByDate', { date });
+    if (!raw || !raw.length) { setSalesState('empty'); updateSummary([]); return; }
+    const sales = raw.map(r => ({ time: cleanSheetVal(r[1]), items: String(r[2] || ''), total: parseFloat(r[3]) || 0 }));
+    renderSales(sales); updateSummary(sales);
+  } catch(e) {
+    setSalesState('empty'); toast('Failed to load sales');
+  } finally {
+    if (icon) icon.style.animation = 'none';
+  }
+}
+
+function renderSales(sales) {
+  setSalesState('data');
+  document.getElementById('sales-tbody').innerHTML = [...sales].reverse().map(s => `
+    <tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:.72rem;white-space:nowrap">${esc(s.time)}</td>
+      <td style="font-size:.74rem;color:var(--t2)">${esc(s.items)}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--t1);white-space:nowrap">₹${s.total.toFixed(2)}</td>
+    </tr>`).join('');
+}
+
+function updateSummary(sales) {
+  const rev = sales.reduce((a, s) => a + s.total, 0);
+  document.getElementById('s-count').textContent   = sales.length;
+  document.getElementById('s-revenue').textContent = rev.toFixed(0);
+  document.getElementById('s-avg').textContent     = sales.length ? (rev / sales.length).toFixed(0) : '0';
+}
+
+document.addEventListener('click', e => {
+  if (e.target === document.getElementById('del-modal'))     closeDelModal();
+  if (e.target === document.getElementById('approve-modal')) closeApproveModal();
+});
+</script>
+</body>
+</html>
