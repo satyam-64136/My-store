@@ -204,7 +204,7 @@
         </div>
         <div id="sales-table" class="hidden" style="overflow-x:auto">
           <table class="sales-tbl">
-            <thead><tr><th>Time</th><th>Items</th><th style="text-align:right">Total</th></tr></thead>
+            <thead><tr><th>Time</th><th>Items</th><th style="text-align:right">Total</th><th></th></tr></thead>
             <tbody id="sales-tbody"></tbody>
           </table>
         </div>
@@ -268,15 +268,29 @@
 
 <div id="toast" class="toast hidden"></div>
 
+<!-- Sale delete confirmation modal -->
+<div id="del-sale-modal" class="overlay hidden">
+  <div class="modal" style="max-width:320px;text-align:center">
+    <div class="del-icon" style="margin-bottom:11px"><i data-lucide="trash-2" style="width:20px;height:20px;color:var(--red)"></i></div>
+    <div class="modal-title">Delete Sale?</div>
+    <p class="modal-sub" style="margin:5px 0 16px">This will permanently remove this order record.</p>
+    <div class="modal-actions">
+      <button id="del-sale-btn" onclick="confirmDeleteSale()" class="btn-danger"><i data-lucide="trash-2" style="width:11px;height:11px"></i> Delete</button>
+      <button class="btn-ghost" onclick="closeDelSaleModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script src="shared.js"></script>
 <script>
 const PASS = '@satyam64136';
 const SK = 'ss_admin_auth';
 
-let allProducts    = [];
-let deleteTargetId = null;
-let approveTarget  = null;
-let editTarget     = null;
+let allProducts       = [];
+let deleteTargetId    = null;
+let approveTarget     = null;
+let editTarget        = null;
+let deleteSaleTarget  = null;  // { id, rowEl } for sale deletion
 const pendingOrdersMap = new Map();
 
 /* ═══════════════════════════════
@@ -729,7 +743,7 @@ async function loadSales() {
     const sales = rows.map(r => {
       const itemsArr = Array.isArray(r.items) ? r.items : [];
       const itemsStr = itemsArr.map(i => `${i.name} x${i.qty} (Rs.${i.sub})`).join(', ');
-      return { time: cleanSheetVal(r.created_at), items: itemsStr, total: parseFloat(r.total) || 0 };
+      return { id: r.id, time: cleanSheetVal(r.created_at), items: itemsStr, total: parseFloat(r.total) || 0 };
     });
     renderSales(sales); updateSummary(sales);
   } catch(e) {
@@ -742,10 +756,15 @@ async function loadSales() {
 function renderSales(sales) {
   setSalesState('data');
   document.getElementById('sales-tbody').innerHTML = [...sales].reverse().map(s => `
-    <tr>
+    <tr id="sale-row-${esc(String(s.id))}">
       <td style="font-family:'JetBrains Mono',monospace;font-size:.72rem;white-space:nowrap">${esc(s.time)}</td>
       <td style="font-size:.74rem;color:var(--t2)">${esc(s.items)}</td>
       <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--t1);white-space:nowrap">₹${s.total.toFixed(2)}</td>
+      <td style="width:36px;padding:10px 6px 10px 0;text-align:right">
+        <button class="sales-del-btn" onclick="askDeleteSale('${esc(String(s.id))}')" title="Delete sale">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+        </button>
+      </td>
     </tr>`).join('');
 }
 
@@ -756,10 +775,48 @@ function updateSummary(sales) {
   document.getElementById('s-avg').textContent     = sales.length ? (rev / sales.length).toFixed(0) : '0';
 }
 
+/* ═══════════════════════════════
+   DELETE SALE
+   ═══════════════════════════════ */
+function askDeleteSale(id) {
+  deleteSaleTarget = id;
+  document.getElementById('del-sale-modal').classList.remove('hidden');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+function closeDelSaleModal() {
+  document.getElementById('del-sale-modal').classList.add('hidden');
+  deleteSaleTarget = null;
+}
+async function confirmDeleteSale() {
+  if (!deleteSaleTarget) return;
+  const btn = document.getElementById('del-sale-btn');
+  btn.disabled = true; btn.textContent = 'Deleting…';
+  try {
+    await sbDelete(`orders?id=eq.${encodeURIComponent(deleteSaleTarget)}`);
+    // Remove row from DOM immediately — no full reload needed
+    const row = document.getElementById('sale-row-' + deleteSaleTarget);
+    if (row) row.remove();
+    toast('Sale deleted');
+    closeDelSaleModal();
+    // Update summary counts from remaining visible rows
+    const remaining = [...document.querySelectorAll('#sales-tbody tr')].map(tr => {
+      const cells = tr.querySelectorAll('td');
+      const totalText = cells[2] ? cells[2].textContent.replace('₹','').trim() : '0';
+      return parseFloat(totalText) || 0;
+    });
+    const rev = remaining.reduce((a, v) => a + v, 0);
+    document.getElementById('s-count').textContent   = remaining.length;
+    document.getElementById('s-revenue').textContent = rev.toFixed(0);
+    document.getElementById('s-avg').textContent     = remaining.length ? (rev / remaining.length).toFixed(0) : '0';
+  } catch(e) { toast('Delete failed'); }
+  finally { btn.disabled = false; btn.textContent = 'Delete'; deleteSaleTarget = null; }
+}
+
 document.addEventListener('click', e => {
-  if (e.target === document.getElementById('del-modal'))     closeDelModal();
-  if (e.target === document.getElementById('approve-modal')) closeApproveModal();
-  if (e.target === document.getElementById('edit-modal'))    closeEditModal();
+  if (e.target === document.getElementById('del-modal'))      closeDelModal();
+  if (e.target === document.getElementById('approve-modal'))  closeApproveModal();
+  if (e.target === document.getElementById('edit-modal'))     closeEditModal();
+  if (e.target === document.getElementById('del-sale-modal')) closeDelSaleModal();
 });
 </script>
 </body>
