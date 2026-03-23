@@ -6,8 +6,14 @@
   <meta name="theme-color" content="#0c0c0d"/>
   <title>Satyam's Store</title>
   <link rel="stylesheet" href="style.css"/>
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <!-- Preconnect to font origin so the TCP handshake is done before CSS requests it -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <!-- Font CSS with display=swap — doesn't block render, swaps in when ready -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/></noscript>
+  <!-- Lucide deferred — does not block HTML parsing or first paint -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
 </head>
 <body>
 
@@ -58,9 +64,7 @@
       <span class="nav-brand-name">Satyam's Store</span>
     </a>
     <div class="nav-links">
-      <a class="nav-link active" id="nav-order" href="#" onclick="switchView('store');return false;">
-        <i data-lucide="shopping-bag" style="width:12px;height:12px"></i> Order
-      </a>
+      <!-- Order button removed — already on the store page -->
       <!-- Icon only for admin, no label -->
       <a class="nav-link-icon" href="admin.html" title="Admin">
         <i data-lucide="settings" style="width:14px;height:14px"></i>
@@ -204,12 +208,9 @@ function switchView(name) {
   document.getElementById('main-nav').classList.toggle('hidden', name !== 'store');
   document.getElementById('pay-nav').classList.toggle('hidden',  name !== 'payment');
   document.getElementById('view-' + name).classList.add('active');
-  // Show bottom bar only on store view
   const bar = document.getElementById('bottom-bar');
   if (bar) bar.style.display = (name === 'store') ? 'flex' : 'none';
-  // Re-init icons after view swap
-  setTimeout(() => lucide.createIcons(), 10);
-  // Scroll to top on every view switch
+  requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
@@ -218,28 +219,62 @@ function switchView(name) {
    ═══════════════════════════════ */
 const UPI_ID = 'satyamm@fam';
 const STORE  = "Satyam's Store";
+// Paste your deployed Apps Script Web App URL here after deploying sync-orders-to-sheets.gs
+const ORDERS_WEBHOOK = '';  // e.g. 'https://script.google.com/macros/s/.../exec'
 
 let allProducts = [], cart = {};
 let cartData = {}, productsData = [], cartTotal = 0;
 
-document.addEventListener('DOMContentLoaded', async () => {
-  lucide.createIcons();
+document.addEventListener('DOMContentLoaded', () => {
   const saved = sessionStorage.getItem('ss_cart');
   if (saved) { try { cart = JSON.parse(saved); } catch(e){} }
-  await loadProducts();
-  hideLoader();
-  updateCartBar();
+
+  // Show cached products instantly — zero-wait first paint
+  const cached = _cacheGet(_cacheKey('products'));
+  if (cached) {
+    allProducts = parseProducts(cached);
+    renderGrid(allProducts);
+    updateCartBar();
+    hideLoader();
+    loadProducts({ background: true });
+  } else {
+    showState('loading');
+    loadProducts({ background: false });
+  }
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  else window.addEventListener('lucide-ready', () => lucide.createIcons());
 });
 
-async function loadProducts() {
-  showState('loading');
+async function loadProducts({ background = false } = {}) {
+  if (!background) showState('loading');
   try {
-    const raw = await gasGet('getProducts');
-    allProducts = parseProducts(raw);
-    renderGrid(allProducts);
+    const rows = await sbGet('products?select=id,name,price,stock,image&order=name.asc');
+    const fresh = parseProducts(rows);
+    _cacheSet(_cacheKey('products'), rows);
+
+    if (background) {
+      const oldStr = JSON.stringify(allProducts.map(p => ({ id: p.id, stock: p.stock, price: p.price })));
+      const newStr = JSON.stringify(fresh.map(p => ({ id: p.id, stock: p.stock, price: p.price })));
+      if (oldStr !== newStr) {
+        allProducts = fresh;
+        renderGrid(allProducts);
+        updateCartBar();
+      }
+    } else {
+      allProducts = fresh;
+      renderGrid(allProducts);
+      updateCartBar();
+    }
   } catch(err) {
-    document.getElementById('error-msg').textContent = 'Cannot reach Google Sheets.';
-    showState('error');
+    if (!background) {
+      document.getElementById('error-msg').textContent =
+        'Could not load products. Check your internet connection and try again.';
+      showState('error');
+    }
+  } finally {
+    // Always hide loader — whether success, empty, or error
+    if (!background) hideLoader();
   }
 }
 
@@ -248,7 +283,7 @@ function renderGrid(products) {
   showState('grid');
   const grid = document.getElementById('product-grid');
   grid.innerHTML = products.map(p => buildCard(p)).join('');
-  lucide.createIcons();
+  requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
 }
 
 function buildCard(p) {
@@ -297,10 +332,11 @@ function changeQty(id, delta) {
   if (delta > 0 && next === cur) { toast('Can\'t add more, stock limit reached'); return; }
   if (next === 0) delete cart[id]; else cart[id] = next;
   sessionStorage.setItem('ss_cart', JSON.stringify(cart));
-  sessionStorage.setItem('ss_products', JSON.stringify(allProducts));
+  // ss_products not written here — allProducts is already in memory and localStorage cache
   const el = document.getElementById(`card-${id}`);
   if (el) el.outerHTML = buildCard(p);
-  lucide.createIcons();
+  // Defer lucide refresh to next frame — doesn't block tap response
+  requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
   updateCartBar();
 }
 
@@ -397,25 +433,47 @@ async function confirmPayment() {
   const btn = document.getElementById('confirm-btn');
   btn.disabled = true;
   btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Placing order…`;
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('en-IN');
-  const timeStr = now.toLocaleTimeString('en-IN');
   const saleItems = [];
   for (const [id, qty] of Object.entries(cartData)) {
     const p = productsData.find(x => x.id === id); if (!p) continue;
     const sub = +(qty * p.price).toFixed(2);
     saleItems.push({ id, name: p.name, qty, sub });
   }
-  const total = saleItems.reduce((s, i) => s + i.sub, 0).toFixed(2);
-  const itemsStr = saleItems.map(i => `${i.name} x${i.qty} (₹${i.sub})`).join(', ');
+  const total = +saleItems.reduce((s, i) => s + i.sub, 0).toFixed(2);
+  // items stored as JSONB array in Supabase orders table
+  let insertedOrder = null;
   try {
-    await gasPost({ action: 'pendingOrder', date: dateStr, time: timeStr, items: itemsStr, total, products: saleItems.map(i => ({ id: i.id, qty: i.qty })) });
-  } catch(e) { console.warn('pendingOrder:', e); }
+    // Explicitly send created_at so there is no ambiguity about the timestamp source.
+    // new Date().toISOString() always produces a clean UTC string: "2026-03-23T04:12:00.000Z"
+    const nowISO = new Date().toISOString();
+    console.log('[order] client timestamp:', nowISO);
+
+    const result = await sbPost('orders', {
+      items:      saleItems,
+      total,
+      status:     'pending',
+      created_at: nowISO,
+    });
+    // sbPost returns array; grab first row
+    insertedOrder = Array.isArray(result) ? result[0] : result;
+    console.log('[order] supabase returned created_at:', insertedOrder?.created_at);
+    console.log('[order] match:', nowISO === insertedOrder?.created_at ? 'YES' : 'CLOSE (Supabase may normalise ms)');
+  } catch(e) { console.warn('[order] insert failed:', e); }
+
+  // Sync to Google Sheets via webhook (fire-and-forget, never blocks UI)
+  if (insertedOrder && ORDERS_WEBHOOK) {
+    fetch(ORDERS_WEBHOOK, {
+      method: 'POST',
+      mode:   'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify(insertedOrder),
+    }).catch(() => {});
+  }
   sessionStorage.removeItem('ss_cart');
   sessionStorage.removeItem('ss_products');
   cart = {};
   document.getElementById('success-overlay').classList.remove('hidden');
-  lucide.createIcons();
+  if (typeof lucide !== 'undefined') lucide.createIcons();
   setTimeout(() => {
     document.getElementById('success-overlay').classList.add('hidden');
     updateCartBar();

@@ -6,8 +6,11 @@
   <meta name="theme-color" content="#0c0c0d"/>
   <title>Admin — Satyam's Store</title>
   <link rel="stylesheet" href="style.css"/>
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/></noscript>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
 </head>
 <body>
 
@@ -201,7 +204,7 @@
         </div>
         <div id="sales-table" class="hidden" style="overflow-x:auto">
           <table class="sales-tbl">
-            <thead><tr><th>Time</th><th>Items</th><th style="text-align:right">Total</th></tr></thead>
+            <thead><tr><th>Time</th><th>Items</th><th style="text-align:right">Total</th><th></th></tr></thead>
             <tbody id="sales-tbody"></tbody>
           </table>
         </div>
@@ -220,6 +223,28 @@
     <div class="modal-actions">
       <button id="del-btn" onclick="confirmDelete()" class="btn-danger"><i data-lucide="trash-2" style="width:11px;height:11px"></i> Delete</button>
       <button class="btn-ghost" onclick="closeDelModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="edit-modal" class="overlay hidden">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-head">
+      <div class="modal-title">Edit Product</div>
+      <button class="modal-close" onclick="closeEditModal()"><i data-lucide="x" style="width:13px;height:13px"></i></button>
+    </div>
+    <div class="field"><label>Name <span class="req">*</span></label><input id="e-name" type="text" placeholder="Product name"/></div>
+    <div class="form-row2">
+      <div class="field"><label>Price ₹ <span class="req">*</span></label><input id="e-price" type="number" step="0.01" min="0" inputmode="decimal"/></div>
+      <div class="field"><label>Stock <span class="req">*</span></label><input id="e-stock" type="number" min="0" inputmode="numeric"/></div>
+    </div>
+    <div class="field"><label>Image URL</label><input id="e-image" type="url" placeholder="https://…"/></div>
+    <div class="modal-actions">
+      <button id="edit-save-btn" onclick="confirmEdit()" class="btn-primary">
+        <i data-lucide="save" style="width:12px;height:12px"></i>
+        <span id="edit-save-lbl">Save Changes</span>
+      </button>
+      <button class="btn-ghost" onclick="closeEditModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -243,14 +268,29 @@
 
 <div id="toast" class="toast hidden"></div>
 
+<!-- Sale delete confirmation modal -->
+<div id="del-sale-modal" class="overlay hidden">
+  <div class="modal" style="max-width:320px;text-align:center">
+    <div class="del-icon" style="margin-bottom:11px"><i data-lucide="trash-2" style="width:20px;height:20px;color:var(--red)"></i></div>
+    <div class="modal-title">Delete Sale?</div>
+    <p class="modal-sub" style="margin:5px 0 16px">This will permanently remove this order record.</p>
+    <div class="modal-actions">
+      <button id="del-sale-btn" onclick="confirmDeleteSale()" class="btn-danger"><i data-lucide="trash-2" style="width:11px;height:11px"></i> Delete</button>
+      <button class="btn-ghost" onclick="closeDelSaleModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script src="shared.js"></script>
 <script>
 const PASS = '@satyam64136';
 const SK = 'ss_admin_auth';
 
-let allProducts    = [];
-let deleteTargetId = null;
-let approveTarget  = null;
+let allProducts       = [];
+let deleteTargetId    = null;
+let approveTarget     = null;
+let editTarget        = null;
+let deleteSaleTarget  = null;  // { id, rowEl } for sale deletion
 const pendingOrdersMap = new Map();
 
 /* ═══════════════════════════════
@@ -265,18 +305,21 @@ function switchTab(name) {
     populateDates();
     loadSales();
   }
-  lucide.createIcons();
+  requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
 }
 
 /* ═══════════════════════════════
    AUTH
    ═══════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-  lucide.createIcons();
-  hideLoader();   // always hide loader immediately on DOMContentLoaded
+  hideLoader();   // always hide loader immediately — before any async work
   if (sessionStorage.getItem(SK) === 'true') showAdmin();
   const pw = document.getElementById('pw');
   if (pw) pw.focus();
+  // Lucide deferred — init when script is ready
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  else document.querySelector('script[src*="lucide"]')
+         ?.addEventListener('load', () => lucide.createIcons());
 });
 
 function doLogin(e) {
@@ -308,24 +351,39 @@ function logout() { sessionStorage.removeItem(SK); location.href = 'index.html';
 async function showAdmin() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('admin-content').style.display = 'block';
-  lucide.createIcons();
+  requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
   await Promise.all([loadProducts(), loadPendingOrders()]);
 }
 
 /* ═══════════════════════════════
    PRODUCTS
    ═══════════════════════════════ */
-async function loadProducts() {
+async function loadProducts({ noCache = false } = {}) {
   const icon = document.getElementById('prod-refresh');
+
+  // Try cache first (instant render)
+  if (!noCache) {
+    const cached = _cacheGet(_cacheKey('products'));
+    if (cached) {
+      allProducts = parseProducts(cached);
+      renderProducts();
+      renderStats();
+      loadProducts({ noCache: true }); // refresh silently
+      return;
+    }
+  }
+
   if (icon) icon.style.animation = 'spin .7s linear infinite';
-  setProdState('loading');
+  if (!allProducts.length) setProdState('loading');
   try {
-    const raw = await gasGet('getProducts');
-    allProducts = parseProducts(raw);
+    const rows = await sbGet('products?select=id,name,price,stock,image&order=name.asc');
+    _cacheSet(_cacheKey('products'), rows);
+    allProducts = parseProducts(rows);
     renderProducts();
     renderStats();
   } catch(e) {
-    setProdState('error');
+    console.error('loadProducts failed:', e);
+    if (!allProducts.length) setProdState('error');
   } finally {
     if (icon) icon.style.animation = 'none';
   }
@@ -356,9 +414,14 @@ function renderProducts() {
       </td>
       <td class="prod-badge" data-label="Status"><span class="badge ${cls}">${p.stock === 0 ? 'Out' : p.stock <= 5 ? 'Low' : 'OK'}</span></td>
       <td class="prod-del">
-        <button class="tbl-del" onclick="askDelete('${esc(p.id)}','${esc(p.name.replace(/'/g,''))}')">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
-        </button>
+        <div style="display:flex;gap:4px;align-items:center">
+          <button class="tbl-edit" onclick="askEdit('${esc(p.id)}')" title="Edit product">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="tbl-del" onclick="askDelete('${esc(p.id)}','${esc(p.name.replace(/'/g,''))}')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+          </button>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -370,16 +433,16 @@ async function adjustStock(id, delta) {
   const newStock = Math.max(0, p.stock + delta);
   if (newStock === p.stock && delta < 0) { toast('Stock is already 0'); return; }
   if (newStock === p.stock && delta > 0) return;
-  // Optimistically update immediately for responsive UI
+  // Optimistic UI update
   p.stock = newStock;
   renderProducts();
   renderStats();
   try {
-    // Send exact number (including 0) — no-cors post, fire and forget
-    await gasPost({ action: 'updateStock', id: String(id), stock: newStock });
+    await sbPatch(`products?id=eq.${encodeURIComponent(id)}`, { stock: newStock });
+    _cacheInvalidate('products');
     toast(`${p.name}: stock → ${newStock}`);
   } catch(e) {
-    toast('Saved locally — will sync');
+    toast('Failed to update stock');
   }
 }
 
@@ -388,6 +451,60 @@ function renderStats() {
   document.getElementById('st-out').textContent   = allProducts.filter(p => p.stock === 0).length;
   document.getElementById('st-low').textContent   = allProducts.filter(p => p.stock > 0 && p.stock <= 5).length;
   document.getElementById('st-ok').textContent    = allProducts.filter(p => p.stock > 5).length;
+}
+
+/* ═══════════════════════════════
+   EDIT PRODUCT
+   ═══════════════════════════════ */
+function askEdit(id) {
+  const p = allProducts.find(x => x.id === id);
+  if (!p) return;
+  editTarget = p;
+  // Pre-fill modal fields with current values
+  document.getElementById('e-name').value  = p.name;
+  document.getElementById('e-price').value = p.price;
+  document.getElementById('e-stock').value = p.stock;
+  document.getElementById('e-image').value = p.image;
+  document.getElementById('edit-modal').classList.remove('hidden');
+  requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
+  document.getElementById('e-name').focus();
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.add('hidden');
+  editTarget = null;
+}
+
+async function confirmEdit() {
+  if (!editTarget) return;
+  const name  = document.getElementById('e-name').value.trim();
+  const price = parseFloat(document.getElementById('e-price').value);
+  const stock = parseInt(document.getElementById('e-stock').value, 10);
+  const image = document.getElementById('e-image').value.trim();
+
+  if (!name || isNaN(price) || isNaN(stock)) { toast('Fill all required fields'); return; }
+
+  const btn = document.getElementById('edit-save-btn');
+  const lbl = document.getElementById('edit-save-lbl');
+  btn.disabled = true; lbl.textContent = 'Saving…';
+
+  try {
+    await sbPatch(`products?id=eq.${encodeURIComponent(editTarget.id)}`, { name, price, stock, image });
+    // Update local state immediately — no extra fetch needed
+    editTarget.name  = name;
+    editTarget.price = price;
+    editTarget.stock = stock;
+    editTarget.image = image;
+    _cacheInvalidate('products');
+    renderProducts();
+    renderStats();
+    toast(`"${name}" updated`);
+    closeEditModal();
+  } catch(e) {
+    toast('Failed to save changes');
+  } finally {
+    btn.disabled = false; lbl.textContent = 'Save Changes';
+  }
 }
 
 async function submitAdd(e) {
@@ -402,11 +519,12 @@ async function submitAdd(e) {
   const lbl = document.getElementById('add-lbl');
   btn.disabled = true; lbl.textContent = 'Saving…';
   try {
-    await gasPost({ action: 'addProduct', name, price, stock, image, barcode });
+    await sbPost('products', { name, price, stock, image });
     toast(`"${name}" added`);
     document.getElementById('add-form').reset();
+    _cacheInvalidate('products');
     await delay(1800);
-    await loadProducts();
+    await loadProducts({ noCache: true });
   } catch(err) { toast('Network error'); }
   finally { btn.disabled = false; lbl.textContent = 'Add Product'; }
 }
@@ -423,9 +541,10 @@ async function confirmDelete() {
   const btn = document.getElementById('del-btn');
   btn.disabled = true; btn.textContent = 'Deleting…';
   try {
-    await gasPost({ action: 'deleteProduct', id: deleteTargetId });
+    await sbDelete(`products?id=eq.${encodeURIComponent(deleteTargetId)}`);
     toast('Deleted'); closeDelModal();
-    await delay(1800); await loadProducts();
+    _cacheInvalidate('products');
+    await delay(1800); await loadProducts({ noCache: true });
   } catch(e) { toast('Delete failed'); }
   finally { btn.disabled = false; btn.textContent = 'Delete'; deleteTargetId = null; }
 }
@@ -438,20 +557,25 @@ async function loadPendingOrders() {
   if (icon) icon.style.animation = 'spin .7s linear infinite';
   setPendingState('loading');
   try {
-    const raw = await gasGet('getPendingOrders');
+    // Fetch pending orders from Supabase, newest first
+    const rows = await sbGet('orders?status=eq.pending&order=created_at.desc&select=id,items,total,status,created_at');
     pendingOrdersMap.clear();
-    (raw || []).forEach(row => {
-      const orderId = String(row[0] || '').trim();
-      if (orderId) {
-        pendingOrdersMap.set(orderId, {
-          orderId,
-          date:     String(row[1] || ''),
-          time:     String(row[2] || ''),
-          items:    String(row[3] || ''),
-          total:    String(row[4] || '0'),
-          products: safeParseProducts(row[5]),
-        });
-      }
+    (rows || []).forEach(row => {
+      const orderId = String(row.id);
+      // items is a JSONB array: [{id, name, qty, sub}, ...]
+      const itemsArr = Array.isArray(row.items) ? row.items : [];
+      const itemsStr = itemsArr.map(i => `${i.name} x${i.qty} (Rs.${i.sub})`).join(', ');
+      const createdAt = row.created_at || '';
+      const dateStr = createdAt ? istDateStr(createdAt) : '';  // IST date, not UTC
+      const timeStr = cleanSheetVal(createdAt);
+      pendingOrdersMap.set(orderId, {
+        orderId,
+        date:     dateStr,
+        time:     timeStr,
+        items:    itemsStr,
+        total:    String(row.total || '0'),
+        products: itemsArr.map(i => ({ id: i.id, qty: i.qty })),
+      });
     });
     renderPendingOrders();
   } catch(e) {
@@ -524,12 +648,11 @@ function closeApproveModal() { document.getElementById('approve-modal').classLis
 
 function rejectOrder(orderId) {
   if (!pendingOrdersMap.has(orderId)) { toast('Order not found'); return; }
-  // Remove from local map immediately
   pendingOrdersMap.delete(orderId);
   renderPendingOrders();
   toast('Order rejected');
-  // Fire-and-forget: mark as rejected in sheet (no stock change, no approval logic)
-  gasPost({ action: 'rejectOrder', orderId }).catch(() => {});
+  // Mark rejected in Supabase — fire-and-forget, no stock change
+  sbPatch(`orders?id=eq.${encodeURIComponent(orderId)}`, { status: 'rejected' }).catch(() => {});
 }
 
 async function confirmApprove() {
@@ -537,16 +660,23 @@ async function confirmApprove() {
   const btn = document.getElementById('approve-btn');
   btn.disabled = true; btn.textContent = 'Approving…';
   try {
-    await gasPost({
-      action: 'approveOrder', orderId: approveTarget.orderId,
-      date: approveTarget.date, time: approveTarget.time,
-      items: approveTarget.items, total: approveTarget.total,
-      products: approveTarget.products,
-    });
+    // 1. Mark order as approved in Supabase
+    await sbPatch(`orders?id=eq.${encodeURIComponent(approveTarget.orderId)}`, { status: 'approved' });
+
+    // 2. Deduct stock for each product — sequential to avoid race conditions
+    for (const prod of approveTarget.products) {
+      const p = allProducts.find(x => x.id === String(prod.id));
+      if (!p) continue;
+      const newStock = Math.max(0, p.stock - (parseInt(prod.qty, 10) || 0));
+      await sbPatch(`products?id=eq.${encodeURIComponent(prod.id)}`, { stock: newStock });
+      p.stock = newStock; // keep local state in sync
+    }
+
     toast('Order approved — sale recorded');
     closeApproveModal();
+    _cacheInvalidate('products');
     await delay(1800);
-    await Promise.all([loadProducts(), loadPendingOrders()]);
+    await Promise.all([loadProducts({ noCache: true }), loadPendingOrders()]);
   } catch(e) { toast('Approval failed'); }
   finally { btn.disabled = false; btn.textContent = 'Approve'; }
 }
@@ -578,14 +708,43 @@ function setSalesState(s) {
 }
 
 async function loadSales() {
-  const date = document.getElementById('date-select').value || new Date().toLocaleDateString('en-IN');
+  const dateLabel = document.getElementById('date-select').value || new Date().toLocaleDateString('en-IN');
   const icon = document.getElementById('refresh-icon');
   if (icon) icon.style.animation = 'spin .7s linear infinite';
   setSalesState('loading');
   try {
-    const raw = await gasGet('getSalesByDate', { date });
-    if (!raw || !raw.length) { setSalesState('empty'); updateSummary([]); return; }
-    const sales = raw.map(r => ({ time: cleanSheetVal(r[1]), items: String(r[2] || ''), total: parseFloat(r[3]) || 0 }));
+    // Parse "DD/MM/YYYY" (en-IN) back to a date range for ISO timestamp filtering
+    const parts = dateLabel.split('/');
+    let startISO, endISO;
+    if (parts.length === 3) {
+      const [day, month, year] = parts.map(Number);
+      // IST midnight = UTC 18:30 the previous calendar day (IST is UTC+5:30)
+      // So "23rd March IST" spans UTC 22nd 18:30 → 23rd 18:30
+      const IST_OFFSET_MS = 19800000; // 5.5 hours in ms
+      const istMidnight = Date.UTC(year, month - 1, day); // midnight IST as UTC date
+      const start = new Date(istMidnight - IST_OFFSET_MS); // subtract offset → UTC start
+      const end   = new Date(istMidnight - IST_OFFSET_MS + 86400000); // +24h → UTC end
+      startISO = start.toISOString();
+      endISO   = end.toISOString();
+    } else {
+      // Fallback: today in IST
+      const IST_OFFSET_MS = 19800000;
+      const nowIST = new Date(Date.now() + IST_OFFSET_MS);
+      const istMidnight = Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate());
+      const start = new Date(istMidnight - IST_OFFSET_MS);
+      const end   = new Date(istMidnight - IST_OFFSET_MS + 86400000);
+      startISO = start.toISOString();
+      endISO   = end.toISOString();
+    }
+    const rows = await sbGet(
+      `orders?status=eq.approved&created_at=gte.${encodeURIComponent(startISO)}&created_at=lt.${encodeURIComponent(endISO)}&order=created_at.asc&select=id,items,total,created_at`
+    );
+    if (!rows || !rows.length) { setSalesState('empty'); updateSummary([]); return; }
+    const sales = rows.map(r => {
+      const itemsArr = Array.isArray(r.items) ? r.items : [];
+      const itemsStr = itemsArr.map(i => `${i.name} x${i.qty} (Rs.${i.sub})`).join(', ');
+      return { id: r.id, time: cleanSheetVal(r.created_at), items: itemsStr, total: parseFloat(r.total) || 0 };
+    });
     renderSales(sales); updateSummary(sales);
   } catch(e) {
     setSalesState('empty'); toast('Failed to load sales');
@@ -597,10 +756,15 @@ async function loadSales() {
 function renderSales(sales) {
   setSalesState('data');
   document.getElementById('sales-tbody').innerHTML = [...sales].reverse().map(s => `
-    <tr>
+    <tr id="sale-row-${esc(String(s.id))}">
       <td style="font-family:'JetBrains Mono',monospace;font-size:.72rem;white-space:nowrap">${esc(s.time)}</td>
       <td style="font-size:.74rem;color:var(--t2)">${esc(s.items)}</td>
       <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--t1);white-space:nowrap">₹${s.total.toFixed(2)}</td>
+      <td style="width:36px;padding:10px 6px 10px 0;text-align:right">
+        <button class="sales-del-btn" onclick="askDeleteSale('${esc(String(s.id))}')" title="Delete sale">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+        </button>
+      </td>
     </tr>`).join('');
 }
 
@@ -611,9 +775,48 @@ function updateSummary(sales) {
   document.getElementById('s-avg').textContent     = sales.length ? (rev / sales.length).toFixed(0) : '0';
 }
 
+/* ═══════════════════════════════
+   DELETE SALE
+   ═══════════════════════════════ */
+function askDeleteSale(id) {
+  deleteSaleTarget = id;
+  document.getElementById('del-sale-modal').classList.remove('hidden');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+function closeDelSaleModal() {
+  document.getElementById('del-sale-modal').classList.add('hidden');
+  deleteSaleTarget = null;
+}
+async function confirmDeleteSale() {
+  if (!deleteSaleTarget) return;
+  const btn = document.getElementById('del-sale-btn');
+  btn.disabled = true; btn.textContent = 'Deleting…';
+  try {
+    await sbDelete(`orders?id=eq.${encodeURIComponent(deleteSaleTarget)}`);
+    // Remove row from DOM immediately — no full reload needed
+    const row = document.getElementById('sale-row-' + deleteSaleTarget);
+    if (row) row.remove();
+    toast('Sale deleted');
+    closeDelSaleModal();
+    // Update summary counts from remaining visible rows
+    const remaining = [...document.querySelectorAll('#sales-tbody tr')].map(tr => {
+      const cells = tr.querySelectorAll('td');
+      const totalText = cells[2] ? cells[2].textContent.replace('₹','').trim() : '0';
+      return parseFloat(totalText) || 0;
+    });
+    const rev = remaining.reduce((a, v) => a + v, 0);
+    document.getElementById('s-count').textContent   = remaining.length;
+    document.getElementById('s-revenue').textContent = rev.toFixed(0);
+    document.getElementById('s-avg').textContent     = remaining.length ? (rev / remaining.length).toFixed(0) : '0';
+  } catch(e) { toast('Delete failed'); }
+  finally { btn.disabled = false; btn.textContent = 'Delete'; deleteSaleTarget = null; }
+}
+
 document.addEventListener('click', e => {
-  if (e.target === document.getElementById('del-modal'))     closeDelModal();
-  if (e.target === document.getElementById('approve-modal')) closeApproveModal();
+  if (e.target === document.getElementById('del-modal'))      closeDelModal();
+  if (e.target === document.getElementById('approve-modal'))  closeApproveModal();
+  if (e.target === document.getElementById('edit-modal'))     closeEditModal();
+  if (e.target === document.getElementById('del-sale-modal')) closeDelSaleModal();
 });
 </script>
 </body>

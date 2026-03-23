@@ -2,6 +2,18 @@
 
 A lightweight, mobile-first point-of-sale web app for a small store. Built with vanilla HTML, CSS, and JavaScript. Uses Google Sheets as the database and Google Apps Script as the backend API. No frameworks, no build tools, no server required.
 
+
+<div align="center">
+
+### 🔗 [Live Access → satyam-64136.github.io/My-store](https://satyam-64136.github.io/My-store/)
+
+![Built with HTML](https://img.shields.io/badge/HTML-5-orange?style=flat-square)
+![Vanilla JS](https://img.shields.io/badge/JavaScript-Vanilla-yellow?style=flat-square)
+![No Build Tools](https://img.shields.io/badge/No%20Build%20Tools-✓-brightgreen?style=flat-square)
+![Mobile Ready](https://img.shields.io/badge/Mobile-Responsive-blue?style=flat-square)
+
+</div>
+
 ---
 
 ## Project Overview

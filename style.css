@@ -599,28 +599,51 @@ body {
 
 /* Product table responsive — card rows on mobile */
 @media (max-width:600px) {
-  .prod-row { display:grid; grid-template-columns:1fr auto; grid-template-rows:auto auto; gap:6px 8px; padding:10px 0; border-top:1px solid var(--b0); }
-  .prod-row td { padding:0; border:none; }
-  .prod-name { grid-column:1; grid-row:1; font-weight:600; color:var(--t1); font-size:.82rem; align-self:center; }
-  .prod-price { grid-column:2; grid-row:1; font-family:var(--f-mono); font-size:.78rem; text-align:right; color:var(--t2); align-self:center; }
-  .prod-stock-ctrl { grid-column:1; grid-row:2; align-self:center; }
-  .prod-badge { grid-column:2; grid-row:2; text-align:right; align-self:center; }
-  .prod-del { position:absolute; display:none; }
-  /* Show delete on long-press area or just hide for mobile — moved to name area */
-  .prod-name::after { content:''; }
-  /* Instead, show delete next to badge */
-  .prod-badge { display:flex; align-items:center; gap:6px; justify-content:flex-end; }
+  /* Switch table to block so we can use CSS grid per row */
+  .tbl, .tbl tbody { display:block; }
   .tbl thead { display:none; }
-  .tbl tbody tr.prod-row { display:grid; grid-template-columns:1fr auto; grid-template-rows:auto auto; padding:10px 12px; border-top:1px solid var(--b0); }
-  .tbl tbody tr.prod-row:first-child { border-top:none; }
-  /* Reset table layout for mobile */
-  .tbl, .tbl tbody, .tbl tr { display:block; }
-  .tbl tr.prod-row { display:grid; grid-template-columns:1fr auto; grid-template-rows:auto auto; column-gap:10px; row-gap:4px; padding:10px 0; }
-  .tbl td.prod-del { display:flex; grid-column:2; grid-row:1/3; align-items:center; justify-content:flex-end; width:28px; }
+  .tbl tr.prod-row {
+    display:grid;
+    /* 3 columns: [info] [stock+badge] [actions] */
+    grid-template-columns:1fr auto auto;
+    grid-template-rows:auto auto;
+    column-gap:8px; row-gap:4px;
+    padding:10px 4px;
+    border-top:1px solid var(--b0);
+  }
+  .tbl tr.prod-row:first-child { border-top:none; }
+  .tbl td { padding:0; border:none; }
+
+  /* Row 1 left: name */
+  .prod-name  { grid-column:1; grid-row:1; font-weight:600; color:var(--t1); font-size:.82rem; align-self:center; }
+  /* Row 2 left: stock controls */
+  .prod-stock-ctrl { grid-column:1; grid-row:2; align-self:center; }
+  /* Row 1 right: price */
+  .prod-price { grid-column:2; grid-row:1; font-family:var(--f-mono); font-size:.75rem; text-align:right; color:var(--t2); align-self:center; white-space:nowrap; }
+  /* Row 2 right: status badge */
+  .prod-badge { grid-column:2; grid-row:2; text-align:right; align-self:center; }
+  /* Both rows far-right: edit + delete — always visible */
+  .prod-del {
+    grid-column:3;
+    grid-row:1 / 3;       /* spans both rows */
+    display:flex !important;   /* override any hiding */
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    position:static !important;  /* never absolute */
+    overflow:visible !important;
+    min-width:32px;
+  }
+  /* Make buttons slightly larger for touch */
+  .prod-del .tbl-edit,
+  .prod-del .tbl-del { width:28px; height:28px; border-radius:7px; }
 }
 
-.tbl-del { width:24px; height:24px; border-radius:5px; background:transparent; border:1px solid var(--b0); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--t3); transition:background .12s,color .12s,border-color .12s; }
+.tbl-del { width:24px; height:24px; border-radius:5px; background:transparent; border:1px solid var(--b0); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--t3); transition:background .12s,color .12s,border-color .12s; flex-shrink:0; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
 .tbl-del:hover { background:rgba(214,79,79,.1); border-color:rgba(214,79,79,.2); color:var(--red); }
+.tbl-edit { width:24px; height:24px; border-radius:5px; background:transparent; border:1px solid var(--b0); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--t3); transition:background .12s,color .12s,border-color .12s; flex-shrink:0; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+.tbl-edit:hover { background:rgba(91,155,214,.1); border-color:rgba(91,155,214,.25); color:var(--sky); }
 
 .badge { display:inline-block; padding:2px 7px; border-radius:99px; font-family:var(--f-mono); font-size:.64rem; font-weight:600; }
 .badge-ok  { background:rgba(62,207,106,.09);  color:var(--green); border:1px solid rgba(62,207,106,.18); }
@@ -634,8 +657,10 @@ body {
 
 .sales-tbl { width:100%; border-collapse:collapse; }
 .sales-tbl th { text-align:left; font-family:var(--f-head); font-size:.6rem; font-weight:600; color:var(--t3); text-transform:uppercase; letter-spacing:.09em; padding:0 12px 10px; }
-.sales-tbl td { padding:10px 12px; font-size:.76rem; color:var(--t2); border-top:1px solid var(--b0); }
+.sales-tbl td { padding:10px 12px; font-size:.76rem; color:var(--t2); border-top:1px solid var(--b0); vertical-align:middle; }
 .sales-tbl tr:hover td { background:rgba(255,255,255,.012); }
+.sales-del-btn { width:24px; height:24px; border-radius:5px; background:transparent; border:1px solid var(--b0); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--t3); transition:background .12s,color .12s,border-color .12s; flex-shrink:0; touch-action:manipulation; }
+.sales-del-btn:hover { background:rgba(214,79,79,.1); border-color:rgba(214,79,79,.2); color:var(--red); }
 
 /* ════════════════════════════════════
    PAYMENT PAGE
