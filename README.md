@@ -4,9 +4,6 @@ A lightweight, mobile-first point-of-sale web app for a small store. Built with 
 
 ---
 
-### 🔗 [Live Access → satyam-64136.github.io/My-store](https://satyam-64136.github.io/My-store/)
-
----
 ## Project Overview
 
 Customers browse products, add items to a cart, and complete payment via UPI. Orders are saved as pending and must be approved by an admin before stock is deducted and the sale is recorded. The admin panel handles product management, stock control, order approval or rejection, and sales history — all from the same interface.
