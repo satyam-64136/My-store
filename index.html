@@ -17,6 +17,14 @@
 </head>
 <body>
 
+<div id="store-closed-overlay" class="store-closed-overlay hidden" aria-live="polite">
+  <div class="store-closed-card">
+    <div class="store-closed-emoji">🛍️</div>
+    <h2>Store Temporarily Closed</h2>
+    <p>We’ll be back soon. You can still browse products in the meantime.</p>
+  </div>
+</div>
+
 <!-- ════ LOADER ════ (original colours untouched) -->
 <div id="page-loader">
   <svg aria-label="hourglass loader" role="img" height="56px" width="56px" viewBox="0 0 56 56" class="loader">
@@ -221,13 +229,29 @@ const UPI_ID = 'satyamm@fam';
 const STORE  = "Your's Store";
 // Paste your deployed Apps Script Web App URL here after deploying sync-orders-to-sheets.gs
 const ORDERS_WEBHOOK = '';  // e.g. 'https://script.google.com/macros/s/.../exec'
+const STORE_STATUS_KEY = 'ss_store_closed';
 
 let allProducts = [], cart = {};
 let cartData = {}, productsData = [], cartTotal = 0;
 
+function isStoreClosed() {
+  try { return localStorage.getItem(STORE_STATUS_KEY) === 'true'; }
+  catch(_) { return false; }
+}
+
+function checkStoreStatus() {
+  const closed = isStoreClosed();
+  const overlay = document.getElementById('store-closed-overlay');
+  if (overlay) overlay.classList.toggle('hidden', !closed);
+  updateCartBar();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const saved = sessionStorage.getItem('ss_cart');
   if (saved) { try { cart = JSON.parse(saved); } catch(e){} }
+  checkStoreStatus();
+  window.addEventListener('storage', (e) => { if (e.key === STORE_STATUS_KEY) checkStoreStatus(); });
+  window.addEventListener('focus', checkStoreStatus);
 
   // Show cached products instantly — zero-wait first paint
   const cached = _cacheGet(_cacheKey('products'));
@@ -341,6 +365,7 @@ function changeQty(id, delta) {
 }
 
 function updateCartBar() {
+  const closed = isStoreClosed();
   let count = 0, total = 0;
   for (const [id, qty] of Object.entries(cart)) {
     const p = allProducts.find(x => x.id === id);
@@ -348,10 +373,11 @@ function updateCartBar() {
   }
   document.getElementById('cart-count').textContent = count;
   document.getElementById('cart-total').textContent = total.toFixed(2);
-  document.getElementById('proceed-btn').disabled = count === 0;
+  document.getElementById('proceed-btn').disabled = closed || count === 0;
 }
 
 function proceedToPayment() {
+  if (isStoreClosed()) { toast('Store is currently closed. Please come back later.'); return; }
   if (!Object.keys(cart).length) { toast('Add items first'); return; }
   cartData = cart;
   productsData = allProducts;
