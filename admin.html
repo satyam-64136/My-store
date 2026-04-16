@@ -78,6 +78,21 @@
   <div class="page-wrap" style="padding-top:calc(54px + 16px);padding-bottom:40px">
     <div class="page-title">Admin Panel</div>
 
+    <div class="card store-status-panel">
+      <div class="card-title-row" style="margin-bottom:10px;padding-bottom:10px">
+        <span style="display:flex;align-items:center;gap:6px;font-size:.82rem;font-weight:600;color:var(--t1)">
+          <i data-lucide="store" style="width:13px;height:13px;color:var(--t2)"></i> Store Status
+        </span>
+      </div>
+      <div class="store-status-row">
+        <span id="store-status-badge" class="badge badge-store-open">Open</span>
+        <button id="store-status-toggle" class="btn-sm" onclick="toggleStoreStatus()">
+          <i data-lucide="power" style="width:10px;height:10px"></i>
+          <span id="store-status-toggle-text">Close Store</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Tab bar: Products/Orders | Sales -->
     <div class="tab-bar">
       <button class="tab-btn active" id="tab-admin" onclick="switchTab('admin')">
@@ -285,6 +300,7 @@
 <script>
 const PASS = '@satyam64136';
 const SK = 'ss_admin_auth';
+const STORE_STATUS_KEY = 'ss_store_closed';
 
 let allProducts       = [];
 let deleteTargetId    = null;
@@ -292,6 +308,34 @@ let approveTarget     = null;
 let editTarget        = null;
 let deleteSaleTarget  = null;  // { id, rowEl } for sale deletion
 const pendingOrdersMap = new Map();
+
+function isStoreClosed() {
+  try { return localStorage.getItem(STORE_STATUS_KEY) === 'true'; }
+  catch(_) { return false; }
+}
+
+function setStoreClosed(closed) {
+  try { localStorage.setItem(STORE_STATUS_KEY, closed ? 'true' : 'false'); }
+  catch(_) {}
+}
+
+function updateStoreStatusUI() {
+  const closed = isStoreClosed();
+  const badge = document.getElementById('store-status-badge');
+  const toggleText = document.getElementById('store-status-toggle-text');
+  if (!badge || !toggleText) return;
+  badge.textContent = closed ? 'Closed' : 'Open';
+  badge.classList.toggle('badge-store-closed', closed);
+  badge.classList.toggle('badge-store-open', !closed);
+  toggleText.textContent = closed ? 'Open Store' : 'Close Store';
+}
+
+function toggleStoreStatus() {
+  const closed = !isStoreClosed();
+  setStoreClosed(closed);
+  updateStoreStatusUI();
+  toast(closed ? 'Store marked as closed' : 'Store marked as open');
+}
 
 /* ═══════════════════════════════
    TAB SWITCHER
@@ -316,6 +360,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (sessionStorage.getItem(SK) === 'true') showAdmin();
   const pw = document.getElementById('pw');
   if (pw) pw.focus();
+  updateStoreStatusUI();
+  window.addEventListener('storage', (e) => { if (e.key === STORE_STATUS_KEY) updateStoreStatusUI(); });
   // Lucide deferred — init when script is ready
   if (typeof lucide !== 'undefined') lucide.createIcons();
   else document.querySelector('script[src*="lucide"]')
