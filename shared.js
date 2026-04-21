@@ -1,211 +1,200 @@
-// ═══════════════════════════════════════════════════════════
-//  Satyam's Store — Shared Utility Functions
-//  Used by both index.html and admin.html
-// ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════
+   Satyam's Store — shared.js
+   Backend: Supabase REST API (direct, no SDK)
+   ═══════════════════════════════════════════ */
 
 const SB_URL = 'https://jrmctduwylpeicjcbmqs.supabase.co';
-// ⚠️  If you see auth errors, regenerate your anon key in Supabase Dashboard →
-//     Project Settings → API, and paste the new key here.
 const SB_KEY = 'sb_publishable_E3W5FNr_zAmej5fLElsvCA_OeDkde6L';
 
-/* ── Supabase Helpers ────────────────────────────────── */
-async function sbRequest(path, method = 'GET', body = null) {
-  const headers = {
-    'apikey': SB_KEY,
+/* ── Supabase REST helpers ─────────────────────────────── */
+
+function _sbHeaders(extras = {}) {
+  return {
+    'apikey':        SB_KEY,
     'Authorization': 'Bearer ' + SB_KEY,
-    'Content-Type': 'application/json',
+    'Content-Type':  'application/json',
+    'Prefer':        'return=representation',
+    ...extras,
   };
-  // Needed for POST/PATCH to return the upserted row(s) instead of empty 201/204
-  if (method === 'POST' || method === 'PATCH') {
-    headers['Prefer'] = 'return=representation';
-  }
-  const options = {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : null
-  };
+}
 
-  let res;
-  try {
-    res = await fetch(`${SB_URL}/rest/v1/${path}`, options);
-  } catch (networkErr) {
-    const err = new Error('Network error — check your internet connection and try again.');
-    err.type = 'network';
-    throw err;
-  }
-
-  if (!res.ok) {
-    let errorText = '';
-    try { errorText = await res.text(); } catch(_) {}
-    let msg, type;
-    if (res.status === 401 || res.status === 403) {
-      msg = 'API key error — open Supabase Dashboard → Project Settings → API and paste a fresh anon key into shared.js.';
-      type = 'auth';
-    } else if (res.status === 404) {
-      msg = 'Table not found — make sure the Supabase table exists and RLS allows reads.';
-      type = 'notfound';
-    } else if (res.status >= 500) {
-      msg = 'Supabase server error — try again in a moment.';
-      type = 'server';
-    } else {
-      msg = `Request failed (${res.status})${errorText ? ': ' + errorText.slice(0, 120) : ''}.`;
-      type = 'unknown';
+// GET  /rest/v1/<table>?<query>
+async function sbGet(tableAndQuery) {
+  const res = await fetch(
+    `${SB_URL}/rest/v1/${tableAndQuery}`,
+    {
+      headers: {
+        'apikey':        SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        // Omit Content-Type and Prefer on GETs — only needed for writes
+      }
     }
-    const err = new Error(msg);
-    err.type = type;
-    err.status = res.status;
-    throw err;
+  );
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        'Supabase auth failed (' + res.status + '). ' +
+        'The API key may be wrong. Go to Supabase dashboard → Settings → API ' +
+        'and copy the anon/public key (starts with eyJ). ' +
+        'Update SB_KEY in shared.js.'
+      );
+    }
+    throw new Error('sbGet ' + res.status + ': ' + txt.slice(0, 200));
   }
-
-  if (res.status === 204) return null; // No content for PATCH/DELETE
   return res.json();
 }
 
-const sbGet = (path) => sbRequest(path, 'GET');
-const sbPost = (path, body) => sbRequest(path, 'POST', body);
-const sbPatch = (path, body) => sbRequest(path, 'PATCH', body);
-const sbDelete = (path) => sbRequest(path, 'DELETE');
-
-const _DEFAULT_CONFIG = { storeStatus: 'open', autoCloseEnabled: false, autoCloseTime: '03:00', lastAutoCloseDate: '' };
-
-async function getStoreConfig() {
-  try {
-    const data = await sbGet('settings?key=eq.store_config&select=value');
-    if (data && data.length > 0) {
-      // Merge with defaults so any missing keys never cause undefined errors
-      return { ..._DEFAULT_CONFIG, ...(data[0].value || {}) };
-    }
-    // Row doesn't exist yet — create it silently so future reads/writes work
-    try {
-      await sbRequest('settings', 'POST', { key: 'store_config', value: _DEFAULT_CONFIG });
-    } catch (_) { /* ignore duplicate / permission errors */ }
-    return { ..._DEFAULT_CONFIG };
-  } catch (error) {
-    console.error("Failed to get store config:", error);
-    // Return safe open default — don't block the UI with a toast on first load
-    return { ..._DEFAULT_CONFIG };
+// POST /rest/v1/<table>  — insert one row, returns inserted row
+async function sbPost(table, body) {
+  const res = await fetch(
+    `${SB_URL}/rest/v1/${table}`,
+    { method: 'POST', headers: _sbHeaders(), body: JSON.stringify(body) }
+  );
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`sbPost ${res.status} ${txt}`);
   }
+  return res.json();
 }
 
-async function setStoreConfig(patch) {
-  const currentConfig = await getStoreConfig();
-  const newConfig = { ...currentConfig, ...patch };
-  // Use PATCH with upsert header so it works whether the row exists or not
-  try {
-    await sbRequest(
-      'settings?key=eq.store_config',
-      'PATCH',
-      { value: newConfig }
-    );
-  } catch (e) {
-    // Fallback: insert if PATCH fails (row truly missing)
-    try {
-      await sbRequest('settings', 'POST', { key: 'store_config', value: newConfig });
-    } catch (_) {}
+// PATCH /rest/v1/<table>?<filter>  — update matching rows
+async function sbPatch(tableAndFilter, body) {
+  const res = await fetch(
+    `${SB_URL}/rest/v1/${tableAndFilter}`,
+    { method: 'PATCH', headers: _sbHeaders(), body: JSON.stringify(body) }
+  );
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`sbPatch ${res.status} ${txt}`);
   }
-  return newConfig;
+  return res.json();
 }
 
+// DELETE /rest/v1/<table>?<filter>
+async function sbDelete(tableAndFilter) {
+  const res = await fetch(
+    `${SB_URL}/rest/v1/${tableAndFilter}`,
+    { method: 'DELETE', headers: _sbHeaders({ 'Prefer': 'return=minimal' }) }
+  );
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`sbDelete ${res.status} ${txt}`);
+  }
+  return true;
+}
 
-/* ── Caching Helpers ─────────────────────────────────── */
-const _cacheKey = (k) => `ss_cache_${k}`;
-const _cacheGet = (key) => {
-  const item = localStorage.getItem(key);
-  if (!item) return null;
+/* ── Cache layer ───────────────────────────────────────── */
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function _cacheKey(label) {
+  return 'ss_cache__' + label;
+}
+function _cacheGet(key) {
   try {
-    const { timestamp, data } = JSON.parse(item);
-    if (Date.now() - timestamp > 3 * 60 * 1000) { // 3 min cache
-      localStorage.removeItem(key);
-      return null;
-    }
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL) { localStorage.removeItem(key); return null; }
     return data;
   } catch { return null; }
-};
-const _cacheSet = (key, data) => {
+}
+function _cacheSet(key, data) {
+  try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch {}
+}
+function _cacheInvalidate(label) {
   try {
-    localStorage.setItem(key, JSON.stringify({ timestamp: Date.now(), data }));
+    const prefix = 'ss_cache__' + label;
+    Object.keys(localStorage).forEach(k => { if (k.startsWith(prefix)) localStorage.removeItem(k); });
   } catch {}
-};
-const _cacheInvalidate = (keyPrefix) => {
-  try {
-    const fullKey = _cacheKey(keyPrefix);
-    localStorage.removeItem(fullKey);
-  } catch {}
-};
+}
 
-/* ── UI & Utility Helpers ────────────────────────────── */
-let toastTimeout;
-function toast(msg) {
+/* ── Product helpers ───────────────────────────────────── */
+
+// Supabase products rows -> internal product objects
+function parseProducts(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map(r => ({
+      id:    String(r.id   ?? '').trim(),
+      name:  String(r.name ?? '').trim(),
+      price: parseFloat(r.price)   || 0,
+      stock: parseInt(r.stock, 10) || 0,
+      image: String(r.image ?? '').trim(),
+    }))
+    .filter(p => p.id && p.name);
+}
+
+/* ── Utility ───────────────────────────────────────────── */
+
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+let _tt;
+function toast(msg, dur = 3000) {
   const el = document.getElementById('toast');
   if (!el) return;
   el.textContent = msg;
   el.classList.remove('hidden');
-  clearTimeout(toastTimeout);
-  toastTimeout = setTimeout(() => el.classList.add('hidden'), 2200);
+  clearTimeout(_tt);
+  _tt = setTimeout(() => el.classList.add('hidden'), dur);
 }
-
-function esc(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
 
 function hideLoader() {
-  const loader = document.getElementById('page-loader');
-  if (loader) {
-    loader.classList.add('fade-out');
-    setTimeout(() => {
-      loader.style.display = 'none';
-    }, 500);
-  }
+  const el = document.getElementById('page-loader');
+  if (!el) return;
+  el.classList.add('fade-out');
+  setTimeout(() => { el.style.display = 'none'; }, 520);
 }
 
-function placeholderSVG() {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-3.086-3.086a2 2 0 0 0-2.828 0L6 22"/><path d="m15.5 6-3-3a2 2 0 0 0-2.828 0L2 11.5"/><path d="m14 17 5.3-5.3a2 2 0 0 0 0-2.828L12 1.5"/><path d="m2 2 5.07-5.07"/><path d="m22 22-5.07 5.07"/></svg>`;
-}
-
-function parseProducts(rows) {
-  return (rows || []).map(p => ({
-    id: String(p.id),
-    name: p.name || 'Unnamed Product',
-    price: parseFloat(p.price) || 0,
-    stock: parseInt(p.stock, 10) || 0,
-    image: p.image || ''
-  }));
-}
-
+// Format Supabase UTC timestamp -> IST date + time string
+// Supabase always stores UTC. IST = UTC + 5h 30m.
+// We add the offset to the epoch then read UTC fields — zero
+// runtime-timezone interference, correct on any device/server.
 function cleanSheetVal(val) {
   if (!val) return '';
   try {
-    // Attempt to parse as ISO string first for accuracy
+    // Let the JS engine parse the timestamp (handles +05:30, Z, bare UTC, etc.)
+    // Then read local time fields — correct on any device in IST automatically.
     const d = new Date(val);
-    if (isNaN(d.getTime())) return String(val); // Fallback for non-standard formats
-    const hours = d.getHours();
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const displayHours = hours % 12 || 12;
-    return `${displayHours}:${minutes} ${ampm}`;
-  } catch (e) {
-    return String(val);
-  }
+    if (isNaN(d.getTime())) {
+      // Fallback: try appending Z in case it's a bare UTC string with no suffix
+      const d2 = new Date(String(val).replace(/\s/, 'T') + 'Z');
+      if (isNaN(d2.getTime())) return String(val);
+      return _fmtTime(d2);
+    }
+    return _fmtTime(d);
+  } catch { return String(val); }
+}
+function _fmtTime(d) {
+  const hh   = d.getHours();
+  const min  = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hh >= 12 ? 'PM' : 'AM';
+  const h12  = (hh % 12) || 12;
+  return String(h12).padStart(2, '0') + ':' + min + ' ' + ampm;
 }
 
+// Return IST date string "DD/MM/YYYY" from a Supabase UTC timestamp
 function istDateStr(val) {
-    if (!val) return '';
-    try {
-        const d = new Date(val);
-        if (isNaN(d.getTime())) return '';
-        // Manually format to dd/mm/yyyy to avoid locale issues
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        return `${day}/${month}/${year}`;
-    } catch {
-        return '';
+  if (!val) return '';
+  try {
+    let d = new Date(val);
+    if (isNaN(d.getTime())) {
+      d = new Date(String(val).replace(/\s/, 'T') + 'Z');
     }
+    if (isNaN(d.getTime())) return String(val);
+    return String(d.getDate()).padStart(2,'0') + '/' +
+           String(d.getMonth() + 1).padStart(2,'0') + '/' +
+           d.getFullYear();
+  } catch { return String(val); }
+}
+
+function placeholderSVG() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="1.2" opacity=".25"><rect x="2" y="7" width="20" height="14" rx="2"/><circle cx="12" cy="14" r="3"/><path d="M2 10h20"/></svg>';
 }
