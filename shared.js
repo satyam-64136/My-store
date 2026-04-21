@@ -187,46 +187,50 @@ function hideLoader() {
   setTimeout(() => { el.style.display = 'none'; }, 520);
 }
 
-// Format Supabase UTC timestamp -> IST date + time string
-// Supabase always stores UTC. IST = UTC + 5h 30m.
-// We add the offset to the epoch then read UTC fields — zero
-// runtime-timezone interference, correct on any device/server.
+// Format Supabase timestamp -> IST time string (HH:MM AM/PM)
+// Supabase timestamps may come with or without timezone info.
+// Strategy: normalise to UTC epoch, then add IST offset (+5:30), read UTC fields.
 function cleanSheetVal(val) {
   if (!val) return '';
   try {
-    // Let the JS engine parse the timestamp (handles +05:30, Z, bare UTC, etc.)
-    // Then read local time fields — correct on any device in IST automatically.
-    const d = new Date(val);
-    if (isNaN(d.getTime())) {
-      // Fallback: try appending Z in case it's a bare UTC string with no suffix
-      const d2 = new Date(String(val).replace(/\s/, 'T') + 'Z');
-      if (isNaN(d2.getTime())) return String(val);
-      return _fmtTime(d2);
-    }
-    return _fmtTime(d);
+    const ms = _toUTCms(val);
+    if (ms === null) return String(val);
+    // Shift to IST: UTC + 5h30m = +19800000ms
+    const ist = new Date(ms + 19800000);
+    const hh  = ist.getUTCHours();
+    const min = String(ist.getUTCMinutes()).padStart(2, '0');
+    const ampm = hh >= 12 ? 'PM' : 'AM';
+    const h12  = (hh % 12) || 12;
+    return String(h12).padStart(2, '0') + ':' + min + ' ' + ampm;
   } catch { return String(val); }
 }
-function _fmtTime(d) {
-  const hh   = d.getHours();
-  const min  = String(d.getMinutes()).padStart(2, '0');
-  const ampm = hh >= 12 ? 'PM' : 'AM';
-  const h12  = (hh % 12) || 12;
-  return String(h12).padStart(2, '0') + ':' + min + ' ' + ampm;
-}
 
-// Return IST date string "DD/MM/YYYY" from a Supabase UTC timestamp
+// Return IST date string "DD/MM/YYYY" from a Supabase timestamp
 function istDateStr(val) {
   if (!val) return '';
   try {
-    let d = new Date(val);
-    if (isNaN(d.getTime())) {
-      d = new Date(String(val).replace(/\s/, 'T') + 'Z');
-    }
-    if (isNaN(d.getTime())) return String(val);
-    return String(d.getDate()).padStart(2,'0') + '/' +
-           String(d.getMonth() + 1).padStart(2,'0') + '/' +
-           d.getFullYear();
+    const ms = _toUTCms(val);
+    if (ms === null) return String(val);
+    const ist = new Date(ms + 19800000);
+    return String(ist.getUTCDate()).padStart(2, '0') + '/' +
+           String(ist.getUTCMonth() + 1).padStart(2, '0') + '/' +
+           ist.getUTCFullYear();
   } catch { return String(val); }
+}
+
+// Parse any Supabase timestamp to a UTC epoch ms value.
+// Handles: "2026-04-21T10:24:00+00:00", "2026-04-21T10:24:00Z",
+//          "2026-04-21T10:24:00.123456+05:30", "2026-04-21T10:24:00" (bare, assumed UTC)
+function _toUTCms(val) {
+  const s = String(val).trim();
+  // Already has timezone info — let the engine parse it (unambiguous)
+  if (/[Zz]$/.test(s) || /[+-]\d{2}:\d{2}$/.test(s)) {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d.getTime();
+  }
+  // Bare timestamp with no timezone — treat as UTC by appending Z
+  const d = new Date(s.replace(' ', 'T') + 'Z');
+  return isNaN(d.getTime()) ? null : d.getTime();
 }
 
 function placeholderSVG() {
