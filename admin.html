@@ -11,6 +11,74 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
   <noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/></noscript>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+  <style>
+  /* ── Order / Sale cards (replaces cramped tables on mobile) ── */
+  .order-card {
+    padding: 11px 0;
+    border-bottom: 1px solid var(--b0);
+  }
+  .order-card:last-child { border-bottom: none; }
+  .order-card:first-child { padding-top: 4px; }
+
+  .order-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 5px;
+  }
+  .order-card-time {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-family: var(--f-mono);
+    font-size: .72rem;
+    color: var(--t2);
+    white-space: nowrap;
+  }
+  .order-card-date {
+    font-size: .62rem;
+    color: var(--t3);
+  }
+  .order-card-total {
+    font-family: var(--f-mono);
+    font-size: .88rem;
+    font-weight: 700;
+    color: var(--t1);
+    white-space: nowrap;
+  }
+  .order-card-items {
+    font-size: .72rem;
+    color: var(--t3);
+    line-height: 1.55;
+    margin-bottom: 8px;
+    word-break: break-word;
+  }
+  .order-card-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  /* Sale QR button on sale cards */
+  .sale-qr-btn {
+    width: 26px; height: 26px; border-radius: 6px;
+    background: rgba(91,155,214,.08); border: 1px solid rgba(91,155,214,.2);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--sky); flex-shrink: 0;
+    transition: background .12s, border-color .12s;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  .sale-qr-btn:hover { background: rgba(91,155,214,.18); border-color: rgba(91,155,214,.4); }
+
+  /* QR display box inside the modal */
+  .sale-qr-box {
+    width: 200px; height: 200px; margin: 0 auto;
+    background: #fff; border-radius: var(--r2);
+    display: flex; align-items: center; justify-content: center; padding: 8px;
+    border: 2px solid rgba(255,255,255,.12);
+    box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 0 0 4px rgba(255,255,255,.04);
+  }
+  </style>
 </head>
 <body>
 
@@ -149,11 +217,8 @@
           </button>
         </div>
         <div id="pending-empty" class="hidden" style="text-align:center;padding:20px;color:var(--t3);font-size:.76rem">No pending orders</div>
-        <div id="pending-table" class="hidden" style="overflow-x:auto">
-          <table class="tbl">
-            <thead><tr><th>Time / Date</th><th>Items</th><th style="text-align:right">Total</th><th></th></tr></thead>
-            <tbody id="pending-tbody"></tbody>
-          </table>
+        <div id="pending-table" class="hidden">
+          <div id="pending-tbody"></div>
         </div>
       </div>
 
@@ -220,13 +285,19 @@
 
     <!-- ── TAB: Sales History ── -->
     <div class="tab-panel" id="panel-sales">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-        <div style="font-size:.85rem;font-weight:600;color:var(--t1)">Sales History</div>
-        <div style="display:flex;align-items:center;gap:7px">
-          <select id="date-select" class="date-select" onchange="loadSales()"></select>
+      <div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+          <div style="font-size:.85rem;font-weight:600;color:var(--t1)">Sales History</div>
           <button onclick="loadSales()" class="btn-sm">
             <i data-lucide="refresh-cw" style="width:10px;height:10px" id="refresh-icon"></i> Refresh
           </button>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+          <select id="date-select" class="date-select" onchange="loadSales()" style="flex:1;min-width:140px"></select>
+          <div style="display:flex;align-items:center;gap:5px">
+            <input type="date" id="custom-date-input" class="date-select" style="font-size:.72rem;padding:5px 8px" title="Pick any date"/>
+            <button onclick="loadSalesByCustomDate()" class="btn-sm">Go</button>
+          </div>
         </div>
       </div>
 
@@ -244,11 +315,8 @@
           <i data-lucide="inbox" style="width:26px;height:26px;opacity:.18;margin-bottom:7px;display:block"></i>
           No sales for this date.
         </div>
-        <div id="sales-table" class="hidden" style="overflow-x:auto">
-          <table class="sales-tbl">
-            <thead><tr><th>Time</th><th>Items</th><th style="text-align:right">Total</th><th></th></tr></thead>
-            <tbody id="sales-tbody"></tbody>
-          </table>
+        <div id="sales-table" class="hidden">
+          <div id="sales-tbody"></div>
         </div>
       </div>
     </div>
@@ -724,26 +792,26 @@ function renderPendingOrders() {
   countEl.textContent = pendingOrdersMap.size;
   document.getElementById('pending-tbody').innerHTML =
     [...pendingOrdersMap.values()].map(order => `
-    <tr>
-      <td style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--t2);white-space:nowrap">
-        ${esc(order.time)}<br><span style="font-size:.62rem;color:var(--t3)">${esc(order.date)}</span>
-      </td>
-      <td style="font-size:.73rem;color:var(--t2);max-width:200px">${esc(order.items)}</td>
-      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--t1);white-space:nowrap">
-        ₹${parseFloat(order.total).toFixed(2)}
-      </td>
-      <td>
-        <div style="display:flex;gap:5px;align-items:center">
-          <button class="btn-sm approve" onclick="askApprove('${esc(order.orderId)}')">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-            Approve
-          </button>
-          <button class="btn-sm reject" onclick="rejectOrder('${esc(order.orderId)}')" title="Reject order">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+    <div class="order-card">
+      <div class="order-card-head">
+        <div class="order-card-time">
+          <span>${esc(order.time)}</span>
+          <span class="order-card-date">${esc(order.date)}</span>
         </div>
-      </td>
-    </tr>`).join('');
+        <div class="order-card-total">₹${parseFloat(order.total).toFixed(2)}</div>
+      </div>
+      <div class="order-card-items">${esc(order.items)}</div>
+      <div class="order-card-actions">
+        <button class="btn-sm approve" onclick="askApprove('${esc(order.orderId)}')">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          Approve
+        </button>
+        <button class="btn-sm reject" onclick="rejectOrder('${esc(order.orderId)}')" title="Reject order">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Reject
+        </button>
+      </div>
+    </div>`).join('');
   lucide.createIcons();
 }
 
@@ -804,7 +872,7 @@ function populateDates() {
   datesPopulated = true;
   const sel = document.getElementById('date-select');
   const today = new Date();
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 365; i++) {
     const d = new Date(today); d.setDate(today.getDate() - i);
     const label = d.toLocaleDateString('en-IN');
     const opt = document.createElement('option');
@@ -813,6 +881,29 @@ function populateDates() {
     if (i === 0) opt.selected = true;
     sel.appendChild(opt);
   }
+}
+
+function loadSalesByCustomDate() {
+  const inp = document.getElementById('custom-date-input');
+  if (!inp || !inp.value) return;
+  const [year, month, day] = inp.value.split('-').map(Number);
+  const label = String(day).padStart(2,'0') + '/' + String(month).padStart(2,'0') + '/' + year;
+  // Set dropdown to matching option if exists, else just load directly
+  const sel = document.getElementById('date-select');
+  let found = false;
+  for (const opt of sel.options) {
+    if (opt.value === label) { sel.value = label; found = true; break; }
+  }
+  if (!found) {
+    // Insert a temporary option for this date
+    const opt = document.createElement('option');
+    opt.value = label; opt.textContent = label; opt.id = 'custom-date-opt';
+    const old = document.getElementById('custom-date-opt');
+    if (old) old.remove();
+    sel.insertBefore(opt, sel.firstChild);
+    sel.value = label;
+  }
+  loadSales();
 }
 
 function setSalesState(s) {
@@ -867,16 +958,21 @@ async function loadSales() {
 function renderSales(sales) {
   setSalesState('data');
   document.getElementById('sales-tbody').innerHTML = [...sales].reverse().map(s => `
-    <tr id="sale-row-${esc(String(s.id))}">
-      <td style="font-family:'JetBrains Mono',monospace;font-size:.72rem;white-space:nowrap">${esc(s.time)}</td>
-      <td style="font-size:.74rem;color:var(--t2)">${esc(s.items)}</td>
-      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--t1);white-space:nowrap">₹${s.total.toFixed(2)}</td>
-      <td style="width:36px;padding:10px 6px 10px 0;text-align:right">
-        <button class="sales-del-btn" onclick="askDeleteSale('${esc(String(s.id))}')" title="Delete sale">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
-        </button>
-      </td>
-    </tr>`).join('');
+    <div class="order-card" id="sale-row-${esc(String(s.id))}">
+      <div class="order-card-head">
+        <div class="order-card-time"><span>${esc(s.time)}</span></div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="order-card-total">₹${s.total.toFixed(2)}</div>
+          <button class="sale-qr-btn" onclick="showSaleQR(${s.total}, '${esc(s.items)}')" title="Show payment QR">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3"/><rect x="18" y="14" width="3" height="3"/><rect x="14" y="18" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/></svg>
+          </button>
+          <button class="sales-del-btn" onclick="askDeleteSale('${esc(String(s.id))}')" title="Delete sale">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="order-card-items">${esc(s.items)}</div>
+    </div>`).join('');
 }
 
 function updateSummary(sales) {
@@ -906,10 +1002,9 @@ async function confirmDeleteSale() {
     toast('Sale deleted');
     closeDelSaleModal();
 
-    const remaining = [...document.querySelectorAll('#sales-tbody tr')].map(tr => {
-      const cells = tr.querySelectorAll('td');
-      const totalText = cells[2] ? cells[2].textContent.replace('₹','').trim() : '0';
-      return parseFloat(totalText) || 0;
+    const remaining = [...document.querySelectorAll('#sales-tbody .order-card')].map(card => {
+      const tot = card.querySelector('.order-card-total');
+      return parseFloat((tot ? tot.textContent : '0').replace('₹','').trim()) || 0;
     });
     const rev = remaining.reduce((a, v) => a + v, 0);
     document.getElementById('s-count').textContent   = remaining.length;
@@ -922,6 +1017,103 @@ async function confirmDeleteSale() {
     deleteSaleTarget = null;
   }
 }
+
+/* ── Sale QR modal ─────────────────────────────────────── */
+const SALE_UPI_ID = 'satyamm@fam';
+const SALE_STORE  = "Satyam's Store";
+let _saleQRUrl = '';
+let _saleQRCopyTimeout = null;
+
+function showSaleQR(total, items) {
+  const link = `upi://pay?pa=${SALE_UPI_ID}&pn=${encodeURIComponent(SALE_STORE)}&am=${parseFloat(total).toFixed(2)}&cu=INR`;
+  _saleQRUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(link)}`;
+
+  document.getElementById('sale-qr-items').textContent  = items || '';
+  document.getElementById('sale-qr-total').textContent  = '\u20B9' + parseFloat(total).toFixed(2);
+  document.getElementById('sale-qr-upi-id').textContent = SALE_UPI_ID;
+
+  const img     = document.getElementById('sale-qr-img');
+  const spinner = document.getElementById('sale-qr-spinner');
+  img.style.display     = 'none';
+  spinner.style.display = 'flex';
+  img.onload  = () => { spinner.style.display = 'none'; img.style.display = 'block'; };
+  img.onerror = () => { spinner.innerHTML = '<p style="font-size:.65rem;color:var(--t3)">QR unavailable</p>'; };
+  img.src = _saleQRUrl;
+
+  document.getElementById('sale-qr-modal').classList.remove('hidden');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function closeSaleQRModal() {
+  document.getElementById('sale-qr-modal').classList.add('hidden');
+  _saleQRUrl = '';
+  const img = document.getElementById('sale-qr-img');
+  img.src = ''; img.style.display = 'none';
+  document.getElementById('sale-qr-spinner').style.display = 'flex';
+}
+
+function copySaleUPI() {
+  navigator.clipboard.writeText(SALE_UPI_ID).then(() => {
+    const lbl = document.getElementById('sale-qr-copy-lbl');
+    lbl.textContent = 'Copied!';
+    clearTimeout(_saleQRCopyTimeout);
+    _saleQRCopyTimeout = setTimeout(() => { lbl.textContent = 'Copy'; }, 2000);
+  }).catch(() => toast('Copy failed'));
+}
+
+async function saveSaleQR() {
+  if (!_saleQRUrl) { toast('QR not ready'); return; }
+  try {
+    const res  = await fetch(_saleQRUrl);
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'payment-qr.png';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('QR saved!');
+  } catch(e) { toast('Download failed'); }
+}
+
+document.addEventListener('click', e => {
+  if (e.target === document.getElementById('sale-qr-modal')) closeSaleQRModal();
+});
+
 </script>
+
+<div id="sale-qr-modal" class="overlay hidden">
+  <div class="modal" style="max-width:340px;text-align:center">
+    <div class="modal-head" style="justify-content:center;position:relative">
+      <div class="modal-title">Payment QR</div>
+      <button class="modal-close" onclick="closeSaleQRModal()" style="position:absolute;right:0">
+        <i data-lucide="x" style="width:13px;height:13px"></i>
+      </button>
+    </div>
+    <div id="sale-qr-items" style="font-size:.7rem;color:var(--t3);margin-bottom:10px;line-height:1.5;text-align:left;background:var(--surface-1);border:1px solid var(--b1);border-radius:var(--r1);padding:8px 10px;max-height:80px;overflow-y:auto"></div>
+    <div id="sale-qr-total" style="font-family:var(--f-mono);font-size:1.3rem;font-weight:700;color:var(--t1);margin-bottom:14px"></div>
+    <!-- UPI ID row -->
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface-2);border:1px solid var(--b1);border-radius:var(--r1);padding:9px 12px;margin-bottom:12px">
+      <div style="text-align:left">
+        <div style="font-size:.62rem;color:var(--t3);font-family:var(--f-head);font-weight:500">UPI ID</div>
+        <div style="font-family:var(--f-mono);font-size:.82rem;font-weight:600;color:var(--t1)" id="sale-qr-upi-id">satyamm@fam</div>
+      </div>
+      <button class="copy-btn" onclick="copySaleUPI()" id="sale-qr-copy-btn">
+        <i data-lucide="copy" style="width:10px;height:10px"></i> <span id="sale-qr-copy-lbl">Copy</span>
+      </button>
+    </div>
+    <!-- QR box -->
+    <div class="sale-qr-box">
+      <div id="sale-qr-spinner" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%">
+        <div class="spinner" style="margin:0;width:24px;height:24px"></div>
+      </div>
+      <img id="sale-qr-img" src="" alt="UPI QR" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:4px"/>
+    </div>
+    <p style="font-family:var(--f-head);font-size:.62rem;color:var(--t3);margin-top:8px;letter-spacing:.04em">PhonePe · GPay · Paytm · BHIM</p>
+    <button class="qr-action-btn" onclick="saveSaleQR()" style="margin-top:10px;width:100%;justify-content:center">
+      <i data-lucide="download" style="width:11px;height:11px"></i> Save QR
+    </button>
+  </div>
+</div>
+
 </body>
 </html>
