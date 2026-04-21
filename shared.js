@@ -84,6 +84,40 @@ async function sbDelete(tableAndFilter) {
   return true;
 }
 
+/* ── Store config (settings table) ────────────────────── */
+
+const _DEFAULT_CONFIG = { storeStatus: 'open', autoCloseEnabled: false, autoCloseTime: '03:00', lastAutoCloseDate: '' };
+
+async function getStoreConfig() {
+  try {
+    const data = await sbGet('settings?key=eq.store_config&select=value');
+    if (data && data.length > 0) {
+      return { ..._DEFAULT_CONFIG, ...(data[0].value || {}) };
+    }
+    // Row doesn't exist yet — create it silently
+    try {
+      await sbPost('settings', { key: 'store_config', value: _DEFAULT_CONFIG });
+    } catch (_) {}
+    return { ..._DEFAULT_CONFIG };
+  } catch (error) {
+    console.error('Failed to get store config:', error);
+    return { ..._DEFAULT_CONFIG };
+  }
+}
+
+async function setStoreConfig(patch) {
+  const currentConfig = await getStoreConfig();
+  const newConfig = { ...currentConfig, ...patch };
+  try {
+    await sbPatch('settings?key=eq.store_config', { value: newConfig });
+  } catch (e) {
+    try {
+      await sbPost('settings', { key: 'store_config', value: newConfig });
+    } catch (_) {}
+  }
+  return newConfig;
+}
+
 /* ── Cache layer ───────────────────────────────────────── */
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
