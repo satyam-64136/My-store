@@ -264,7 +264,6 @@
                 <div class="field"><label>Price ₹ <span class="req">*</span></label><input id="f-price" type="number" step="0.01" min="0" required placeholder="20" inputmode="decimal"/></div>
                 <div class="field"><label>Stock <span class="req">*</span></label><input id="f-stock" type="number" min="0" required placeholder="50" inputmode="numeric"/></div>
               </div>
-              <div class="field"><label>Barcode</label><input id="f-barcode" type="text" placeholder="Optional"/></div>
               <div class="field"><label>Image URL</label><input id="f-image" type="url" placeholder="https://…"/></div>
               <button type="submit" id="add-btn" class="btn-primary" style="width:100%;margin-top:2px">
                 <i data-lucide="plus" style="width:12px;height:12px"></i>
@@ -334,7 +333,7 @@
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:13px">
         <div class="stat-box"><div id="s-count" class="stat-val">—</div><div class="stat-lbl">Sales</div></div>
         <div class="stat-box"><div id="s-revenue" class="stat-val" style="color:var(--green)">—</div><div class="stat-lbl">Revenue ₹</div></div>
-        <div class="stat-box"><div id="s-avg" class="stat-val">—</div><div class="stat-lbl">Avg Order</div></div>
+        <div class="stat-box"><div id="s-avg" class="stat-val">—</div><div class="stat-lbl">Items Sold</div></div>
       </div>
 
       <div class="card">
@@ -717,21 +716,22 @@ async function submitAdd(e) {
   const name    = document.getElementById('f-name').value.trim();
   const price   = parseFloat(document.getElementById('f-price').value);
   const stock   = parseInt(document.getElementById('f-stock').value, 10);
-  const barcode = document.getElementById('f-barcode').value.trim();
   const image   = document.getElementById('f-image').value.trim();
   if (!name || isNaN(price) || isNaN(stock)) { toast('Fill required fields'); return; }
   const btn = document.getElementById('add-btn');
   const lbl = document.getElementById('add-lbl');
   btn.disabled = true; lbl.textContent = 'Saving…';
   try {
-    await sbPost('products', { name, price, stock, image, barcode });
+    await sbPost('products', { name, price, stock, image });
     toast(`"${name}" added`);
     document.getElementById('add-form').reset();
     _cacheInvalidate('products');
     await delay(400);
     await loadProducts({ noCache: true });
   } catch(err) {
-    toast('Network error');
+    const msg = err && err.message ? err.message : 'Failed to add product';
+    toast(msg, 5000);
+    console.error('submitAdd error:', err);
   } finally {
     btn.disabled = false; lbl.textContent = 'Add Product';
   }
@@ -981,7 +981,7 @@ async function loadSales() {
     const sales = rows.map(r => {
       const itemsArr = Array.isArray(r.items) ? r.items : [];
       const itemsStr = itemsArr.map(i => `${i.name} x${i.qty} (Rs.${i.sub})`).join(', ');
-      return { id: r.id, time: cleanSheetVal(r.created_at), items: itemsStr, total: parseFloat(r.total) || 0 };
+      return { id: r.id, time: cleanSheetVal(r.created_at), items: itemsStr, itemsArr, total: parseFloat(r.total) || 0 };
     });
     renderSales(sales); updateSummary(sales);
   } catch(e) {
@@ -1014,10 +1014,14 @@ function renderSales(sales) {
 }
 
 function updateSummary(sales) {
-  const rev = sales.reduce((a, s) => a + s.total, 0);
+  const rev       = sales.reduce((a, s) => a + s.total, 0);
+  const itemsSold = sales.reduce((a, s) => {
+    const arr = Array.isArray(s.itemsArr) ? s.itemsArr : [];
+    return a + arr.reduce((b, i) => b + (parseInt(i.qty, 10) || 0), 0);
+  }, 0);
   document.getElementById('s-count').textContent   = sales.length;
   document.getElementById('s-revenue').textContent = rev.toFixed(0);
-  document.getElementById('s-avg').textContent     = sales.length ? (rev / sales.length).toFixed(0) : '0';
+  document.getElementById('s-avg').textContent     = itemsSold;
 }
 
 function askDeleteSale(id) {
@@ -1042,12 +1046,19 @@ async function confirmDeleteSale() {
 
     const remaining = [...document.querySelectorAll('#sales-tbody .order-card')].map(card => {
       const tot = card.querySelector('.order-card-total');
-      return parseFloat((tot ? tot.textContent : '0').replace('₹','').trim()) || 0;
+      const qtys = [...card.querySelectorAll('.order-item-qty')].map(el =>
+        parseInt(el.textContent.replace('×','').trim(), 10) || 0
+      );
+      return {
+        total: parseFloat((tot ? tot.textContent : '0').replace('₹','').trim()) || 0,
+        itemsSold: qtys.reduce((a, v) => a + v, 0),
+      };
     });
-    const rev = remaining.reduce((a, v) => a + v, 0);
+    const rev       = remaining.reduce((a, v) => a + v.total, 0);
+    const itemsSold = remaining.reduce((a, v) => a + v.itemsSold, 0);
     document.getElementById('s-count').textContent   = remaining.length;
     document.getElementById('s-revenue').textContent = rev.toFixed(0);
-    document.getElementById('s-avg').textContent     = remaining.length ? (rev / remaining.length).toFixed(0) : '0';
+    document.getElementById('s-avg').textContent     = itemsSold;
   } catch(e) {
     toast('Delete failed');
   } finally {
