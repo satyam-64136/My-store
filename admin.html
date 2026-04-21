@@ -59,6 +59,36 @@
     gap: 6px;
   }
 
+  /* Individual item rows inside an order card */
+  .order-item-row {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    padding: 2px 0;
+    font-size: .72rem;
+    color: var(--t3);
+    line-height: 1.45;
+  }
+  .order-item-dot {
+    color: var(--t4);
+    flex-shrink: 0;
+    font-size: .8rem;
+  }
+  .order-item-qty {
+    font-family: var(--f-mono);
+    font-size: .68rem;
+    color: var(--t3);
+  }
+  .order-item-price {
+    margin-left: auto;
+    font-family: var(--f-mono);
+    font-size: .68rem;
+    font-weight: 600;
+    color: var(--t2);
+    white-space: nowrap;
+    padding-left: 8px;
+  }
+
   /* Sale QR button on sale cards */
   .sale-qr-btn {
     width: 26px; height: 26px; border-radius: 6px;
@@ -755,6 +785,7 @@ async function loadPendingOrders() {
         date: dateStr,
         time: timeStr,
         items: itemsStr,
+        itemsArr: itemsArr,
         total: String(row.total || '0'),
         products: itemsArr.map(i => ({ id: i.id, qty: i.qty })),
       });
@@ -800,7 +831,12 @@ function renderPendingOrders() {
         </div>
         <div class="order-card-total">₹${parseFloat(order.total).toFixed(2)}</div>
       </div>
-      <div class="order-card-items">${esc(order.items)}</div>
+      <div class="order-card-items">
+        ${(order.itemsArr && order.itemsArr.length
+          ? order.itemsArr.map(i => `<div class="order-item-row"><span class="order-item-dot">·</span><span>${esc(i.name)} <span class="order-item-qty">×${i.qty}</span></span><span class="order-item-price">₹${parseFloat(i.sub).toFixed(2)}</span></div>`).join('')
+          : `<div>${esc(order.items)}</div>`
+        )}
+      </div>
       <div class="order-card-actions">
         <button class="btn-sm approve" onclick="askApprove('${esc(order.orderId)}')">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
@@ -971,7 +1007,9 @@ function renderSales(sales) {
           </button>
         </div>
       </div>
-      <div class="order-card-items">${esc(s.items)}</div>
+      <div class="order-card-items">
+        ${s.items.split(', ').map(line => `<div class="order-item-row"><span class="order-item-dot">·</span><span>${esc(line)}</span></div>`).join('')}
+      </div>
     </div>`).join('');
 }
 
