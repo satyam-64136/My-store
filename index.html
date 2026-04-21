@@ -14,6 +14,14 @@
 </head>
 <body>
 
+<div id="store-closed-overlay" class="store-closed-overlay hidden" aria-live="polite">
+  <div class="store-closed-card">
+    <div class="store-closed-emoji">🛍️</div>
+    <h2>Store Temporarily Closed</h2>
+    <p>Seller is currently sleeping. Please come back tomorrow.</p>
+  </div>
+</div>
+
 <div id="page-loader">
   <svg aria-label="hourglass loader" role="img" height="56px" width="56px" viewBox="0 0 56 56" class="loader">
     <clipPath id="smt"><path d="M 14.613 13.087 C 15.814 12.059 19.3 8.039 20.3 6.539 C 21.5 4.789 21.5 2.039 21.5 2.039 L 3 2.039 C 3 2.039 3 4.789 4.2 6.539 C 5.2 8.039 8.686 12.059 9.887 13.087 C 11 14.039 12.25 14.039 12.25 14.039 C 12.25 14.039 13.5 14.039 14.613 13.087 Z" class="loader__sand-mound-top"></path></clipPath>
@@ -79,12 +87,6 @@
 
 <div id="view-store" class="view active">
   <main class="page-wrap">
-    <div id="closed-state" class="state-box hidden">
-      <i data-lucide="store" style="width:30px;height:30px;opacity:.25;margin-bottom:10px"></i>
-      <p style="font-size:.92rem;font-weight:600;color:var(--t1)">Service Closed</p>
-      <p style="color:var(--t3);font-size:.76rem"> Seller is currently sleeping. Please come back tomorrow.</p>
-    </div>
-
     <div id="loading-state" class="state-box">
       <div class="spinner"></div>
       <p style="color:var(--t3);font-size:.76rem">Fetching products…</p>
@@ -219,10 +221,10 @@ async function applyStoreStatus() {
   storeConfig = await getStoreConfig();
   const isOpen = storeConfig.storeStatus === 'open';
 
-  document.getElementById('closed-state')?.classList.toggle('hidden', isOpen);
+  const overlay = document.getElementById('store-closed-overlay');
+  if (overlay) overlay.classList.toggle('hidden', isOpen);
 
   if (!isOpen) {
-    showState('closed');
     cart = {};
     sessionStorage.removeItem('ss_cart');
     updateCartBar();
@@ -377,7 +379,6 @@ function proceedToPayment() {
 }
 
 function showState(s) {
-  document.getElementById('closed-state').classList.toggle('hidden',  s !== 'closed');
   document.getElementById('loading-state').classList.toggle('hidden', s !== 'loading');
   document.getElementById('error-state').classList.toggle('hidden',   s !== 'error');
   document.getElementById('empty-state').classList.toggle('hidden',   s !== 'empty');
