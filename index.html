@@ -238,11 +238,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (saved) { try { cart = JSON.parse(saved); } catch(e){} }
 
   await applyStoreStatus();
-  if (storeConfig.storeStatus !== 'open') {
-    hideLoader();
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-    return;
-  }
 
   const cached = _cacheGet(_cacheKey('products'));
   if (cached) {
