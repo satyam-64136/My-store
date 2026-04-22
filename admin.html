@@ -11,10 +11,108 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
   <noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/></noscript>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+  <style>
+  /* ── Order / Sale cards (replaces cramped tables on mobile) ── */
+  .order-card {
+    padding: 11px 0;
+    border-bottom: 1px solid var(--b0);
+  }
+  .order-card:last-child { border-bottom: none; }
+  .order-card:first-child { padding-top: 4px; }
+
+  .order-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 5px;
+  }
+  .order-card-time {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-family: var(--f-mono);
+    font-size: .72rem;
+    color: var(--t2);
+    white-space: nowrap;
+  }
+  .order-card-date {
+    font-size: .62rem;
+    color: var(--t3);
+  }
+  .order-card-total {
+    font-family: var(--f-mono);
+    font-size: .88rem;
+    font-weight: 700;
+    color: var(--t1);
+    white-space: nowrap;
+  }
+  .order-card-items {
+    font-size: .72rem;
+    color: var(--t3);
+    line-height: 1.55;
+    margin-bottom: 8px;
+    word-break: break-word;
+  }
+  .order-card-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  /* Individual item rows inside an order card */
+  .order-item-row {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    padding: 2px 0;
+    font-size: .72rem;
+    color: var(--t3);
+    line-height: 1.45;
+  }
+  .order-item-dot {
+    color: var(--t4);
+    flex-shrink: 0;
+    font-size: .8rem;
+  }
+  .order-item-qty {
+    font-family: var(--f-mono);
+    font-size: .68rem;
+    color: var(--t3);
+  }
+  .order-item-price {
+    margin-left: auto;
+    font-family: var(--f-mono);
+    font-size: .68rem;
+    font-weight: 600;
+    color: var(--t2);
+    white-space: nowrap;
+    padding-left: 8px;
+  }
+
+  /* Sale QR button on sale cards */
+  .sale-qr-btn {
+    width: 26px; height: 26px; border-radius: 6px;
+    background: rgba(91,155,214,.08); border: 1px solid rgba(91,155,214,.2);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--sky); flex-shrink: 0;
+    transition: background .12s, border-color .12s;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  .sale-qr-btn:hover { background: rgba(91,155,214,.18); border-color: rgba(91,155,214,.4); }
+
+  /* QR display box inside the modal */
+  .sale-qr-box {
+    width: 200px; height: 200px; margin: 0 auto;
+    background: #fff; border-radius: var(--r2);
+    display: flex; align-items: center; justify-content: center; padding: 8px;
+    border: 2px solid rgba(255,255,255,.12);
+    box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 0 0 4px rgba(255,255,255,.04);
+  }
+  </style>
 </head>
 <body>
 
-<!-- ════ LOADER (hamster, original colours) ════ -->
+<!-- ════ LOADER ════ -->
 <div id="page-loader">
   <div style="display:flex;flex-direction:column;align-items:center;gap:18px">
     <div class="wheel-and-hamster" role="img" aria-label="Loading">
@@ -64,7 +162,6 @@
       </a>
       <div class="nav-links">
         <a class="nav-link" href="index.html"><i data-lucide="shopping-bag" style="width:12px;height:12px"></i> Store</a>
-        <!-- Icon-only admin link (no label) -->
         <a class="nav-link-icon active" href="admin.html" title="Admin">
           <i data-lucide="settings" style="width:14px;height:14px"></i>
         </a>
@@ -78,7 +175,6 @@
   <div class="page-wrap" style="padding-top:calc(54px + 16px);padding-bottom:40px">
     <div class="page-title">Admin Panel</div>
 
-    <!-- Tab bar: Products/Orders | Sales -->
     <div class="tab-bar">
       <button class="tab-btn active" id="tab-admin" onclick="switchTab('admin')">
         <i data-lucide="package" style="width:12px;height:12px"></i> Products & Orders
@@ -90,6 +186,44 @@
 
     <!-- ── TAB: Products & Orders ── -->
     <div class="tab-panel active" id="panel-admin">
+
+      <!-- Store Controls -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title-row">
+          <span style="display:flex;align-items:center;gap:7px;font-size:.82rem;font-weight:600;color:var(--t1)">
+            <i data-lucide="store" style="width:13px;height:13px;color:var(--t2)"></i>
+            Store Controls
+          </span>
+        </div>
+
+        <div class="store-ctl-row">
+          <div>
+            <div class="store-ctl-title">Manual Store Control</div>
+            <div class="store-ctl-sub" id="store-status-label">Loading…</div>
+          </div>
+          <button id="store-open-toggle-btn" class="btn-sm" onclick="toggleStoreStatusManual()">...</button>
+        </div>
+
+        <div class="store-ctl-row" style="margin-top:10px">
+          <div>
+            <div class="store-ctl-title">Automatic Daily Close</div>
+            <div class="store-ctl-sub">Closes once daily at selected server time</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="auto-close-toggle" onchange="toggleAutoClose(this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="auto-close-time" class="date-select" onchange="changeAutoCloseTime(this.value)">
+            <option value="03:00">03:00</option>
+            <option value="04:00">04:00</option>
+            <option value="05:00">05:00</option>
+          </select>
+          <span style="font-size:.68rem;color:var(--t3)">Server time schedule</span>
+        </div>
+      </div>
 
       <!-- Pending Orders -->
       <div class="card" style="margin-bottom:14px">
@@ -106,12 +240,15 @@
         <div id="pending-loading" style="text-align:center;padding:20px;color:var(--t3);font-size:.76rem">
           <div class="spinner" style="width:22px;height:22px;margin:0 auto 6px"></div>Loading…
         </div>
+        <div id="pending-error" class="hidden" style="text-align:center;padding:20px">
+          <p id="pending-error-msg" style="color:var(--red);font-size:.74rem;margin-bottom:8px">Could not load orders.</p>
+          <button onclick="loadPendingOrders()" class="btn-sm">
+            <i data-lucide="refresh-cw" style="width:10px;height:10px"></i> Retry
+          </button>
+        </div>
         <div id="pending-empty" class="hidden" style="text-align:center;padding:20px;color:var(--t3);font-size:.76rem">No pending orders</div>
-        <div id="pending-table" class="hidden" style="overflow-x:auto">
-          <table class="tbl">
-            <thead><tr><th>Time / Date</th><th>Items</th><th style="text-align:right">Total</th><th></th></tr></thead>
-            <tbody id="pending-tbody"></tbody>
-          </table>
+        <div id="pending-table" class="hidden">
+          <div id="pending-tbody"></div>
         </div>
       </div>
 
@@ -127,7 +264,6 @@
                 <div class="field"><label>Price ₹ <span class="req">*</span></label><input id="f-price" type="number" step="0.01" min="0" required placeholder="20" inputmode="decimal"/></div>
                 <div class="field"><label>Stock <span class="req">*</span></label><input id="f-stock" type="number" min="0" required placeholder="50" inputmode="numeric"/></div>
               </div>
-              <div class="field"><label>Barcode</label><input id="f-barcode" type="text" placeholder="Optional"/></div>
               <div class="field"><label>Image URL</label><input id="f-image" type="url" placeholder="https://…"/></div>
               <button type="submit" id="add-btn" class="btn-primary" style="width:100%;margin-top:2px">
                 <i data-lucide="plus" style="width:12px;height:12px"></i>
@@ -178,20 +314,26 @@
 
     <!-- ── TAB: Sales History ── -->
     <div class="tab-panel" id="panel-sales">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-        <div style="font-size:.85rem;font-weight:600;color:var(--t1)">Sales History</div>
-        <div style="display:flex;align-items:center;gap:7px">
-          <select id="date-select" class="date-select" onchange="loadSales()"></select>
+      <div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+          <div style="font-size:.85rem;font-weight:600;color:var(--t1)">Sales History</div>
           <button onclick="loadSales()" class="btn-sm">
             <i data-lucide="refresh-cw" style="width:10px;height:10px" id="refresh-icon"></i> Refresh
           </button>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+          <select id="date-select" class="date-select" onchange="loadSales()" style="flex:1;min-width:140px"></select>
+          <div style="display:flex;align-items:center;gap:5px">
+            <input type="date" id="custom-date-input" class="date-select" style="font-size:.72rem;padding:5px 8px" title="Pick any date"/>
+            <button onclick="loadSalesByCustomDate()" class="btn-sm">Go</button>
+          </div>
         </div>
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:13px">
         <div class="stat-box"><div id="s-count" class="stat-val">—</div><div class="stat-lbl">Sales</div></div>
         <div class="stat-box"><div id="s-revenue" class="stat-val" style="color:var(--green)">—</div><div class="stat-lbl">Revenue ₹</div></div>
-        <div class="stat-box"><div id="s-avg" class="stat-val">—</div><div class="stat-lbl">Avg Order</div></div>
+        <div class="stat-box"><div id="s-avg" class="stat-val">—</div><div class="stat-lbl">Items Sold</div></div>
       </div>
 
       <div class="card">
@@ -202,11 +344,8 @@
           <i data-lucide="inbox" style="width:26px;height:26px;opacity:.18;margin-bottom:7px;display:block"></i>
           No sales for this date.
         </div>
-        <div id="sales-table" class="hidden" style="overflow-x:auto">
-          <table class="sales-tbl">
-            <thead><tr><th>Time</th><th>Items</th><th style="text-align:right">Total</th><th></th></tr></thead>
-            <tbody id="sales-tbody"></tbody>
-          </table>
+        <div id="sales-table" class="hidden">
+          <div id="sales-tbody"></div>
         </div>
       </div>
     </div>
@@ -268,7 +407,6 @@
 
 <div id="toast" class="toast hidden"></div>
 
-<!-- Sale delete confirmation modal -->
 <div id="del-sale-modal" class="overlay hidden">
   <div class="modal" style="max-width:320px;text-align:center">
     <div class="del-icon" style="margin-bottom:11px"><i data-lucide="trash-2" style="width:20px;height:20px;color:var(--red)"></i></div>
@@ -290,12 +428,12 @@ let allProducts       = [];
 let deleteTargetId    = null;
 let approveTarget     = null;
 let editTarget        = null;
-let deleteSaleTarget  = null;  // { id, rowEl } for sale deletion
+let deleteSaleTarget  = null;
 const pendingOrdersMap = new Map();
 
-/* ═══════════════════════════════
-   TAB SWITCHER
-   ═══════════════════════════════ */
+// Global for the store's current configuration
+let storeConfig = { storeStatus: 'open', autoCloseEnabled: false, autoCloseTime: '03:00', lastAutoCloseDate: '' };
+
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -308,15 +446,11 @@ function switchTab(name) {
   requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
 }
 
-/* ═══════════════════════════════
-   AUTH
-   ═══════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-  hideLoader();   // always hide loader immediately — before any async work
+  hideLoader();
   if (sessionStorage.getItem(SK) === 'true') showAdmin();
   const pw = document.getElementById('pw');
   if (pw) pw.focus();
-  // Lucide deferred — init when script is ready
   if (typeof lucide !== 'undefined') lucide.createIcons();
   else document.querySelector('script[src*="lucide"]')
          ?.addEventListener('load', () => lucide.createIcons());
@@ -352,23 +486,100 @@ async function showAdmin() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('admin-content').style.display = 'block';
   requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
-  await Promise.all([loadProducts(), loadPendingOrders()]);
+  await Promise.all([loadProducts(), loadPendingOrders(), loadStoreControls()]);
 }
 
-/* ═══════════════════════════════
-   PRODUCTS
-   ═══════════════════════════════ */
+/* ── Store controls ────────────────── */
+async function loadStoreControls() {
+  try {
+    storeConfig = await getStoreConfig();
+    renderStoreControls();
+  } catch {
+    toast('Failed to load store settings');
+  }
+}
+
+function renderStoreControls() {
+  const statusLbl = document.getElementById('store-status-label');
+  const btn = document.getElementById('store-open-toggle-btn');
+  const autoToggle = document.getElementById('auto-close-toggle');
+  const timeSel = document.getElementById('auto-close-time');
+  if (!statusLbl || !btn || !autoToggle || !timeSel) return;
+
+  const isOpen = storeConfig.storeStatus === 'open';
+  statusLbl.textContent = isOpen ? 'Store is OPEN' : 'Store is CLOSED';
+  statusLbl.style.color = isOpen ? 'var(--green)' : 'var(--red)';
+
+  btn.textContent = isOpen ? 'Close Store' : 'Open Store';
+  btn.classList.toggle('reject', isOpen);
+  btn.classList.toggle('approve', !isOpen);
+
+  autoToggle.checked = !!storeConfig.autoCloseEnabled;
+  timeSel.value = storeConfig.autoCloseTime || '03:00';
+  timeSel.disabled = !storeConfig.autoCloseEnabled;
+}
+
+async function toggleStoreStatusManual() {
+  const btn = document.getElementById('store-open-toggle-btn');
+  if (!btn) return;
+  btn.disabled = true;
+  const prev = { ...storeConfig };
+  try {
+    const nextStatus = storeConfig.storeStatus === 'open' ? 'closed' : 'open';
+    const patch = nextStatus === 'open'
+      ? { storeStatus: 'open', lastAutoCloseDate: '' }
+      : { storeStatus: 'closed' };
+
+    storeConfig = await setStoreConfig(patch);
+    renderStoreControls();
+    toast(nextStatus === 'open' ? 'Store opened manually' : 'Store closed manually');
+  } catch {
+    storeConfig = prev;
+    renderStoreControls();
+    toast('Failed to update store status');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function toggleAutoClose(enabled) {
+  const prev = { ...storeConfig };
+  try {
+    storeConfig = await setStoreConfig({ autoCloseEnabled: !!enabled });
+    renderStoreControls();
+    toast(enabled ? 'Auto-close enabled' : 'Auto-close disabled');
+  } catch {
+    storeConfig = prev;
+    renderStoreControls();
+    toast('Failed to update auto-close');
+  }
+}
+
+async function changeAutoCloseTime(val) {
+  if (!['03:00', '04:00', '05:00'].includes(val)) return;
+  const prev = { ...storeConfig };
+  try {
+    storeConfig = await setStoreConfig({ autoCloseTime: val });
+    renderStoreControls();
+    toast(`Auto-close time set to: ${val}`);
+  } catch {
+    storeConfig = prev;
+    renderStoreControls();
+    toast('Failed to save time');
+  }
+}
+
+/* ── PRODUCTS ─────────────────────────────────────────── */
 async function loadProducts({ noCache = false } = {}) {
   const icon = document.getElementById('prod-refresh');
 
-  // Try cache first (instant render)
   if (!noCache) {
     const cached = _cacheGet(_cacheKey('products'));
     if (cached) {
       allProducts = parseProducts(cached);
       renderProducts();
       renderStats();
-      loadProducts({ noCache: true }); // refresh silently
+      loadProducts({ noCache: true });
       return;
     }
   }
@@ -426,14 +637,12 @@ function renderProducts() {
     </tr>`;
   }).join('');
 }
-
 async function adjustStock(id, delta) {
   const p = allProducts.find(x => x.id === id);
   if (!p) return;
   const newStock = Math.max(0, p.stock + delta);
   if (newStock === p.stock && delta < 0) { toast('Stock is already 0'); return; }
   if (newStock === p.stock && delta > 0) return;
-  // Optimistic UI update
   p.stock = newStock;
   renderProducts();
   renderStats();
@@ -453,14 +662,10 @@ function renderStats() {
   document.getElementById('st-ok').textContent    = allProducts.filter(p => p.stock > 5).length;
 }
 
-/* ═══════════════════════════════
-   EDIT PRODUCT
-   ═══════════════════════════════ */
 function askEdit(id) {
   const p = allProducts.find(x => x.id === id);
   if (!p) return;
   editTarget = p;
-  // Pre-fill modal fields with current values
   document.getElementById('e-name').value  = p.name;
   document.getElementById('e-price').value = p.price;
   document.getElementById('e-stock').value = p.stock;
@@ -490,7 +695,6 @@ async function confirmEdit() {
 
   try {
     await sbPatch(`products?id=eq.${encodeURIComponent(editTarget.id)}`, { name, price, stock, image });
-    // Update local state immediately — no extra fetch needed
     editTarget.name  = name;
     editTarget.price = price;
     editTarget.stock = stock;
@@ -512,7 +716,6 @@ async function submitAdd(e) {
   const name    = document.getElementById('f-name').value.trim();
   const price   = parseFloat(document.getElementById('f-price').value);
   const stock   = parseInt(document.getElementById('f-stock').value, 10);
-  const barcode = document.getElementById('f-barcode').value.trim();
   const image   = document.getElementById('f-image').value.trim();
   if (!name || isNaN(price) || isNaN(stock)) { toast('Fill required fields'); return; }
   const btn = document.getElementById('add-btn');
@@ -523,10 +726,15 @@ async function submitAdd(e) {
     toast(`"${name}" added`);
     document.getElementById('add-form').reset();
     _cacheInvalidate('products');
-    await delay(1800);
+    await delay(400);
     await loadProducts({ noCache: true });
-  } catch(err) { toast('Network error'); }
-  finally { btn.disabled = false; lbl.textContent = 'Add Product'; }
+  } catch(err) {
+    const msg = err && err.message ? err.message : 'Failed to add product';
+    toast(msg, 5000);
+    console.error('submitAdd error:', err);
+  } finally {
+    btn.disabled = false; lbl.textContent = 'Add Product';
+  }
 }
 
 function askDelete(id, name) {
@@ -535,65 +743,70 @@ function askDelete(id, name) {
   document.getElementById('del-modal').classList.remove('hidden');
   lucide.createIcons();
 }
-function closeDelModal() { document.getElementById('del-modal').classList.add('hidden'); deleteTargetId = null; }
+function closeDelModal() {
+  document.getElementById('del-modal').classList.add('hidden');
+  deleteTargetId = null;
+}
 async function confirmDelete() {
   if (!deleteTargetId) return;
   const btn = document.getElementById('del-btn');
   btn.disabled = true; btn.textContent = 'Deleting…';
   try {
     await sbDelete(`products?id=eq.${encodeURIComponent(deleteTargetId)}`);
-    toast('Deleted'); closeDelModal();
+    toast('Deleted');
+    closeDelModal();
     _cacheInvalidate('products');
-    await delay(1800); await loadProducts({ noCache: true });
-  } catch(e) { toast('Delete failed'); }
-  finally { btn.disabled = false; btn.textContent = 'Delete'; deleteTargetId = null; }
+    await delay(350);
+    await loadProducts({ noCache: true });
+  } catch(e) {
+    toast('Delete failed');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Delete'; deleteTargetId = null;
+  }
 }
 
-/* ═══════════════════════════════
-   PENDING ORDERS
-   ═══════════════════════════════ */
+/* ── Pending Orders ───────────────────────────────────── */
 async function loadPendingOrders() {
   const icon = document.getElementById('pending-refresh');
   if (icon) icon.style.animation = 'spin .7s linear infinite';
   setPendingState('loading');
   try {
-    // Fetch pending orders from Supabase, newest first
     const rows = await sbGet('orders?status=eq.pending&order=created_at.desc&select=id,items,total,status,created_at');
     pendingOrdersMap.clear();
     (rows || []).forEach(row => {
       const orderId = String(row.id);
-      // items is a JSONB array: [{id, name, qty, sub}, ...]
       const itemsArr = Array.isArray(row.items) ? row.items : [];
       const itemsStr = itemsArr.map(i => `${i.name} x${i.qty} (Rs.${i.sub})`).join(', ');
       const createdAt = row.created_at || '';
-      const dateStr = createdAt ? istDateStr(createdAt) : '';  // IST date, not UTC
+      const dateStr = createdAt ? istDateStr(createdAt) : '';
       const timeStr = cleanSheetVal(createdAt);
       pendingOrdersMap.set(orderId, {
         orderId,
-        date:     dateStr,
-        time:     timeStr,
-        items:    itemsStr,
-        total:    String(row.total || '0'),
+        date: dateStr,
+        time: timeStr,
+        items: itemsStr,
+        itemsArr: itemsArr,
+        total: String(row.total || '0'),
         products: itemsArr.map(i => ({ id: i.id, qty: i.qty })),
       });
     });
     renderPendingOrders();
   } catch(e) {
-    setPendingState('empty');
+    const msg = (e && e.message)
+      ? e.message
+      : 'Could not load pending orders. Check your connection and try again.';
+    const errEl = document.getElementById('pending-error-msg');
+    if (errEl) errEl.textContent = msg;
+    setPendingState('error');
     toast('Could not load pending orders');
   } finally {
     if (icon) icon.style.animation = 'none';
   }
 }
 
-function safeParseProducts(raw) {
-  if (!raw) return [];
-  try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; }
-  catch(e) { return []; }
-}
-
 function setPendingState(s) {
   document.getElementById('pending-loading').classList.toggle('hidden', s !== 'loading');
+  document.getElementById('pending-error').classList.toggle('hidden',   s !== 'error');
   document.getElementById('pending-empty').classList.toggle('hidden',   s !== 'empty');
   document.getElementById('pending-table').classList.toggle('hidden',   s !== 'data');
 }
@@ -610,26 +823,31 @@ function renderPendingOrders() {
   countEl.textContent = pendingOrdersMap.size;
   document.getElementById('pending-tbody').innerHTML =
     [...pendingOrdersMap.values()].map(order => `
-    <tr>
-      <td style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--t2);white-space:nowrap">
-        ${esc(order.time)}<br><span style="font-size:.62rem;color:var(--t3)">${esc(order.date)}</span>
-      </td>
-      <td style="font-size:.73rem;color:var(--t2);max-width:200px">${esc(order.items)}</td>
-      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--t1);white-space:nowrap">
-        ₹${parseFloat(order.total).toFixed(2)}
-      </td>
-      <td>
-        <div style="display:flex;gap:5px;align-items:center">
-          <button class="btn-sm approve" onclick="askApprove('${esc(order.orderId)}')">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-            Approve
-          </button>
-          <button class="btn-sm reject" onclick="rejectOrder('${esc(order.orderId)}')" title="Reject order">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+    <div class="order-card">
+      <div class="order-card-head">
+        <div class="order-card-time">
+          <span>${esc(order.time)}</span>
+          <span class="order-card-date">${esc(order.date)}</span>
         </div>
-      </td>
-    </tr>`).join('');
+        <div class="order-card-total">₹${parseFloat(order.total).toFixed(2)}</div>
+      </div>
+      <div class="order-card-items">
+        ${(order.itemsArr && order.itemsArr.length
+          ? order.itemsArr.map(i => `<div class="order-item-row"><span class="order-item-dot">·</span><span>${esc(i.name)} <span class="order-item-qty">×${i.qty}</span></span><span class="order-item-price">₹${parseFloat(i.sub).toFixed(2)}</span></div>`).join('')
+          : `<div>${esc(order.items)}</div>`
+        )}
+      </div>
+      <div class="order-card-actions">
+        <button class="btn-sm approve" onclick="askApprove('${esc(order.orderId)}')">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          Approve
+        </button>
+        <button class="btn-sm reject" onclick="rejectOrder('${esc(order.orderId)}')" title="Reject order">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Reject
+        </button>
+      </div>
+    </div>`).join('');
   lucide.createIcons();
 }
 
@@ -644,14 +862,16 @@ function askApprove(orderId) {
   document.getElementById('approve-modal').classList.remove('hidden');
   lucide.createIcons();
 }
-function closeApproveModal() { document.getElementById('approve-modal').classList.add('hidden'); approveTarget = null; }
+function closeApproveModal() {
+  document.getElementById('approve-modal').classList.add('hidden');
+  approveTarget = null;
+}
 
 function rejectOrder(orderId) {
   if (!pendingOrdersMap.has(orderId)) { toast('Order not found'); return; }
   pendingOrdersMap.delete(orderId);
   renderPendingOrders();
   toast('Order rejected');
-  // Mark rejected in Supabase — fire-and-forget, no stock change
   sbPatch(`orders?id=eq.${encodeURIComponent(orderId)}`, { status: 'rejected' }).catch(() => {});
 }
 
@@ -660,37 +880,35 @@ async function confirmApprove() {
   const btn = document.getElementById('approve-btn');
   btn.disabled = true; btn.textContent = 'Approving…';
   try {
-    // 1. Mark order as approved in Supabase
     await sbPatch(`orders?id=eq.${encodeURIComponent(approveTarget.orderId)}`, { status: 'approved' });
-
-    // 2. Deduct stock for each product — sequential to avoid race conditions
     for (const prod of approveTarget.products) {
       const p = allProducts.find(x => x.id === String(prod.id));
       if (!p) continue;
       const newStock = Math.max(0, p.stock - (parseInt(prod.qty, 10) || 0));
       await sbPatch(`products?id=eq.${encodeURIComponent(prod.id)}`, { stock: newStock });
-      p.stock = newStock; // keep local state in sync
+      p.stock = newStock;
     }
 
     toast('Order approved — sale recorded');
     closeApproveModal();
     _cacheInvalidate('products');
-    await delay(1800);
+    await delay(350);
     await Promise.all([loadProducts({ noCache: true }), loadPendingOrders()]);
-  } catch(e) { toast('Approval failed'); }
-  finally { btn.disabled = false; btn.textContent = 'Approve'; }
+  } catch(e) {
+    toast('Approval failed');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Approve';
+  }
 }
 
-/* ═══════════════════════════════
-   SALES HISTORY
-   ═══════════════════════════════ */
+/* ── Sales History ─────────────────────────────────────── */
 let datesPopulated = false;
 function populateDates() {
   if (datesPopulated) return;
   datesPopulated = true;
   const sel = document.getElementById('date-select');
   const today = new Date();
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 365; i++) {
     const d = new Date(today); d.setDate(today.getDate() - i);
     const label = d.toLocaleDateString('en-IN');
     const opt = document.createElement('option');
@@ -699,6 +917,29 @@ function populateDates() {
     if (i === 0) opt.selected = true;
     sel.appendChild(opt);
   }
+}
+
+function loadSalesByCustomDate() {
+  const inp = document.getElementById('custom-date-input');
+  if (!inp || !inp.value) return;
+  const [year, month, day] = inp.value.split('-').map(Number);
+  const label = String(day).padStart(2,'0') + '/' + String(month).padStart(2,'0') + '/' + year;
+  // Set dropdown to matching option if exists, else just load directly
+  const sel = document.getElementById('date-select');
+  let found = false;
+  for (const opt of sel.options) {
+    if (opt.value === label) { sel.value = label; found = true; break; }
+  }
+  if (!found) {
+    // Insert a temporary option for this date
+    const opt = document.createElement('option');
+    opt.value = label; opt.textContent = label; opt.id = 'custom-date-opt';
+    const old = document.getElementById('custom-date-opt');
+    if (old) old.remove();
+    sel.insertBefore(opt, sel.firstChild);
+    sel.value = label;
+  }
+  loadSales();
 }
 
 function setSalesState(s) {
@@ -713,21 +954,17 @@ async function loadSales() {
   if (icon) icon.style.animation = 'spin .7s linear infinite';
   setSalesState('loading');
   try {
-    // Parse "DD/MM/YYYY" (en-IN) back to a date range for ISO timestamp filtering
     const parts = dateLabel.split('/');
     let startISO, endISO;
     if (parts.length === 3) {
       const [day, month, year] = parts.map(Number);
-      // IST midnight = UTC 18:30 the previous calendar day (IST is UTC+5:30)
-      // So "23rd March IST" spans UTC 22nd 18:30 → 23rd 18:30
-      const IST_OFFSET_MS = 19800000; // 5.5 hours in ms
-      const istMidnight = Date.UTC(year, month - 1, day); // midnight IST as UTC date
-      const start = new Date(istMidnight - IST_OFFSET_MS); // subtract offset → UTC start
-      const end   = new Date(istMidnight - IST_OFFSET_MS + 86400000); // +24h → UTC end
+      const IST_OFFSET_MS = 19800000;
+      const istMidnight = Date.UTC(year, month - 1, day);
+      const start = new Date(istMidnight - IST_OFFSET_MS);
+      const end   = new Date(istMidnight - IST_OFFSET_MS + 86400000);
       startISO = start.toISOString();
       endISO   = end.toISOString();
     } else {
-      // Fallback: today in IST
       const IST_OFFSET_MS = 19800000;
       const nowIST = new Date(Date.now() + IST_OFFSET_MS);
       const istMidnight = Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate());
@@ -736,6 +973,7 @@ async function loadSales() {
       startISO = start.toISOString();
       endISO   = end.toISOString();
     }
+
     const rows = await sbGet(
       `orders?status=eq.approved&created_at=gte.${encodeURIComponent(startISO)}&created_at=lt.${encodeURIComponent(endISO)}&order=created_at.asc&select=id,items,total,created_at`
     );
@@ -743,7 +981,7 @@ async function loadSales() {
     const sales = rows.map(r => {
       const itemsArr = Array.isArray(r.items) ? r.items : [];
       const itemsStr = itemsArr.map(i => `${i.name} x${i.qty} (Rs.${i.sub})`).join(', ');
-      return { id: r.id, time: cleanSheetVal(r.created_at), items: itemsStr, total: parseFloat(r.total) || 0 };
+      return { id: r.id, time: cleanSheetVal(r.created_at), items: itemsStr, itemsArr, total: parseFloat(r.total) || 0 };
     });
     renderSales(sales); updateSummary(sales);
   } catch(e) {
@@ -755,29 +993,39 @@ async function loadSales() {
 
 function renderSales(sales) {
   setSalesState('data');
+  _salesCache = {};
+  sales.forEach(s => { _salesCache[String(s.id)] = { total: s.total, items: s.items }; });
   document.getElementById('sales-tbody').innerHTML = [...sales].reverse().map(s => `
-    <tr id="sale-row-${esc(String(s.id))}">
-      <td style="font-family:'JetBrains Mono',monospace;font-size:.72rem;white-space:nowrap">${esc(s.time)}</td>
-      <td style="font-size:.74rem;color:var(--t2)">${esc(s.items)}</td>
-      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--t1);white-space:nowrap">₹${s.total.toFixed(2)}</td>
-      <td style="width:36px;padding:10px 6px 10px 0;text-align:right">
-        <button class="sales-del-btn" onclick="askDeleteSale('${esc(String(s.id))}')" title="Delete sale">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
-        </button>
-      </td>
-    </tr>`).join('');
+    <div class="order-card" id="sale-row-${esc(String(s.id))}">
+      <div class="order-card-head">
+        <div class="order-card-time"><span>${esc(s.time)}</span></div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="order-card-total">₹${s.total.toFixed(2)}</div>
+          <button class="sale-qr-btn" data-sale-id="${String(s.id).replace(/"/g,'&quot;')}" title="Show payment QR">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3"/><rect x="18" y="14" width="3" height="3"/><rect x="14" y="18" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/></svg>
+          </button>
+          <button class="sales-del-btn" onclick="askDeleteSale('${esc(String(s.id))}')" title="Delete sale">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="order-card-items">
+        ${s.items.split(', ').map(line => `<div class="order-item-row"><span class="order-item-dot">·</span><span>${esc(line)}</span></div>`).join('')}
+      </div>
+    </div>`).join('');
 }
 
 function updateSummary(sales) {
-  const rev = sales.reduce((a, s) => a + s.total, 0);
+  const rev       = sales.reduce((a, s) => a + s.total, 0);
+  const itemsSold = sales.reduce((a, s) => {
+    const arr = Array.isArray(s.itemsArr) ? s.itemsArr : [];
+    return a + arr.reduce((b, i) => b + (parseInt(i.qty, 10) || 0), 0);
+  }, 0);
   document.getElementById('s-count').textContent   = sales.length;
   document.getElementById('s-revenue').textContent = rev.toFixed(0);
-  document.getElementById('s-avg').textContent     = sales.length ? (rev / sales.length).toFixed(0) : '0';
+  document.getElementById('s-avg').textContent     = itemsSold;
 }
 
-/* ═══════════════════════════════
-   DELETE SALE
-   ═══════════════════════════════ */
 function askDeleteSale(id) {
   deleteSaleTarget = id;
   document.getElementById('del-sale-modal').classList.remove('hidden');
@@ -793,31 +1041,142 @@ async function confirmDeleteSale() {
   btn.disabled = true; btn.textContent = 'Deleting…';
   try {
     await sbDelete(`orders?id=eq.${encodeURIComponent(deleteSaleTarget)}`);
-    // Remove row from DOM immediately — no full reload needed
     const row = document.getElementById('sale-row-' + deleteSaleTarget);
     if (row) row.remove();
     toast('Sale deleted');
     closeDelSaleModal();
-    // Update summary counts from remaining visible rows
-    const remaining = [...document.querySelectorAll('#sales-tbody tr')].map(tr => {
-      const cells = tr.querySelectorAll('td');
-      const totalText = cells[2] ? cells[2].textContent.replace('₹','').trim() : '0';
-      return parseFloat(totalText) || 0;
+
+    const remaining = [...document.querySelectorAll('#sales-tbody .order-card')].map(card => {
+      const tot = card.querySelector('.order-card-total');
+      const qtys = [...card.querySelectorAll('.order-item-qty')].map(el =>
+        parseInt(el.textContent.replace('×','').trim(), 10) || 0
+      );
+      return {
+        total: parseFloat((tot ? tot.textContent : '0').replace('₹','').trim()) || 0,
+        itemsSold: qtys.reduce((a, v) => a + v, 0),
+      };
     });
-    const rev = remaining.reduce((a, v) => a + v, 0);
+    const rev       = remaining.reduce((a, v) => a + v.total, 0);
+    const itemsSold = remaining.reduce((a, v) => a + v.itemsSold, 0);
     document.getElementById('s-count').textContent   = remaining.length;
     document.getElementById('s-revenue').textContent = rev.toFixed(0);
-    document.getElementById('s-avg').textContent     = remaining.length ? (rev / remaining.length).toFixed(0) : '0';
-  } catch(e) { toast('Delete failed'); }
-  finally { btn.disabled = false; btn.textContent = 'Delete'; deleteSaleTarget = null; }
+    document.getElementById('s-avg').textContent     = itemsSold;
+  } catch(e) {
+    toast('Delete failed');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Delete';
+    deleteSaleTarget = null;
+  }
+}
+
+/* ── Sale QR modal ─────────────────────────────────────── */
+const SALE_UPI_ID = 'satyamm@fam';
+const SALE_STORE  = "Satyam's Store";
+let _saleQRUrl = '';
+let _saleQRCopyTimeout = null;
+let _salesCache = {};
+
+function showSaleQR(id) {
+  const sale = _salesCache[String(id)];
+  if (!sale) { toast('Order data not found'); return; }
+  const total = sale.total;
+  const items = sale.items;
+  const link = `upi://pay?pa=${SALE_UPI_ID}&pn=${encodeURIComponent(SALE_STORE)}&am=${parseFloat(total).toFixed(2)}&cu=INR`;
+  _saleQRUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(link)}`;
+
+  document.getElementById('sale-qr-items').textContent  = items || '';
+  document.getElementById('sale-qr-total').textContent  = '₹' + parseFloat(total).toFixed(2);
+  document.getElementById('sale-qr-upi-id').textContent = SALE_UPI_ID;
+
+  const img     = document.getElementById('sale-qr-img');
+  const spinner = document.getElementById('sale-qr-spinner');
+  img.style.display     = 'none';
+  spinner.style.display = 'flex';
+  img.onload  = () => { spinner.style.display = 'none'; img.style.display = 'block'; };
+  img.onerror = () => { spinner.innerHTML = '<p style="font-size:.65rem;color:var(--t3)">QR unavailable</p>'; };
+  img.src = _saleQRUrl;
+
+  document.getElementById('sale-qr-modal').classList.remove('hidden');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function closeSaleQRModal() {
+  document.getElementById('sale-qr-modal').classList.add('hidden');
+  _saleQRUrl = '';
+  const img = document.getElementById('sale-qr-img');
+  img.src = ''; img.style.display = 'none';
+  document.getElementById('sale-qr-spinner').style.display = 'flex';
+}
+
+function copySaleUPI() {
+  navigator.clipboard.writeText(SALE_UPI_ID).then(() => {
+    const lbl = document.getElementById('sale-qr-copy-lbl');
+    lbl.textContent = 'Copied!';
+    clearTimeout(_saleQRCopyTimeout);
+    _saleQRCopyTimeout = setTimeout(() => { lbl.textContent = 'Copy'; }, 2000);
+  }).catch(() => toast('Copy failed'));
+}
+
+async function saveSaleQR() {
+  if (!_saleQRUrl) { toast('QR not ready'); return; }
+  try {
+    const res  = await fetch(_saleQRUrl);
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'payment-qr.png';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('QR saved!');
+  } catch(e) { toast('Download failed'); }
 }
 
 document.addEventListener('click', e => {
-  if (e.target === document.getElementById('del-modal'))      closeDelModal();
-  if (e.target === document.getElementById('approve-modal'))  closeApproveModal();
-  if (e.target === document.getElementById('edit-modal'))     closeEditModal();
-  if (e.target === document.getElementById('del-sale-modal')) closeDelSaleModal();
+  if (e.target === document.getElementById('sale-qr-modal')) closeSaleQRModal();
+
+  // Delegated handler for QR buttons — avoids onclick string encoding issues
+  const qrBtn = e.target.closest('.sale-qr-btn');
+  if (qrBtn) {
+    const id = qrBtn.dataset.saleId;
+    if (id) showSaleQR(id);
+  }
 });
+
 </script>
+
+<div id="sale-qr-modal" class="overlay hidden">
+  <div class="modal" style="max-width:340px;text-align:center">
+    <div class="modal-head" style="justify-content:center;position:relative">
+      <div class="modal-title">Payment QR</div>
+      <button class="modal-close" onclick="closeSaleQRModal()" style="position:absolute;right:0">
+        <i data-lucide="x" style="width:13px;height:13px"></i>
+      </button>
+    </div>
+    <div id="sale-qr-items" style="font-size:.7rem;color:var(--t3);margin-bottom:10px;line-height:1.5;text-align:left;background:var(--surface-1);border:1px solid var(--b1);border-radius:var(--r1);padding:8px 10px;max-height:80px;overflow-y:auto"></div>
+    <div id="sale-qr-total" style="font-family:var(--f-mono);font-size:1.3rem;font-weight:700;color:var(--t1);margin-bottom:14px"></div>
+    <!-- UPI ID row -->
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface-2);border:1px solid var(--b1);border-radius:var(--r1);padding:9px 12px;margin-bottom:12px">
+      <div style="text-align:left">
+        <div style="font-size:.62rem;color:var(--t3);font-family:var(--f-head);font-weight:500">UPI ID</div>
+        <div style="font-family:var(--f-mono);font-size:.82rem;font-weight:600;color:var(--t1)" id="sale-qr-upi-id">satyamm@fam</div>
+      </div>
+      <button class="copy-btn" onclick="copySaleUPI()" id="sale-qr-copy-btn">
+        <i data-lucide="copy" style="width:10px;height:10px"></i> <span id="sale-qr-copy-lbl">Copy</span>
+      </button>
+    </div>
+    <!-- QR box -->
+    <div class="sale-qr-box">
+      <div id="sale-qr-spinner" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%">
+        <div class="spinner" style="margin:0;width:24px;height:24px"></div>
+      </div>
+      <img id="sale-qr-img" src="" alt="UPI QR" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:4px"/>
+    </div>
+    <p style="font-family:var(--f-head);font-size:.62rem;color:var(--t3);margin-top:8px;letter-spacing:.04em">PhonePe · GPay · Paytm · BHIM</p>
+    <button class="qr-action-btn" onclick="saveSaleQR()" style="margin-top:10px;width:100%;justify-content:center">
+      <i data-lucide="download" style="width:11px;height:11px"></i> Save QR
+    </button>
+  </div>
+</div>
+
 </body>
 </html>
