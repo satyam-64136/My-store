@@ -993,13 +993,15 @@ async function loadSales() {
 
 function renderSales(sales) {
   setSalesState('data');
+  _salesCache = {};
+  sales.forEach(s => { _salesCache[String(s.id)] = { total: s.total, items: s.items }; });
   document.getElementById('sales-tbody').innerHTML = [...sales].reverse().map(s => `
     <div class="order-card" id="sale-row-${esc(String(s.id))}">
       <div class="order-card-head">
         <div class="order-card-time"><span>${esc(s.time)}</span></div>
         <div style="display:flex;align-items:center;gap:6px">
           <div class="order-card-total">₹${s.total.toFixed(2)}</div>
-          <button class="sale-qr-btn" onclick="showSaleQR(${s.total}, '${esc(s.items)}')" title="Show payment QR">
+          <button class="sale-qr-btn" data-sale-id="${String(s.id).replace(/"/g,'&quot;')}" title="Show payment QR">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3"/><rect x="18" y="14" width="3" height="3"/><rect x="14" y="18" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/></svg>
           </button>
           <button class="sales-del-btn" onclick="askDeleteSale('${esc(String(s.id))}')" title="Delete sale">
@@ -1072,13 +1074,18 @@ const SALE_UPI_ID = 'satyamm@fam';
 const SALE_STORE  = "Satyam's Store";
 let _saleQRUrl = '';
 let _saleQRCopyTimeout = null;
+let _salesCache = {};
 
-function showSaleQR(total, items) {
+function showSaleQR(id) {
+  const sale = _salesCache[String(id)];
+  if (!sale) { toast('Order data not found'); return; }
+  const total = sale.total;
+  const items = sale.items;
   const link = `upi://pay?pa=${SALE_UPI_ID}&pn=${encodeURIComponent(SALE_STORE)}&am=${parseFloat(total).toFixed(2)}&cu=INR`;
   _saleQRUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(link)}`;
 
   document.getElementById('sale-qr-items').textContent  = items || '';
-  document.getElementById('sale-qr-total').textContent  = '\u20B9' + parseFloat(total).toFixed(2);
+  document.getElementById('sale-qr-total').textContent  = '₹' + parseFloat(total).toFixed(2);
   document.getElementById('sale-qr-upi-id').textContent = SALE_UPI_ID;
 
   const img     = document.getElementById('sale-qr-img');
@@ -1126,6 +1133,13 @@ async function saveSaleQR() {
 
 document.addEventListener('click', e => {
   if (e.target === document.getElementById('sale-qr-modal')) closeSaleQRModal();
+
+  // Delegated handler for QR buttons — avoids onclick string encoding issues
+  const qrBtn = e.target.closest('.sale-qr-btn');
+  if (qrBtn) {
+    const id = qrBtn.dataset.saleId;
+    if (id) showSaleQR(id);
+  }
 });
 
 </script>
