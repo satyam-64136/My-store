@@ -6,11 +6,15 @@
   <meta name="theme-color" content="#0c0c0d"/>
   <title>Satyam's Store</title>
   <link rel="stylesheet" href="style.css"/>
+  <!-- Preconnect to font origin so the TCP handshake is done before CSS requests it -->
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <!-- Font CSS with display=swap — doesn't block render, swaps in when ready -->
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
   <noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/></noscript>
+  <!-- Lucide deferred — does not block HTML parsing or first paint -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
 </head>
 <body>
 
@@ -18,10 +22,11 @@
   <div class="store-closed-card">
     <div class="store-closed-emoji">🛍️</div>
     <h2>Store Temporarily Closed</h2>
-    <p>Seller is currently sleeping. Please come back tomorrow.</p>
+    <p>We’ll be back soon. You can still browse products in the meantime.</p>
   </div>
 </div>
 
+<!-- ════ LOADER ════ (original colours untouched) -->
 <div id="page-loader">
   <svg aria-label="hourglass loader" role="img" height="56px" width="56px" viewBox="0 0 56 56" class="loader">
     <clipPath id="smt"><path d="M 14.613 13.087 C 15.814 12.059 19.3 8.039 20.3 6.539 C 21.5 4.789 21.5 2.039 21.5 2.039 L 3 2.039 C 3 2.039 3 4.789 4.2 6.539 C 5.2 8.039 8.686 12.059 9.887 13.087 C 11 14.039 12.25 14.039 12.25 14.039 C 12.25 14.039 13.5 14.039 14.613 13.087 Z" class="loader__sand-mound-top"></path></clipPath>
@@ -60,13 +65,16 @@
   <p class="loader-label">Loading<span class="loader-dots"></span></p>
 </div>
 
+<!-- ════ NAV ════ -->
 <nav class="site-nav" id="main-nav">
   <div class="nav-inner">
     <a class="nav-brand" href="index.html">
       <div class="nav-brand-icon"><i data-lucide="zap" style="width:13px;height:13px"></i></div>
-      <span class="nav-brand-name">Satyam's Store</span>
+      <span class="nav-brand-name">Your's Store</span>
     </a>
     <div class="nav-links">
+      <!-- Order button removed — already on the store page -->
+      <!-- Icon only for admin, no label -->
       <a class="nav-link-icon" href="admin.html" title="Admin">
         <i data-lucide="settings" style="width:14px;height:14px"></i>
       </a>
@@ -77,7 +85,7 @@
   <div class="nav-inner">
     <a class="nav-brand" href="index.html">
       <div class="nav-brand-icon"><i data-lucide="zap" style="width:13px;height:13px"></i></div>
-      <span class="nav-brand-name">Satyam's Store</span>
+      <span class="nav-brand-name">Your's Store</span>
     </a>
     <a class="nav-link" href="#" onclick="switchView('store');return false;">
       <i data-lucide="arrow-left" style="width:12px;height:12px"></i> Back
@@ -85,9 +93,43 @@
   </div>
 </nav>
 
+<!-- ════ VIEW: STORE ════ -->
 <div id="view-store" class="view active">
   <main class="page-wrap">
-    <div id="loading-state" class="state-box">
+
+    <!-- Store hero -->
+    <div class="store-hero" id="store-hero">
+      <div class="hero-grid-lines"></div>
+      <div class="hero-content">
+        <div class="hero-left">
+          <div class="hero-eyebrow"><span class="hero-tag"><span class="hero-tag-dot"></span>Open now</span></div>
+          <div class="hero-title">Your's Store</div>
+          <div class="hero-sub">Fresh stock · Daily drops · UPI payments</div>
+        </div>
+        <div class="hero-right">
+          <div class="hero-stat-box">
+            <div class="hero-stat-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+            </div>
+            <div class="hero-stat-val" id="hero-prod-count">—</div>
+            <div class="hero-stat-lbl">Products</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shimmer skeleton (shown while loading) -->
+    <div id="shimmer-grid" class="p-grid">
+      <div class="shimmer-card"><div class="shimmer-img shimmer"></div><div class="shimmer-line shimmer" style="width:75%;margin-top:10px"></div><div class="shimmer-line shimmer" style="width:45%;margin-top:6px"></div><div class="shimmer-btn shimmer" style="margin-top:10px"></div></div>
+      <div class="shimmer-card"><div class="shimmer-img shimmer"></div><div class="shimmer-line shimmer" style="width:75%;margin-top:10px"></div><div class="shimmer-line shimmer" style="width:45%;margin-top:6px"></div><div class="shimmer-btn shimmer" style="margin-top:10px"></div></div>
+      <div class="shimmer-card"><div class="shimmer-img shimmer"></div><div class="shimmer-line shimmer" style="width:75%;margin-top:10px"></div><div class="shimmer-line shimmer" style="width:45%;margin-top:6px"></div><div class="shimmer-btn shimmer" style="margin-top:10px"></div></div>
+      <div class="shimmer-card"><div class="shimmer-img shimmer"></div><div class="shimmer-line shimmer" style="width:75%;margin-top:10px"></div><div class="shimmer-line shimmer" style="width:45%;margin-top:6px"></div><div class="shimmer-btn shimmer" style="margin-top:10px"></div></div>
+      <div class="shimmer-card"><div class="shimmer-img shimmer"></div><div class="shimmer-line shimmer" style="width:75%;margin-top:10px"></div><div class="shimmer-line shimmer" style="width:45%;margin-top:6px"></div><div class="shimmer-btn shimmer" style="margin-top:10px"></div></div>
+      <div class="shimmer-card"><div class="shimmer-img shimmer"></div><div class="shimmer-line shimmer" style="width:75%;margin-top:10px"></div><div class="shimmer-line shimmer" style="width:45%;margin-top:6px"></div><div class="shimmer-btn shimmer" style="margin-top:10px"></div></div>
+      
+    </div>
+
+    <div id="loading-state" class="state-box hidden">
       <div class="spinner"></div>
       <p style="color:var(--t3);font-size:.76rem">Fetching products…</p>
     </div>
@@ -104,10 +146,14 @@
     </div>
     <div id="product-grid" class="p-grid hidden"></div>
   </main>
+
 </div>
 
+<!-- ════ VIEW: PAYMENT ════ -->
 <div id="view-payment" class="view">
   <div class="pay-wrap">
+
+    <!-- Order summary -->
     <div class="pay-card">
       <div class="pay-card-title">
         <i data-lucide="receipt-text" style="width:12px;height:12px"></i> Order Summary
@@ -119,10 +165,12 @@
       </div>
     </div>
 
+    <!-- UPI section -->
     <div class="pay-card">
+      <!-- UPI display (title removed per spec) -->
       <div class="upi-display">
         <div class="upi-display-info">
-          <span class="upi-display-name">Satyam's Store</span>
+          <span class="upi-display-name">Your's Store</span>
           <span class="upi-display-id">satyamm@fam</span>
         </div>
         <button class="copy-btn" onclick="copyUPI()">
@@ -155,9 +203,11 @@
         </button>
       </div>
     </div>
+
   </div>
 </div>
 
+<!-- ════ BOTTOM BAR — always fixed, outside all views ════ -->
 <div class="bottom-bar" id="bottom-bar">
   <div class="bottom-bar-info">
     <div class="bottom-stat">
@@ -176,6 +226,7 @@
   </button>
 </div>
 
+<!-- ════ MODALS ════ -->
 <div id="toast" class="toast hidden"></div>
 
 <div id="success-overlay" class="overlay hidden">
@@ -191,6 +242,9 @@
 
 <script src="shared.js"></script>
 <script>
+/* ═══════════════════════════════
+   VIEW MANAGER
+   ═══════════════════════════════ */
 function switchView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('main-nav').classList.toggle('hidden', name !== 'store');
@@ -202,43 +256,38 @@ function switchView(name) {
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
+/* ═══════════════════════════════
+   STORE — products
+   ═══════════════════════════════ */
 const UPI_ID = 'satyamm@fam';
-const STORE  = "Satyam's Store";
+const STORE  = "Your's Store";
+// Paste your deployed Apps Script Web App URL here after deploying sync-orders-to-sheets.gs
+const ORDERS_WEBHOOK = '';  // e.g. 'https://script.google.com/macros/s/.../exec'
+const STORE_STATUS_KEY = 'ss_store_closed';
 
 let allProducts = [], cart = {};
 let cartData = {}, productsData = [], cartTotal = 0;
-let isSubmittingOrder = false;
-let storeConfig = { storeStatus: 'open', autoCloseEnabled: false, autoCloseTime: '03:00', lastAutoCloseDate: '' };
 
-function _todayUTCDateStr() {
-  const d = new Date();
-  return d.getUTCFullYear() + '-' +
-    String(d.getUTCMonth() + 1).padStart(2, '0') + '-' +
-    String(d.getUTCDate()).padStart(2, '0');
+function isStoreClosed() {
+  try { return localStorage.getItem(STORE_STATUS_KEY) === 'true'; }
+  catch(_) { return false; }
 }
 
-async function applyStoreStatus() {
-  storeConfig = await getStoreConfig();
-  const isOpen = storeConfig.storeStatus === 'open';
-
+function checkStoreStatus() {
+  const closed = isStoreClosed();
   const overlay = document.getElementById('store-closed-overlay');
-  if (overlay) overlay.classList.toggle('hidden', isOpen);
-
-  if (!isOpen) {
-    cart = {};
-    sessionStorage.removeItem('ss_cart');
-    updateCartBar();
-    const proceed = document.getElementById('proceed-btn');
-    if (proceed) proceed.disabled = true;
-  }
+  if (overlay) overlay.classList.toggle('hidden', !closed);
+  updateCartBar();
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
   const saved = sessionStorage.getItem('ss_cart');
   if (saved) { try { cart = JSON.parse(saved); } catch(e){} }
+  checkStoreStatus();
+  window.addEventListener('storage', (e) => { if (e.key === STORE_STATUS_KEY) checkStoreStatus(); });
+  window.addEventListener('focus', checkStoreStatus);
 
-  await applyStoreStatus();
-
+  // Show cached products instantly — zero-wait first paint
   const cached = _cacheGet(_cacheKey('products'));
   if (cached) {
     allProducts = parseProducts(cached);
@@ -277,13 +326,12 @@ async function loadProducts({ background = false } = {}) {
     }
   } catch(err) {
     if (!background) {
-      const msg = (err && err.message)
-        ? err.message
-        : 'Could not load products. Check your internet connection and try again.';
-      document.getElementById('error-msg').textContent = msg;
+      document.getElementById('error-msg').textContent =
+        'Could not load products. Check your internet connection and try again.';
       showState('error');
     }
   } finally {
+    // Always hide loader — whether success, empty, or error
     if (!background) hideLoader();
   }
 }
@@ -293,7 +341,12 @@ function renderGrid(products) {
   showState('grid');
   const grid = document.getElementById('product-grid');
   grid.innerHTML = products.map(p => buildCard(p)).join('');
-  requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
+  const cnt = document.getElementById('hero-prod-count');
+  if (cnt) cnt.textContent = products.length;
+  requestAnimationFrame(() => {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    _animateCardsIn();
+  });
 }
 
 function buildCard(p) {
@@ -334,7 +387,6 @@ function buildCard(p) {
 }
 
 function changeQty(id, delta) {
-  if (storeConfig.storeStatus !== 'open') { toast('Service is currently closed'); return; }
   const p = allProducts.find(x => x.id === id);
   if (!p) return;
   if (delta > 0 && p.stock <= 0) { toast("Can't add more — out of stock"); return; }
@@ -343,13 +395,16 @@ function changeQty(id, delta) {
   if (delta > 0 && next === cur) { toast('Can\'t add more, stock limit reached'); return; }
   if (next === 0) delete cart[id]; else cart[id] = next;
   sessionStorage.setItem('ss_cart', JSON.stringify(cart));
+  // ss_products not written here — allProducts is already in memory and localStorage cache
   const el = document.getElementById(`card-${id}`);
   if (el) el.outerHTML = buildCard(p);
+  // Defer lucide refresh to next frame — doesn't block tap response
   requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
   updateCartBar();
 }
 
 function updateCartBar() {
+  const closed = isStoreClosed();
   let count = 0, total = 0;
   for (const [id, qty] of Object.entries(cart)) {
     const p = allProducts.find(x => x.id === id);
@@ -357,11 +412,11 @@ function updateCartBar() {
   }
   document.getElementById('cart-count').textContent = count;
   document.getElementById('cart-total').textContent = total.toFixed(2);
-  document.getElementById('proceed-btn').disabled = count === 0 || storeConfig.storeStatus !== 'open';
+  document.getElementById('proceed-btn').disabled = closed || count === 0;
 }
 
 function proceedToPayment() {
-  if (storeConfig.storeStatus !== 'open') { toast('Service is currently closed'); return; }
+  if (isStoreClosed()) { toast('Store is currently closed. Please come back later.'); return; }
   if (!Object.keys(cart).length) { toast('Add items first'); return; }
   cartData = cart;
   productsData = allProducts;
@@ -374,13 +429,27 @@ function proceedToPayment() {
 }
 
 function showState(s) {
-  document.getElementById('loading-state').classList.toggle('hidden', s !== 'loading');
+  const shimmer = document.getElementById('shimmer-grid');
+  if (shimmer) shimmer.classList.toggle('hidden', s !== 'loading');
+  document.getElementById('loading-state').classList.toggle('hidden', true);
   document.getElementById('error-state').classList.toggle('hidden',   s !== 'error');
   document.getElementById('empty-state').classList.toggle('hidden',   s !== 'empty');
   document.getElementById('product-grid').classList.toggle('hidden',  s !== 'grid');
 }
 
-/* PAYMENT */
+function _animateCardsIn() {
+  if (typeof gsap === 'undefined') return;
+  const cards = document.querySelectorAll('.p-card');
+  if (!cards.length) return;
+  gsap.fromTo(cards,
+    { opacity: 0, y: 18, scale: .97 },
+    { opacity: 1, y: 0, scale: 1, duration: .35, ease: 'power2.out', stagger: .04, clearProps: 'all' }
+  );
+}
+
+/* ═══════════════════════════════
+   PAYMENT
+   ═══════════════════════════════ */
 function renderOrder() {
   cartTotal = 0;
   const rows = [];
@@ -401,6 +470,7 @@ function buildQR() {
   window._qrUrl = qrUrl;
   const img = document.getElementById('qr-img');
   const spinner = document.getElementById('qr-spinner');
+  // Reset
   img.style.display = 'none';
   spinner.style.display = 'flex';
   spinner.innerHTML = '<div class="spinner" style="margin:0;width:24px;height:24px"></div>';
@@ -437,53 +507,97 @@ function copyUPI() {
 }
 
 async function confirmPayment() {
-  if (storeConfig.storeStatus !== 'open') { toast('Service is currently closed'); return; }
-  if (isSubmittingOrder) return;
-  isSubmittingOrder = true;
-
   const btn = document.getElementById('confirm-btn');
-  const oldHTML = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Placing order…`;
-
+  const saleItems = [];
+  for (const [id, qty] of Object.entries(cartData)) {
+    const p = productsData.find(x => x.id === id); if (!p) continue;
+    const sub = +(qty * p.price).toFixed(2);
+    saleItems.push({ id, name: p.name, qty, sub });
+  }
+  const total = +saleItems.reduce((s, i) => s + i.sub, 0).toFixed(2);
+  // items stored as JSONB array in Supabase orders table
+  let insertedOrder = null;
   try {
-    const saleItems = [];
-    for (const [id, qty] of Object.entries(cartData)) {
-      const p = productsData.find(x => x.id === id); if (!p) continue;
-      const sub = +(qty * p.price).toFixed(2);
-      saleItems.push({ id, name: p.name, qty, sub });
-    }
-    const total = +saleItems.reduce((s, i) => s + i.sub, 0).toFixed(2);
+    // Explicitly send created_at so there is no ambiguity about the timestamp source.
+    // new Date().toISOString() always produces a clean UTC string: "2026-03-23T04:12:00.000Z"
+    const nowISO = new Date().toISOString();
+    console.log('[order] client timestamp:', nowISO);
 
     const result = await sbPost('orders', {
-      items: saleItems,
+      items:      saleItems,
       total,
-      status: 'pending',
+      status:     'pending',
+      created_at: nowISO,
     });
+    // sbPost returns array; grab first row
+    insertedOrder = Array.isArray(result) ? result[0] : result;
+    console.log('[order] supabase returned created_at:', insertedOrder?.created_at);
+    console.log('[order] match:', nowISO === insertedOrder?.created_at ? 'YES' : 'CLOSE (Supabase may normalise ms)');
+  } catch(e) { console.warn('[order] insert failed:', e); }
 
-    sessionStorage.removeItem('ss_cart');
-    sessionStorage.removeItem('ss_products');
-    cart = {};
-
-    document.getElementById('success-overlay').classList.remove('hidden');
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-
-    setTimeout(() => {
-      document.getElementById('success-overlay').classList.add('hidden');
-      updateCartBar();
-      switchView('store');
-    }, 1800);
-
-  } catch (e) {
-    toast('Order failed. Please try again.');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = oldHTML;
-    isSubmittingOrder = false;
+  // Sync to Google Sheets via webhook (fire-and-forget, never blocks UI)
+  if (insertedOrder && ORDERS_WEBHOOK) {
+    fetch(ORDERS_WEBHOOK, {
+      method: 'POST',
+      mode:   'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify(insertedOrder),
+    }).catch(() => {});
   }
+  sessionStorage.removeItem('ss_cart');
+  sessionStorage.removeItem('ss_products');
+  cart = {};
+  document.getElementById('success-overlay').classList.remove('hidden');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  setTimeout(() => {
+    document.getElementById('success-overlay').classList.add('hidden');
+    updateCartBar();
+    switchView('store');
+  }, 2500);
 }
 
 document.addEventListener('contextmenu', e => e.preventDefault());
+// Note: do NOT call preventDefault() on touchstart — it kills scroll on mobile
+
+/* ── GSAP page-enter animations ─────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  function runGSAP() {
+    gsap.set('#main-nav',    { y: -48, opacity: 0 });
+    gsap.set('#store-hero',  { y: 20,  opacity: 0 });
+    gsap.set('#bottom-bar',  { y: 56,  opacity: 0 });
+    gsap.to('#main-nav',   { y: 0, opacity: 1, duration: .5,  ease: 'power3.out', delay: .05 });
+    gsap.to('#store-hero', { y: 0, opacity: 1, duration: .6,  ease: 'power3.out', delay: .15 });
+    gsap.to('#bottom-bar', { y: 0, opacity: 1, duration: .5,  ease: 'power3.out', delay: .22 });
+
+    // Magnetic proceed button (desktop only)
+    const btn = document.getElementById('proceed-btn');
+    if (btn && window.matchMedia('(hover:hover)').matches) {
+      btn.addEventListener('mousemove', e => {
+        const r = btn.getBoundingClientRect();
+        gsap.to(btn, { x: (e.clientX - r.left - r.width/2) * .3, y: (e.clientY - r.top - r.height/2) * .3, duration: .25, ease: 'power2.out' });
+      });
+      btn.addEventListener('mouseleave', () => gsap.to(btn, { x: 0, y: 0, duration: .45, ease: 'elastic.out(1,.55)' }));
+    }
+
+    // Hero open/closed badge
+    const tag = document.querySelector('.hero-tag');
+    if (tag) {
+      const closed = isStoreClosed();
+      tag.innerHTML = closed
+        ? '<span class="hero-tag-dot" style="background:var(--red);box-shadow:0 0 6px rgba(214,79,79,.8)"></span>Closed'
+        : '<span class="hero-tag-dot"></span>Open now';
+      if (closed) { tag.style.background = 'rgba(214,79,79,.07)'; tag.style.borderColor = 'rgba(214,79,79,.2)'; tag.style.color = 'var(--red)'; }
+    }
+  }
+
+  if (typeof gsap !== 'undefined') { runGSAP(); }
+  else {
+    const s = document.querySelector('script[src*="gsap"]');
+    if (s) s.addEventListener('load', runGSAP);
+  }
+});
 </script>
 </body>
 </html>
