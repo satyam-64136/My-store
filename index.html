@@ -232,7 +232,7 @@
 <div id="success-overlay" class="overlay hidden">
   <div class="modal" style="max-width:320px;text-align:center">
     <div class="success-icon" style="margin-bottom:12px">
-      <i data-lucide="check-circle-2" style="width:24px;height:24px;color:var(--t1)"></i>
+      <i data-lucide="check-circle-2" style="width:24px;height:24px;color:var(--green)"></i>
     </div>
     <div class="modal-title">Order Placed</div>
     <p class="modal-sub" style="margin-top:5px">Pending admin approval.</p>
@@ -263,29 +263,37 @@ const UPI_ID = 'satyamm@fam';
 const STORE  = "Your's Store";
 // Paste your deployed Apps Script Web App URL here after deploying sync-orders-to-sheets.gs
 const ORDERS_WEBHOOK = '';  // e.g. 'https://script.google.com/macros/s/.../exec'
-const STORE_STATUS_KEY = 'ss_store_closed';
-
 let allProducts = [], cart = {};
 let cartData = {}, productsData = [], cartTotal = 0;
+let _storeClosed = false;
 
-function isStoreClosed() {
-  try { return localStorage.getItem(STORE_STATUS_KEY) === 'true'; }
-  catch(_) { return false; }
-}
+function isStoreClosed() { return _storeClosed; }
 
-function checkStoreStatus() {
-  const closed = isStoreClosed();
+async function checkStoreStatus() {
+  try {
+    const cfg = await getStoreConfig();
+    _storeClosed = cfg.storeStatus === 'closed';
+  } catch(_) { /* keep previous value on network error */ }
   const overlay = document.getElementById('store-closed-overlay');
-  if (overlay) overlay.classList.toggle('hidden', !closed);
+  if (overlay) overlay.classList.toggle('hidden', !_storeClosed);
   updateCartBar();
+  // Update hero badge
+  const tag = document.querySelector('.hero-tag');
+  if (tag) {
+    tag.innerHTML = _storeClosed
+      ? '<span class="hero-tag-dot" style="background:var(--red);box-shadow:0 0 6px rgba(214,79,79,.8)"></span>Closed'
+      : '<span class="hero-tag-dot"></span>Open now';
+    if (_storeClosed) { tag.style.background = 'rgba(214,79,79,.07)'; tag.style.borderColor = 'rgba(214,79,79,.2)'; tag.style.color = 'var(--red)'; }
+    else { tag.style.background = ''; tag.style.borderColor = ''; tag.style.color = ''; }
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   const saved = sessionStorage.getItem('ss_cart');
   if (saved) { try { cart = JSON.parse(saved); } catch(e){} }
   checkStoreStatus();
-  window.addEventListener('storage', (e) => { if (e.key === STORE_STATUS_KEY) checkStoreStatus(); });
   window.addEventListener('focus', checkStoreStatus);
+  setInterval(checkStoreStatus, 30000);
 
   // Show cached products instantly — zero-wait first paint
   const cached = _cacheGet(_cacheKey('products'));
@@ -581,15 +589,6 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.addEventListener('mouseleave', () => gsap.to(btn, { x: 0, y: 0, duration: .45, ease: 'elastic.out(1,.55)' }));
     }
 
-    // Hero open/closed badge
-    const tag = document.querySelector('.hero-tag');
-    if (tag) {
-      const closed = isStoreClosed();
-      tag.innerHTML = closed
-        ? '<span class="hero-tag-dot" style="background:var(--red);box-shadow:0 0 6px rgba(214,79,79,.8)"></span>Closed'
-        : '<span class="hero-tag-dot"></span>Open now';
-      if (closed) { tag.style.background = 'rgba(214,79,79,.07)'; tag.style.borderColor = 'rgba(214,79,79,.2)'; tag.style.color = 'var(--red)'; }
-    }
   }
 
   if (typeof gsap !== 'undefined') { runGSAP(); }
