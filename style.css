@@ -73,62 +73,110 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 99px; }
 
+/* ── Page loader wrapper ─────────────────────────────── */
 #page-loader {
   position: fixed; inset: 0; z-index: 9999;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
-  background: var(--bg);
-  background-image: radial-gradient(ellipse 70% 40% at 50% 0%, rgba(255,255,255,.03) 0%, transparent 60%);
+  background: #bcdee7;
+  overflow: hidden;
   transition: opacity .5s cubic-bezier(.4,0,.2,1);
 }
 #page-loader.fade-out { opacity: 0; pointer-events: none; }
 
-.loader-label {
-  font-family: var(--f-head);
-  font-size: .65rem; font-weight: 500;
-  letter-spacing: .2em; text-transform: uppercase; color: var(--t3);
+/* The expanding background circle (puff) — scoped to #page-loader */
+#page-loader:before {
+  content: "";
+  height: 0;
+  padding: 0;
+  border: 130em solid #313440;
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  z-index: 1;
+  display: block;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: puff 0.5s 1.8s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards,
+             loaderBorderRadius 0.2s 2.3s linear forwards;
 }
-.loader-dots::after { content: ''; animation: ldots 1.4s steps(4,end) infinite; }
-@keyframes ldots { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} }
 
-.loader { --dur: 2s; display: block; margin: auto; width: 110px; height: 110px; }
-.loader__glare-top,.loader__glare-bottom,.loader__model,
-.loader__motion-thick,.loader__motion-medium,.loader__motion-thin,
-.loader__sand-drop,.loader__sand-fill,.loader__sand-grain-left,.loader__sand-grain-right,
-.loader__sand-line-left,.loader__sand-line-right,
-.loader__sand-mound-top,.loader__sand-mound-bottom {
-  animation-duration: var(--dur);
-  animation-timing-function: cubic-bezier(.83,0,.17,1);
-  animation-iteration-count: infinite;
+/* The main card that drops, bounces, and expands */
+.animating-card {
+  background: #FFB300;
+  width: 56px;
+  height: 56px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  overflow: hidden;
+  opacity: 0;
+  margin-top: 70px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 3px 6px rgba(0,0,0,.16), 0 3px 6px rgba(0,0,0,.23);
+  animation: init 0.5s 0.2s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards,
+             moveDown 1s 0.8s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards,
+             moveUp 1s 1.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
+             materia 0.5s 2.7s cubic-bezier(0.86, 0, 0.07, 1) forwards;
 }
-.loader__glare-top    { animation-name: glare-top; }
-.loader__glare-bottom { animation-name: glare-bottom; }
-.loader__model        { animation-name: loader-flip; transform-origin: 12.25px 16.75px; }
-.loader__motion-thick,.loader__motion-medium,.loader__motion-thin { transform-origin: 26px 26px; }
-.loader__motion-thick  { animation-name: motion-thick; }
-.loader__motion-medium { animation-name: motion-medium; }
-.loader__motion-thin   { animation-name: motion-thin; }
-.loader__sand-drop        { animation-name: sand-drop; }
-.loader__sand-fill        { animation-name: sand-fill; }
-.loader__sand-grain-left  { animation-name: sand-grain-left; }
-.loader__sand-grain-right { animation-name: sand-grain-right; }
-.loader__sand-line-left   { animation-name: sand-line-left; }
-.loader__sand-line-right  { animation-name: sand-line-right; }
-.loader__sand-mound-top   { animation-name: sand-mound-top; }
-.loader__sand-mound-bottom { animation-name: sand-mound-bottom; transform-origin: 12.25px 31.5px; }
-@keyframes loader-flip{from{transform:translate(13.75px,9.25px) rotate(-180deg)}24%,to{transform:translate(13.75px,9.25px) rotate(0)}}
-@keyframes glare-top{from{stroke:rgba(255,255,255,0)}24%,to{stroke:white}}
-@keyframes glare-bottom{from{stroke:white}24%,to{stroke:rgba(255,255,255,0)}}
-@keyframes motion-thick{from{animation-timing-function:cubic-bezier(.33,0,.67,0);stroke:rgba(255,255,255,0);stroke-dashoffset:153.94;transform:rotate(.67turn)}20%{animation-timing-function:cubic-bezier(.33,1,.67,1);stroke:rgba(255,255,255,.5);stroke-dashoffset:141.11;transform:rotate(1turn)}40%,to{stroke:rgba(255,255,255,0);stroke-dashoffset:153.94;transform:rotate(1.33turn)}}
-@keyframes motion-medium{from,8%{animation-timing-function:cubic-bezier(.33,0,.67,0);stroke:rgba(255,255,255,0);stroke-dashoffset:153.94;transform:rotate(.5turn)}20%{animation-timing-function:cubic-bezier(.33,1,.67,1);stroke:rgba(255,255,255,.65);stroke-dashoffset:147.53;transform:rotate(.83turn)}32%,to{stroke:rgba(255,255,255,0);stroke-dashoffset:153.94;transform:rotate(1.17turn)}}
-@keyframes motion-thin{from,4%{animation-timing-function:cubic-bezier(.33,0,.67,0);stroke:rgba(255,255,255,0);stroke-dashoffset:153.94;transform:rotate(.33turn)}24%{animation-timing-function:cubic-bezier(.33,1,.67,1);stroke:rgba(255,255,255,.35);stroke-dashoffset:134.7;transform:rotate(.67turn)}44%,to{stroke:rgba(255,255,255,0);stroke-dashoffset:153.94;transform:rotate(1turn)}}
-@keyframes sand-drop{from,10%{animation-timing-function:cubic-bezier(.12,0,.39,0);stroke-dashoffset:1}70%,to{stroke-dashoffset:-107}}
-@keyframes sand-fill{from,10%{animation-timing-function:cubic-bezier(.12,0,.39,0);stroke-dashoffset:55}70%,to{stroke-dashoffset:-54}}
-@keyframes sand-grain-left{from,10%{animation-timing-function:cubic-bezier(.12,0,.39,0);stroke-dashoffset:29}70%,to{stroke-dashoffset:-22}}
-@keyframes sand-grain-right{from,10%{animation-timing-function:cubic-bezier(.12,0,.39,0);stroke-dashoffset:27}70%,to{stroke-dashoffset:-24}}
-@keyframes sand-line-left{from,10%{animation-timing-function:cubic-bezier(.12,0,.39,0);stroke-dashoffset:53}70%,to{stroke-dashoffset:-55}}
-@keyframes sand-line-right{from,10%{animation-timing-function:cubic-bezier(.12,0,.39,0);stroke-dashoffset:14}70%,to{stroke-dashoffset:-24.5}}
-@keyframes sand-mound-top{from,10%{animation-timing-function:linear;transform:translate(0,0)}15%{animation-timing-function:cubic-bezier(.12,0,.39,0);transform:translate(0,1.5px)}51%,to{transform:translate(0,13px)}}
-@keyframes sand-mound-bottom{from,31%{animation-timing-function:cubic-bezier(.61,1,.88,1);transform:scale(1,0)}56%,to{transform:scale(1,1)}}
+
+/* Content inside the card — hidden, fades in after card expands */
+.card-content {
+  padding: 30px;
+  text-align: center;
+  opacity: 0;
+  margin-top: 50px;
+  animation: moveIn 1s 3.1s ease forwards;
+}
+.card-content h1 { color: #FF5722; margin-top: 0; }
+
+/* Keyframes */
+@keyframes init {
+  0%   { width: 0; height: 0; }
+  100% { width: 56px; height: 56px; margin-top: 0; opacity: 1; }
+}
+@keyframes puff {
+  0%   { top: 100%; height: 0; padding: 0; }
+  100% { top: 50%; height: 100%; padding: 0 100%; }
+}
+@keyframes loaderBorderRadius {
+  0%   { border-radius: 50%; }
+  100% { border-radius: 0; }
+}
+@keyframes moveDown {
+  0%   { top: 50%; }
+  50%  { top: 40%; }
+  100% { top: 100%; }
+}
+@keyframes moveUp {
+  0%   { background: #FFB300; top: 100%; }
+  50%  { top: 40%; }
+  100% { top: 50%; background: #E0E0E0; }
+}
+@keyframes materia {
+  0%   { background: #E0E0E0; }
+  50%  { border-radius: 4px; }
+  100% { width: 440px; height: auto; background: #FFFFFF; border-radius: 4px; }
+}
+@keyframes moveIn {
+  0%   { margin-top: 50px; opacity: 0; }
+  100% { opacity: 1; margin-top: 0; }
+}
+
+@media screen and (min-aspect-ratio: 4/3) {
+  #page-loader:before { width: 0; }
+  @keyframes puff {
+    0%   { top: 100%; width: 0; padding-bottom: 0; }
+    100% { top: 50%; width: 100%; padding-bottom: 100%; }
+  }
+}
+@media screen and (min-height: 480px) {
+  @keyframes materia {
+    0%   { background: #E0E0E0; }
+    50%  { border-radius: 4px; }
+    100% { width: 500px; height: auto; background: #FFFFFF; border-radius: 4px; }
+  }
+}
 
 .site-nav {
   position: fixed;
@@ -1101,109 +1149,3 @@ body {
 /* ── Scrollbar ───────────────────────────────────────── */
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.18); }
-
-/* ═══════════════════════════════════════════════════════
-   Loading Card Animation (puff expand)
-   ═══════════════════════════════════════════════════════ */
-
-/* The expanding background circle (Puff animation) */
-body:before {
-  content: "";
-  height: 0;
-  padding: 0;
-  border: 130em solid #313440; /* Final background color */
-  position: absolute;
-  left: 50%;
-  top: 100%;
-  z-index: 1;
-  display: block;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  animation: puff 0.5s 1.8s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards,
-             borderRadius 0.2s 2.3s linear forwards;
-}
-
-/* The main card that drops, bounces, and expands */
-.animating-card {
-  background: #FFB300; /* Initial dot color */
-  width: 56px;
-  height: 56px;
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  z-index: 2;
-  overflow: hidden;
-  opacity: 0;
-  margin-top: 70px;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
-  animation: init 0.5s 0.2s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards,
-             moveDown 1s 0.8s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards,
-             moveUp 1s 1.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
-             materia 0.5s 2.7s cubic-bezier(0.86, 0, 0.07, 1) forwards;
-}
-
-/* The content inside the card that fades in */
-.card-content {
-  padding: 30px;
-  text-align: center;
-  opacity: 0;
-  margin-top: 50px;
-  animation: moveIn 1s 3.1s ease forwards;
-}
-.card-content h1 {
-  color: #FF5722;
-  margin-top: 0;
-}
-
-/* --- Keyframes for loading card animation --- */
-@keyframes init {
-  0% { width: 0; height: 0; }
-  100% { width: 56px; height: 56px; margin-top: 0; opacity: 1; }
-}
-@keyframes puff {
-  0% { top: 100%; height: 0; padding: 0; }
-  100% { top: 50%; height: 100%; padding: 0 100%; }
-}
-@keyframes borderRadius {
-  0% { border-radius: 50%; }
-  100% { border-radius: 0; }
-}
-@keyframes moveDown {
-  0% { top: 50%; }
-  50% { top: 40%; }
-  100% { top: 100%; }
-}
-@keyframes moveUp {
-  0% { background: #FFB300; top: 100%; }
-  50% { top: 40%; }
-  100% { top: 50%; background: #E0E0E0; }
-}
-@keyframes materia {
-  0% { background: #E0E0E0; }
-  50% { border-radius: 4px; }
-  100% { width: 440px; height: auto; background: #FFFFFF; border-radius: 4px; }
-}
-@keyframes moveIn {
-  0% { margin-top: 50px; opacity: 0; }
-  100% { opacity: 1; margin-top: 0; }
-}
-
-/* Responsive adjustments for loading card animation */
-@media screen and (min-aspect-ratio: 4/3) {
-  body:before {
-    width: 0;
-  }
-  @keyframes puff {
-    0% { top: 100%; width: 0; padding-bottom: 0; }
-    100% { top: 50%; width: 100%; padding-bottom: 100%; }
-  }
-}
-@media screen and (min-height: 480px) {
-  @keyframes materia {
-    0% { background: #E0E0E0; }
-    50% { border-radius: 4px; }
-    100% { width: 500px; height: auto; background: #FFFFFF; border-radius: 4px; }
-  }
-}
