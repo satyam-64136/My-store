@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadProducts({ background = false } = {}) {
   if (!background) showState('loading');
   try {
-    const rows = await sbGet('products?select=id,name,price,stock,image,purchase_price&order=name.asc');
+    const rows = await sbGet('products?select=id,name,price,stock,image,purchase_price,hidden&order=name.asc');
     const fresh = parseProducts(rows);
     _cacheSet(_cacheKey('products'), rows);
 
@@ -299,12 +299,12 @@ async function loadProducts({ background = false } = {}) {
       const newStr = JSON.stringify(fresh.map(p => ({ id: p.id, stock: p.stock, price: p.price })));
       if (oldStr !== newStr) {
         allProducts = fresh;
-        renderGrid(allProducts);
+        renderGrid(allProducts.filter(p => !p.hidden));
         updateCartBar();
       }
     } else {
       allProducts = fresh;
-      renderGrid(allProducts);
+      renderGrid(allProducts.filter(p => !p.hidden));
       updateCartBar();
     }
   } catch(err) {
