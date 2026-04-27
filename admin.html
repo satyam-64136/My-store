@@ -108,6 +108,77 @@
     border: 2px solid rgba(255,255,255,.12);
     box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 0 0 4px rgba(255,255,255,.04);
   }
+
+  /* ── Mobile admin improvements ── */
+  @media (max-width: 600px) {
+
+    /* Tighter page padding on mobile */
+    .page-wrap { padding-left: 12px !important; padding-right: 12px !important; }
+
+    /* Tab bar — bigger tap targets */
+    .tab-btn { padding: 10px 8px !important; font-size: .76rem !important; }
+
+    /* Store controls row — stack on very small screens */
+    .store-ctl-row { gap: 10px !important; }
+
+    /* Cards — less padding on mobile */
+    .card { padding: 13px 12px !important; }
+
+    /* Add product form — full-width price+stock row */
+    .form-row2 { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+
+    /* Products table — cleaner mobile row layout */
+    .tbl tr.prod-row {
+      padding: 11px 2px !important;
+      row-gap: 6px !important;
+    }
+    .prod-name  { font-size: .84rem !important; }
+    .prod-price { font-size: .72rem !important; }
+
+    /* Pending order cards — bigger approve/reject buttons */
+    .order-card-actions .btn-sm {
+      flex: 1;
+      justify-content: center;
+      padding: 8px 10px !important;
+      font-size: .74rem !important;
+    }
+
+    /* Sales history — date select full width */
+    #date-select { min-width: 0 !important; }
+
+    /* Sales stat boxes — tighter text */
+    .stat-val { font-size: 1.1rem !important; }
+    .stat-lbl { font-size: .55rem !important; }
+
+    /* Sales del button — bigger tap target */
+    .sales-del-btn { width: 30px !important; height: 30px !important; border-radius: 7px !important; }
+
+    /* QR btn in sales — bigger tap target */
+    .sale-qr-btn { width: 30px !important; height: 30px !important; border-radius: 7px !important; }
+  }
+
+  /* Sales delete button base style (all sizes) */
+  .sales-del-btn {
+    width: 26px; height: 26px; border-radius: 6px;
+    background: transparent; border: 1px solid var(--b0);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--t3); flex-shrink: 0;
+    transition: background .12s, color .12s, border-color .12s;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  .sales-del-btn:hover { background: rgba(214,79,79,.1); border-color: rgba(214,79,79,.2); color: var(--red); }
+
+  /* Hide toggle button in products table */
+  .tbl-hide {
+    width: 24px; height: 24px; border-radius: 5px;
+    background: transparent; border: 1px solid var(--b0);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--t3);
+    transition: background .12s, color .12s, border-color .12s;
+    flex-shrink: 0; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  .tbl-hide:hover { background: rgba(200,144,42,.1); border-color: rgba(200,144,42,.25); color: var(--amber); }
+  @media (max-width:600px) { .tbl-hide { width:28px; height:28px; border-radius:7px; } }
   </style>
 </head>
 <body>
@@ -264,6 +335,7 @@
                 <div class="field"><label>Price ₹ <span class="req">*</span></label><input id="f-price" type="number" step="0.01" min="0" required placeholder="20" inputmode="decimal"/></div>
                 <div class="field"><label>Stock <span class="req">*</span></label><input id="f-stock" type="number" min="0" required placeholder="50" inputmode="numeric"/></div>
               </div>
+              <div class="field"><label>Purchase Price ₹</label><input id="f-purchase-price" type="number" step="0.01" min="0" placeholder="0" inputmode="decimal"/></div>
               <div class="field"><label>Image URL</label><input id="f-image" type="url" placeholder="https://…"/></div>
               <button type="submit" id="add-btn" class="btn-primary" style="width:100%;margin-top:2px">
                 <i data-lucide="plus" style="width:12px;height:12px"></i>
@@ -330,10 +402,19 @@
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:13px">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:9px">
         <div class="stat-box"><div id="s-count" class="stat-val">—</div><div class="stat-lbl">Sales</div></div>
         <div class="stat-box"><div id="s-revenue" class="stat-val" style="color:var(--green)">—</div><div class="stat-lbl">Revenue ₹</div></div>
         <div class="stat-box"><div id="s-avg" class="stat-val">—</div><div class="stat-lbl">Items Sold</div></div>
+      </div>
+      <div id="s-profit-box" style="display:none;margin-bottom:13px">
+        <div class="stat-box" style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.07)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            <span style="font-family:var(--f-head);font-size:.62rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.08em">Net Profit ₹</span>
+          </div>
+          <div id="s-profit" class="stat-val" style="color:var(--green);font-size:1.1rem">—</div>
+        </div>
       </div>
 
       <div class="card">
@@ -377,7 +458,18 @@
       <div class="field"><label>Price ₹ <span class="req">*</span></label><input id="e-price" type="number" step="0.01" min="0" inputmode="decimal"/></div>
       <div class="field"><label>Stock <span class="req">*</span></label><input id="e-stock" type="number" min="0" inputmode="numeric"/></div>
     </div>
+    <div class="field"><label>Purchase Price ₹</label><input id="e-purchase-price" type="number" step="0.01" min="0" placeholder="0" inputmode="decimal"/></div>
     <div class="field"><label>Image URL</label><input id="e-image" type="url" placeholder="https://…"/></div>
+    <div class="store-ctl-row" style="margin-bottom:14px;padding:10px 12px;background:var(--surface-1);border:1px solid var(--b1);border-radius:var(--r1)">
+      <div>
+        <div style="font-family:var(--f-head);font-size:.72rem;font-weight:600;color:var(--t1)">Hide from store</div>
+        <div style="font-size:.66rem;color:var(--t3);margin-top:2px">Product stays in admin, invisible to customers</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="e-hidden">
+        <span class="slider"></span>
+      </label>
+    </div>
     <div class="modal-actions">
       <button id="edit-save-btn" onclick="confirmEdit()" class="btn-primary">
         <i data-lucide="save" style="width:12px;height:12px"></i>
@@ -587,7 +679,7 @@ async function loadProducts({ noCache = false } = {}) {
   if (icon) icon.style.animation = 'spin .7s linear infinite';
   if (!allProducts.length) setProdState('loading');
   try {
-    const rows = await sbGet('products?select=id,name,price,stock,image&order=name.asc');
+    const rows = await sbGet('products?select=id,name,price,stock,image,purchase_price,hidden&order=name.asc');
     _cacheSet(_cacheKey('products'), rows);
     allProducts = parseProducts(rows);
     renderProducts();
@@ -613,8 +705,12 @@ function renderProducts() {
   document.getElementById('prod-tbody').innerHTML = allProducts.map(p => {
     const cls = p.stock === 0 ? 'badge-out' : p.stock <= 5 ? 'badge-low' : 'badge-ok';
     const stockLbl = p.stock === 0 ? 'Out' : String(p.stock);
-    return `<tr class="prod-row">
-      <td class="prod-name" data-label="Name">${esc(p.name)}</td>
+    const hiddenRowStyle = p.hidden ? 'opacity:.45;' : '';
+    return `<tr class="prod-row" style="${hiddenRowStyle}">
+      <td class="prod-name" data-label="Name">
+        ${esc(p.name)}
+        ${p.hidden ? `<span style="display:inline-block;margin-left:5px;font-family:var(--f-mono);font-size:.55rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(200,144,42,.1);border:1px solid rgba(200,144,42,.2);color:var(--amber);vertical-align:middle;letter-spacing:.04em">HIDDEN</span>` : ''}
+      </td>
       <td class="prod-price" data-label="Price">₹${p.price.toFixed(2)}</td>
       <td class="prod-stock-ctrl" data-label="Stock">
         <div class="stock-ctrl">
@@ -626,6 +722,9 @@ function renderProducts() {
       <td class="prod-badge" data-label="Status"><span class="badge ${cls}">${p.stock === 0 ? 'Out' : p.stock <= 5 ? 'Low' : 'OK'}</span></td>
       <td class="prod-del">
         <div style="display:flex;gap:4px;align-items:center">
+          <button class="tbl-hide" onclick="toggleHide('${esc(p.id)}')" title="${p.hidden ? 'Show in store' : 'Hide from store'}" style="${p.hidden ? 'color:var(--amber);border-color:rgba(200,144,42,.25);background:rgba(200,144,42,.07)' : ''}">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">${p.hidden ? '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>' : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'}</svg>
+          </button>
           <button class="tbl-edit" onclick="askEdit('${esc(p.id)}')" title="Edit product">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
@@ -637,6 +736,23 @@ function renderProducts() {
     </tr>`;
   }).join('');
 }
+async function toggleHide(id) {
+  const p = allProducts.find(x => x.id === id);
+  if (!p) return;
+  const newHidden = !p.hidden;
+  p.hidden = newHidden;
+  renderProducts();
+  try {
+    await sbPatch(`products?id=eq.${encodeURIComponent(id)}`, { hidden: newHidden });
+    _cacheInvalidate('products');
+    toast(newHidden ? `"${p.name}" hidden from store` : `"${p.name}" visible in store`);
+  } catch(e) {
+    p.hidden = !newHidden; // revert
+    renderProducts();
+    toast('Failed to update visibility');
+  }
+}
+
 async function adjustStock(id, delta) {
   const p = allProducts.find(x => x.id === id);
   if (!p) return;
@@ -670,6 +786,8 @@ function askEdit(id) {
   document.getElementById('e-price').value = p.price;
   document.getElementById('e-stock').value = p.stock;
   document.getElementById('e-image').value = p.image;
+  document.getElementById('e-purchase-price').value = p.purchase_price || 0;
+  document.getElementById('e-hidden').checked = !!p.hidden;
   document.getElementById('edit-modal').classList.remove('hidden');
   requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
   document.getElementById('e-name').focus();
@@ -686,6 +804,8 @@ async function confirmEdit() {
   const price = parseFloat(document.getElementById('e-price').value);
   const stock = parseInt(document.getElementById('e-stock').value, 10);
   const image = document.getElementById('e-image').value.trim();
+  const purchase_price = parseFloat(document.getElementById('e-purchase-price').value) || 0;
+  const hidden = document.getElementById('e-hidden').checked;
 
   if (!name || isNaN(price) || isNaN(stock)) { toast('Fill all required fields'); return; }
 
@@ -694,11 +814,13 @@ async function confirmEdit() {
   btn.disabled = true; lbl.textContent = 'Saving…';
 
   try {
-    await sbPatch(`products?id=eq.${encodeURIComponent(editTarget.id)}`, { name, price, stock, image });
+    await sbPatch(`products?id=eq.${encodeURIComponent(editTarget.id)}`, { name, price, stock, image, purchase_price, hidden });
     editTarget.name  = name;
     editTarget.price = price;
     editTarget.stock = stock;
     editTarget.image = image;
+    editTarget.purchase_price = purchase_price;
+    editTarget.hidden = hidden;
     _cacheInvalidate('products');
     renderProducts();
     renderStats();
@@ -717,12 +839,13 @@ async function submitAdd(e) {
   const price   = parseFloat(document.getElementById('f-price').value);
   const stock   = parseInt(document.getElementById('f-stock').value, 10);
   const image   = document.getElementById('f-image').value.trim();
+  const purchase_price = parseFloat(document.getElementById('f-purchase-price').value) || 0;
   if (!name || isNaN(price) || isNaN(stock)) { toast('Fill required fields'); return; }
   const btn = document.getElementById('add-btn');
   const lbl = document.getElementById('add-lbl');
   btn.disabled = true; lbl.textContent = 'Saving…';
   try {
-    await sbPost('products', { name, price, stock, image });
+    await sbPost('products', { name, price, stock, image, purchase_price });
     toast(`"${name}" added`);
     document.getElementById('add-form').reset();
     _cacheInvalidate('products');
@@ -981,7 +1104,13 @@ async function loadSales() {
     const sales = rows.map(r => {
       const itemsArr = Array.isArray(r.items) ? r.items : [];
       const itemsStr = itemsArr.map(i => `${i.name} x${i.qty} (Rs.${i.sub})`).join(', ');
-      return { id: r.id, time: cleanSheetVal(r.created_at), items: itemsStr, itemsArr, total: parseFloat(r.total) || 0 };
+      // Profit per sale: sum of (sub - purchase_price * qty) for each item
+      // purchase_price stored on each item at order time if available, else look up from allProducts
+      const profit = itemsArr.reduce((acc, i) => {
+        const pp = parseFloat(i.purchase_price) || (allProducts.find(p => String(p.id) === String(i.id))?.purchase_price || 0);
+        return acc + ((parseFloat(i.sub) || 0) - pp * (parseInt(i.qty, 10) || 0));
+      }, 0);
+      return { id: r.id, time: cleanSheetVal(r.created_at), items: itemsStr, itemsArr, total: parseFloat(r.total) || 0, profit: +profit.toFixed(2) };
     });
     renderSales(sales); updateSummary(sales);
   } catch(e) {
@@ -994,7 +1123,7 @@ async function loadSales() {
 function renderSales(sales) {
   setSalesState('data');
   _salesCache = {};
-  sales.forEach(s => { _salesCache[String(s.id)] = { total: s.total, items: s.items }; });
+  sales.forEach(s => { _salesCache[String(s.id)] = { total: s.total, items: s.items, profit: s.profit || 0 }; });
   document.getElementById('sales-tbody').innerHTML = [...sales].reverse().map(s => `
     <div class="order-card" id="sale-row-${esc(String(s.id))}">
       <div class="order-card-head">
@@ -1021,9 +1150,24 @@ function updateSummary(sales) {
     const arr = Array.isArray(s.itemsArr) ? s.itemsArr : [];
     return a + arr.reduce((b, i) => b + (parseInt(i.qty, 10) || 0), 0);
   }, 0);
+  const netProfit = sales.reduce((a, s) => a + (s.profit || 0), 0);
   document.getElementById('s-count').textContent   = sales.length;
   document.getElementById('s-revenue').textContent = rev.toFixed(0);
   document.getElementById('s-avg').textContent     = itemsSold;
+
+  // Net Profit only valid from 28 Apr 2026 onwards (purchase_price data starts then)
+  const PROFIT_START = new Date('2026-04-28T00:00:00+05:30').getTime();
+  const dateLabel = document.getElementById('date-select')?.value || '';
+  const parts = dateLabel.split('/');
+  let selectedMs = 0;
+  if (parts.length === 3) {
+    const [day, month, year] = parts.map(Number);
+    selectedMs = new Date(year, month - 1, day).getTime();
+  }
+  const profitBox = document.getElementById('s-profit-box');
+  const profitEl  = document.getElementById('s-profit');
+  if (profitBox) profitBox.style.display = selectedMs >= PROFIT_START ? '' : 'none';
+  if (profitEl)  profitEl.textContent = netProfit.toFixed(0);
 }
 
 function askDeleteSale(id) {
@@ -1061,6 +1205,14 @@ async function confirmDeleteSale() {
     document.getElementById('s-count').textContent   = remaining.length;
     document.getElementById('s-revenue').textContent = rev.toFixed(0);
     document.getElementById('s-avg').textContent     = itemsSold;
+    // Recalculate net profit from remaining _salesCache entries
+    const remainingIds = new Set([...document.querySelectorAll('#sales-tbody .order-card')].map(c => c.id.replace('sale-row-','')));
+    const netProfit = [...remainingIds].reduce((a, id) => {
+      const s = _salesCache[id];
+      return a + (s && s.profit != null ? s.profit : 0);
+    }, 0);
+    const profitEl = document.getElementById('s-profit');
+    if (profitEl) profitEl.textContent = netProfit.toFixed(0);
   } catch(e) {
     toast('Delete failed');
   } finally {

@@ -151,11 +151,12 @@ function parseProducts(rows) {
   if (!Array.isArray(rows)) return [];
   return rows
     .map(r => ({
-      id:    String(r.id   ?? '').trim(),
-      name:  String(r.name ?? '').trim(),
-      price: parseFloat(r.price)   || 0,
-      stock: parseInt(r.stock, 10) || 0,
-      image: String(r.image ?? '').trim(),
+      id:             String(r.id   ?? '').trim(),
+      name:           String(r.name ?? '').trim(),
+      price:          parseFloat(r.price)   || 0,
+      stock:          parseInt(r.stock, 10) || 0,
+      image:          String(r.image ?? '').trim(),
+      purchase_price: parseFloat(r.purchase_price) || 0,
     }))
     .filter(p => p.id && p.name);
 }

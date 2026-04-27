@@ -134,6 +134,10 @@
         <span class="pay-total-lbl">Total</span>
         <span class="pay-total-amt" id="total-display">₹0.00</span>
       </div>
+      <div class="pay-total-row" style="margin-top:6px;opacity:.75">
+        <span class="pay-total-lbl" style="font-size:.72rem;color:var(--t2)">Profit</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:.8rem;font-weight:600;color:var(--green)" id="profit-display">₹0.00</span>
+      </div>
     </div>
 
     <!-- UPI section -->
@@ -286,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadProducts({ background = false } = {}) {
   if (!background) showState('loading');
   try {
-    const rows = await sbGet('products?select=id,name,price,stock,image&order=name.asc');
+    const rows = await sbGet('products?select=id,name,price,stock,image,purchase_price&order=name.asc');
     const fresh = parseProducts(rows);
     _cacheSet(_cacheKey('products'), rows);
 
@@ -431,16 +435,22 @@ function _animateCardsIn() {
    ═══════════════════════════════ */
 function renderOrder() {
   cartTotal = 0;
+  let cartProfit = 0;
   const rows = [];
   for (const [id, qty] of Object.entries(cartData)) {
     const p = productsData.find(x => x.id === id); if (!p) continue;
     const sub = +(qty * p.price).toFixed(2);
     cartTotal += sub;
+    const purchasePrice = p.purchase_price || 0;
+    cartProfit += (p.price - purchasePrice) * qty;
     rows.push(`<div class="pay-row"><span>${esc(p.name)} × ${qty}</span><span style="font-family:'JetBrains Mono',monospace">₹${sub.toFixed(2)}</span></div>`);
   }
   cartTotal = +cartTotal.toFixed(2);
+  cartProfit = +cartProfit.toFixed(2);
   document.getElementById('order-items').innerHTML = rows.join('') || `<p style="color:var(--t3);font-size:.78rem">No items</p>`;
   document.getElementById('total-display').textContent = `₹${cartTotal.toFixed(2)}`;
+  const profitEl = document.getElementById('profit-display');
+  if (profitEl) profitEl.textContent = `₹${cartProfit.toFixed(2)}`;
 }
 
 function buildQR() {
