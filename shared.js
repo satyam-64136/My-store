@@ -62,13 +62,14 @@ async function sbPost(table, body) {
 async function sbPatch(tableAndFilter, body) {
   const res = await fetch(
     `${SB_URL}/rest/v1/${tableAndFilter}`,
-    { method: 'PATCH', headers: _sbHeaders(), body: JSON.stringify(body) }
+    { method: 'PATCH', headers: _sbHeaders({ 'Prefer': 'return=minimal' }), body: JSON.stringify(body) }
   );
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
     throw new Error(`sbPatch ${res.status} ${txt}`);
   }
-  return res.json();
+  // return=minimal gives 204 No Content — no body to parse
+  return true;
 }
 
 // DELETE /rest/v1/<table>?<filter>
@@ -157,6 +158,7 @@ function parseProducts(rows) {
       stock:          parseInt(r.stock, 10) || 0,
       image:          String(r.image ?? '').trim(),
       purchase_price: parseFloat(r.purchase_price) || 0,
+      hidden: r.hidden === true || r.hidden === 'true',
     }))
     .filter(p => p.id && p.name);
 }

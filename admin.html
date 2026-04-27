@@ -407,11 +407,12 @@
         <div class="stat-box"><div id="s-revenue" class="stat-val" style="color:var(--green)">—</div><div class="stat-lbl">Revenue ₹</div></div>
         <div class="stat-box"><div id="s-avg" class="stat-val">—</div><div class="stat-lbl">Items Sold</div></div>
       </div>
-      <div id="s-profit-box" style="display:none;margin-bottom:13px">
-        <div class="stat-box" style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.07)">
+      <div id="s-profit-box" style="display:none;margin-bottom:13px;cursor:pointer" onclick="showProfitBreakdown()" title="Click for item breakdown">
+        <div class="stat-box" style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.07);transition:border-color .15s,background .15s">
           <div style="display:flex;align-items:center;gap:8px">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
             <span style="font-family:var(--f-head);font-size:.62rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.08em">Net Profit ₹</span>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="2.5" style="margin-left:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           </div>
           <div id="s-profit" class="stat-val" style="color:var(--green);font-size:1.1rem">—</div>
         </div>
@@ -1123,7 +1124,7 @@ async function loadSales() {
 function renderSales(sales) {
   setSalesState('data');
   _salesCache = {};
-  sales.forEach(s => { _salesCache[String(s.id)] = { total: s.total, items: s.items, profit: s.profit || 0 }; });
+  sales.forEach(s => { _salesCache[String(s.id)] = { total: s.total, items: s.items, itemsArr: s.itemsArr || [], profit: s.profit || 0 }; });
   document.getElementById('sales-tbody').innerHTML = [...sales].reverse().map(s => `
     <div class="order-card" id="sale-row-${esc(String(s.id))}">
       <div class="order-card-head">
@@ -1283,7 +1284,68 @@ async function saveSaleQR() {
   } catch(e) { toast('Download failed'); }
 }
 
+/* ── Profit Breakdown Modal ────────────────────────────── */
+function showProfitBreakdown() {
+  // Aggregate item-level profit across all visible sales
+  const itemMap = {}; // key: item name, value: { qty, revenue, cost, profit }
+
+  Object.values(_salesCache).forEach(sale => {
+    const arr = Array.isArray(sale.itemsArr) ? sale.itemsArr : [];
+    arr.forEach(i => {
+      const name = i.name || 'Unknown';
+      const qty  = parseInt(i.qty, 10) || 0;
+      const sub  = parseFloat(i.sub) || 0;
+      const pp   = parseFloat(i.purchase_price) || (allProducts.find(p => String(p.id) === String(i.id))?.purchase_price || 0);
+      const cost   = pp * qty;
+      const profit = sub - cost;
+      if (!itemMap[name]) itemMap[name] = { qty: 0, revenue: 0, cost: 0, profit: 0 };
+      itemMap[name].qty     += qty;
+      itemMap[name].revenue += sub;
+      itemMap[name].cost    += cost;
+      itemMap[name].profit  += profit;
+    });
+  });
+
+  const items = Object.entries(itemMap)
+    .map(([name, d]) => ({ name, ...d }))
+    .sort((a, b) => b.profit - a.profit);
+
+  const totalProfit = items.reduce((a, x) => a + x.profit, 0);
+
+  const dateLabel = document.getElementById('date-select')?.value || '';
+  document.getElementById('profit-breakdown-date').textContent = dateLabel ? `Date: ${dateLabel}` : '';
+  document.getElementById('profit-breakdown-total').textContent = '₹' + totalProfit.toFixed(2);
+
+  const list = document.getElementById('profit-breakdown-list');
+  if (!items.length) {
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--t3);font-size:.74rem">No data available</div>';
+  } else {
+    list.innerHTML = items.map(item => {
+      const pColor = item.profit >= 0 ? 'var(--green)' : 'var(--red)';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--b0);gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.78rem;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.name)}</div>
+          <div style="font-size:.64rem;color:var(--t3);font-family:var(--f-mono);margin-top:2px">
+            ×${item.qty} sold · Rev ₹${item.revenue.toFixed(0)} · Cost ₹${item.cost.toFixed(0)}
+          </div>
+        </div>
+        <div style="font-family:var(--f-mono);font-size:.82rem;font-weight:700;color:${pColor};white-space:nowrap">
+          ${item.profit >= 0 ? '+' : ''}₹${item.profit.toFixed(2)}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('profit-breakdown-modal').classList.remove('hidden');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function closeProfitBreakdown() {
+  document.getElementById('profit-breakdown-modal').classList.add('hidden');
+}
+
 document.addEventListener('click', e => {
+  if (e.target === document.getElementById('profit-breakdown-modal')) closeProfitBreakdown();
   if (e.target === document.getElementById('sale-qr-modal')) closeSaleQRModal();
 
   // Delegated handler for QR buttons — avoids onclick string encoding issues
@@ -1327,6 +1389,22 @@ document.addEventListener('click', e => {
     <button class="qr-action-btn" onclick="saveSaleQR()" style="margin-top:10px;width:100%;justify-content:center">
       <i data-lucide="download" style="width:11px;height:11px"></i> Save QR
     </button>
+  </div>
+</div>
+
+<!-- ════ PROFIT BREAKDOWN MODAL ════ -->
+<div id="profit-breakdown-modal" class="overlay hidden">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-head">
+      <div class="modal-title">Profit Breakdown</div>
+      <button class="modal-close" onclick="closeProfitBreakdown()"><i data-lucide="x" style="width:13px;height:13px"></i></button>
+    </div>
+    <div style="font-size:.66rem;color:var(--t3);margin-bottom:12px;font-family:var(--f-mono)" id="profit-breakdown-date"></div>
+    <div id="profit-breakdown-list" style="display:flex;flex-direction:column;gap:0"></div>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--b1);display:flex;justify-content:space-between;align-items:baseline">
+      <span style="font-family:var(--f-head);font-size:.7rem;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.08em">Total Net Profit</span>
+      <span id="profit-breakdown-total" style="font-family:var(--f-mono);font-size:1.1rem;font-weight:700;color:var(--green)"></span>
+    </div>
   </div>
 </div>
 
