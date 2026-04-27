@@ -1156,7 +1156,7 @@ function updateSummary(sales) {
   document.getElementById('s-avg').textContent     = itemsSold;
 
   // Net Profit only valid from 28 Apr 2026 onwards (purchase_price data starts then)
-  const PROFIT_START = new Date('2026-04-27T00:00:00+05:30').getTime();
+  const PROFIT_START = new Date('2026-04-25T00:00:00+05:30').getTime();
   const dateLabel = document.getElementById('date-select')?.value || '';
   const parts = dateLabel.split('/');
   let selectedMs = 0;
