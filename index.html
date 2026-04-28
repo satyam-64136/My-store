@@ -20,9 +20,12 @@
 
 <div id="store-closed-overlay" class="store-closed-overlay hidden" aria-live="polite">
   <div class="store-closed-card">
-    <div class="store-closed-emoji">🛍️</div>
-    <h2>Store Temporarily Closed</h2>
-    <p>We’ll be back soon. You can still browse products in the meantime.</p>
+    <div class="sc-icon-wrap">
+      <div class="sc-icon-ring"></div>
+      <i data-lucide="moon" style="width:24px;height:24px;position:relative;z-index:1"></i>
+    </div>
+    <div class="sc-title">Store Closed</div>
+    <p id="store-closed-msg" class="sc-sub">We’ll be back soon. You can still browse products in the meantime.</p>
   </div>
 </div>
 
@@ -244,6 +247,8 @@ async function checkStoreStatus() {
   try {
     const cfg = await getStoreConfig();
     _storeClosed = cfg.storeStatus === 'closed';
+    const msgEl = document.getElementById('store-closed-msg');
+    if (msgEl && cfg.closedMessage) msgEl.textContent = cfg.closedMessage;
   } catch(_) { /* keep previous value on network error */ }
   const overlay = document.getElementById('store-closed-overlay');
   if (overlay) overlay.classList.toggle('hidden', !_storeClosed);
@@ -270,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const cached = _cacheGet(_cacheKey('products'));
   if (cached) {
     allProducts = parseProducts(cached);
-    renderGrid(allProducts);
+    renderGrid(allProducts.filter(p => !p.hidden));
     updateCartBar();
     hideLoader();
     loadProducts({ background: true });
@@ -291,8 +296,8 @@ async function loadProducts({ background = false } = {}) {
     _cacheSet(_cacheKey('products'), rows);
 
     if (background) {
-      const oldStr = JSON.stringify(allProducts.map(p => ({ id: p.id, stock: p.stock, price: p.price })));
-      const newStr = JSON.stringify(fresh.map(p => ({ id: p.id, stock: p.stock, price: p.price })));
+      const oldStr = JSON.stringify(allProducts.map(p => ({ id: p.id, stock: p.stock, price: p.price, hidden: p.hidden })));
+      const newStr = JSON.stringify(fresh.map(p => ({ id: p.id, stock: p.stock, price: p.price, hidden: p.hidden })));
       if (oldStr !== newStr) {
         allProducts = fresh;
         renderGrid(allProducts.filter(p => !p.hidden));

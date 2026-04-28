@@ -808,100 +808,64 @@ body {
 /* ── Store-closed overlay — futuristic ──────────────── */
 .store-closed-overlay {
   position: fixed; inset: 0; z-index: 500;
-  display: flex; align-items: center; justify-content: center; padding: 18px;
-  background: rgba(4,4,6,.75);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  background: rgba(4,4,6,.82);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
 }
 .store-closed-overlay.hidden { display: none !important; }
 
 .store-closed-card {
   position: relative;
-  width: min(400px, 100%);
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,.08);
-  background: rgba(10,10,14,.92);
+  width: min(360px, 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(232,224,212,.1);
+  background: rgba(14,13,17,.96);
   text-align: center;
-  padding: 32px 24px 28px;
+  padding: 36px 28px 32px;
   overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(255,255,255,.04), 0 32px 80px rgba(0,0,0,.7);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.03), 0 40px 100px rgba(0,0,0,.8);
 }
 .store-closed-card::before {
   content: '';
   position: absolute; top: 0; left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(214,79,79,.6) 40%, rgba(214,79,79,.6) 60%, transparent);
-}
-
-/* Scan line animation */
-.sc-scan-line {
-  position: absolute; top: 0; left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(214,79,79,.5), transparent);
-  animation: sc-scan 3s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes sc-scan {
-  0%   { top: 0%;   opacity: 0; }
-  10%  { opacity: 1; }
-  90%  { opacity: 1; }
-  100% { top: 100%; opacity: 0; }
+  background: linear-gradient(90deg, transparent, rgba(232,224,212,.18) 40%, rgba(232,224,212,.18) 60%, transparent);
 }
 
 .sc-icon-wrap {
   position: relative;
-  width: 60px; height: 60px;
-  margin: 0 auto 16px;
+  width: 64px; height: 64px;
+  margin: 0 auto 20px;
   display: flex; align-items: center; justify-content: center;
-  color: rgba(214,79,79,.8);
+  color: rgba(232,224,212,.7);
 }
 .sc-icon-ring {
   position: absolute; inset: 0; border-radius: 50%;
-  border: 1px solid rgba(214,79,79,.25);
-  animation: sc-ring-pulse 2.5s ease-in-out infinite;
+  border: 1px solid rgba(232,224,212,.15);
+  animation: sc-ring-pulse 3s ease-in-out infinite;
 }
 .sc-icon-ring::after {
   content: '';
-  position: absolute; inset: -6px; border-radius: 50%;
-  border: 1px solid rgba(214,79,79,.1);
+  position: absolute; inset: -8px; border-radius: 50%;
+  border: 1px solid rgba(232,224,212,.06);
 }
 @keyframes sc-ring-pulse {
   0%,100% { transform: scale(1);    opacity: 1; }
-  50%      { transform: scale(1.12); opacity: .5; }
+  50%      { transform: scale(1.1); opacity: .4; }
 }
 
-.sc-label {
-  font-family: var(--f-mono);
-  font-size: .58rem; font-weight: 600;
-  color: rgba(214,79,79,.6);
-  letter-spacing: .2em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
 .sc-title {
   font-family: var(--f-head);
-  font-size: 1.3rem; font-weight: 800;
+  font-size: 1.25rem; font-weight: 800;
   color: var(--t1); letter-spacing: -.03em;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
 }
 .sc-sub {
-  font-size: .76rem; color: var(--t3);
-  line-height: 1.65; margin: 0 0 16px;
-}
-.sc-status-row {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 5px 12px; border-radius: 99px;
-  background: rgba(255,255,255,.03);
-  border: 1px solid rgba(255,255,255,.07);
-}
-.sc-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: rgba(214,79,79,.7);
-  box-shadow: 0 0 6px rgba(214,79,79,.5);
-  animation: sc-blink 1.8s ease-in-out infinite;
-}
-@keyframes sc-blink { 0%,100%{opacity:1} 50%{opacity:.25} }
-.sc-status-text {
-  font-family: var(--f-mono); font-size: .62rem;
-  color: var(--t3); letter-spacing: .08em;
+  font-size: .8rem; color: rgba(242,240,236,.55);
+  line-height: 1.7; margin: 0;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--f-body);
 }
 
 /* ── Store hero — futuristic ────────────────────────── */

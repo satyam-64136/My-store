@@ -183,11 +183,18 @@ function toast(msg, dur = 3000) {
   _tt = setTimeout(() => el.classList.add('hidden'), dur);
 }
 
+let _loaderHidden = false;
 function hideLoader() {
+  if (_loaderHidden) return;
+  _loaderHidden = true;
   const el = document.getElementById('page-loader');
   if (!el) return;
+  // Stop all animations immediately so they don't keep running under the fade
+  el.style.animation = 'none';
+  const card = el.querySelector('.animating-card');
+  if (card) card.style.animation = 'none';
   el.classList.add('fade-out');
-  setTimeout(() => { el.style.display = 'none'; }, 520);
+  setTimeout(() => { el.style.display = 'none'; }, 540);
 }
 
 // Format Supabase timestamp -> IST time string (HH:MM AM/PM)
