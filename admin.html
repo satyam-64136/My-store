@@ -112,49 +112,46 @@
   /* ── Mobile admin improvements ── */
   @media (max-width: 600px) {
 
-    /* Tighter page padding on mobile */
-    .page-wrap { padding-left: 12px !important; padding-right: 12px !important; }
+    /* Tighter page padding */
+    .page-wrap { padding-left: 10px !important; padding-right: 10px !important; }
 
-    /* Tab bar — bigger tap targets */
-    .tab-btn { padding: 10px 8px !important; font-size: .76rem !important; }
+    /* Page title — smaller */
+    .page-title { font-size: 1rem !important; margin-bottom: 10px !important; }
 
-    /* Store controls row — stack on very small screens */
-    .store-ctl-row { gap: 10px !important; }
+    /* Tab bar */
+    .tab-btn { padding: 9px 6px !important; font-size: .72rem !important; gap: 4px !important; }
 
-    /* Cards — less padding on mobile */
-    .card { padding: 13px 12px !important; }
+    /* Cards */
+    .card { padding: 12px 11px !important; border-radius: 12px !important; }
 
-    /* Add product form — full-width price+stock row */
+    /* Store controls — stack banner vertically on very narrow screens */
+    #store-status-banner { flex-wrap: wrap !important; }
+    #store-open-toggle-btn { width: 100% !important; justify-content: center !important; margin-top: 4px !important; }
+
+    /* Add product form */
     .form-row2 { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
 
-    /* Products table — cleaner mobile row layout */
-    .tbl tr.prod-row {
-      padding: 11px 2px !important;
-      row-gap: 6px !important;
-    }
-    .prod-name  { font-size: .84rem !important; }
-    .prod-price { font-size: .72rem !important; }
+    /* Product rows — already handled in main CSS above, just tweak padding */
+    .tbl tr.prod-row { padding: 12px 0 !important; }
 
-    /* Pending order cards — bigger approve/reject buttons */
+    /* Pending order cards */
     .order-card-actions .btn-sm {
       flex: 1;
       justify-content: center;
-      padding: 8px 10px !important;
+      padding: 9px 10px !important;
       font-size: .74rem !important;
     }
 
-    /* Sales history — date select full width */
+    /* Sales filters */
     #date-select { min-width: 0 !important; }
 
-    /* Sales stat boxes — tighter text */
-    .stat-val { font-size: 1.1rem !important; }
-    .stat-lbl { font-size: .55rem !important; }
+    /* Stats boxes */
+    .stat-val { font-size: 1.05rem !important; }
+    .stat-lbl { font-size: .54rem !important; }
 
-    /* Sales del button — bigger tap target */
-    .sales-del-btn { width: 30px !important; height: 30px !important; border-radius: 7px !important; }
-
-    /* QR btn in sales — bigger tap target */
-    .sale-qr-btn { width: 30px !important; height: 30px !important; border-radius: 7px !important; }
+    /* Sales action buttons */
+    .sales-del-btn { width: 32px !important; height: 32px !important; border-radius: 8px !important; }
+    .sale-qr-btn   { width: 32px !important; height: 32px !important; border-radius: 8px !important; }
   }
 
   /* Sales delete button base style (all sizes) */
@@ -1167,8 +1164,12 @@ async function loadSales() {
       // Profit per sale: sum of (sub - purchase_price * qty) for each item
       // purchase_price stored on each item at order time if available, else look up from allProducts
       const profit = itemsArr.reduce((acc, i) => {
-        // Always use purchase_price baked in at approve time — never recalculate from current product price
-        const pp = parseFloat(i.purchase_price) || 0;
+        // Use purchase_price baked in at approve time if available
+        // Fall back to current product price for old orders that predate the snapshot feature
+        const storedPP = parseFloat(i.purchase_price);
+        const pp = (storedPP > 0)
+          ? storedPP
+          : (allProducts.find(p => String(p.id) === String(i.id))?.purchase_price || 0);
         return acc + ((parseFloat(i.sub) || 0) - pp * (parseInt(i.qty, 10) || 0));
       }, 0);
       return { id: r.id, time: cleanSheetVal(r.created_at), items: itemsStr, itemsArr, total: parseFloat(r.total) || 0, profit: +profit.toFixed(2) };
@@ -1356,7 +1357,10 @@ function showProfitBreakdown() {
       const name = i.name || 'Unknown';
       const qty  = parseInt(i.qty, 10) || 0;
       const sub  = parseFloat(i.sub) || 0;
-      const pp   = parseFloat(i.purchase_price) || 0; // locked at approve time
+      const storedPP = parseFloat(i.purchase_price);
+      const pp = (storedPP > 0)
+        ? storedPP
+        : (allProducts.find(p => String(p.id) === String(i.id))?.purchase_price || 0);
       const cost   = pp * qty;
       const profit = sub - cost;
       if (!itemMap[name]) itemMap[name] = { qty: 0, revenue: 0, cost: 0, profit: 0 };

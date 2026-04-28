@@ -573,34 +573,42 @@ body {
   .tbl, .tbl tbody { display:block; }
   .tbl thead { display:none; }
   .tbl tr.prod-row {
-    display:grid;
-    grid-template-columns:1fr auto auto;
-    grid-template-rows:auto auto;
-    column-gap:8px; row-gap:4px;
-    padding:10px 4px;
+    display:flex;
+    flex-direction:column;
+    padding:12px 4px;
     border-top:1px solid var(--b0);
+    gap:0;
   }
   .tbl tr.prod-row:first-child { border-top:none; }
   .tbl td { padding:0; border:none; }
 
-  .prod-name  { grid-column:1; grid-row:1; font-weight:600; color:var(--t1); font-size:.82rem; align-self:center; }
-  .prod-stock-ctrl { grid-column:1; grid-row:2; align-self:center; }
-  .prod-price { grid-column:2; grid-row:1; font-family:var(--f-mono); font-size:.75rem; text-align:right; color:var(--t2); align-self:center; white-space:nowrap; }
-  .prod-badge { grid-column:2; grid-row:2; text-align:right; align-self:center; }
+  /* Row 1: name + price side by side */
+  .prod-name  { font-weight:600; color:var(--t1); font-size:.85rem; display:block; margin-bottom:3px; }
+  .prod-price { font-family:var(--f-mono); font-size:.74rem; color:var(--t2); display:block; margin-bottom:6px; }
+  .prod-badge { display:block; margin-bottom:8px; }
+
+  /* Stock controls row */
+  .prod-stock-ctrl { display:block; margin-bottom:10px; }
+
+  /* Action buttons — full-width row, all 3 spaced out */
   .prod-del {
-    grid-column:3;
-    grid-row:1 / 3;
     display:flex !important;
-    flex-direction:column;
+    flex-direction:row !important;
     align-items:center;
-    justify-content:center;
-    gap:6px;
+    gap:8px;
     position:static !important;
     overflow:visible !important;
-    min-width:32px;
   }
+  .prod-del .tbl-hide,
   .prod-del .tbl-edit,
-  .prod-del .tbl-del { width:28px; height:28px; border-radius:7px; }
+  .prod-del .tbl-del {
+    flex:1;
+    height:34px;
+    border-radius:8px;
+    width:auto !important;
+    justify-content:center;
+    font-size:.7rem;
+  }
 }
 
 .tbl-del { width:24px; height:24px; border-radius:5px; background:transparent; border:1px solid var(--b0); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--t3); transition:background .12s,color .12s,border-color .12s; flex-shrink:0; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
@@ -854,6 +862,14 @@ body {
   50%      { transform: scale(1.1); opacity: .4; }
 }
 
+.sc-label {
+  font-family: var(--f-mono);
+  font-size: .58rem; font-weight: 600;
+  color: rgba(232,224,212,.35);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
 .sc-title {
   font-family: var(--f-head);
   font-size: 1.25rem; font-weight: 800;
@@ -862,10 +878,26 @@ body {
 }
 .sc-sub {
   font-size: .8rem; color: rgba(242,240,236,.55);
-  line-height: 1.7; margin: 0;
+  line-height: 1.7; margin: 0 0 18px;
   text-transform: none;
   letter-spacing: 0;
   font-family: var(--f-body);
+}
+.sc-status-row {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 13px; border-radius: 99px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.sc-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(232,224,212,.5);
+  animation: sc-blink 2s ease-in-out infinite;
+}
+@keyframes sc-blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+.sc-status-text {
+  font-family: var(--f-mono); font-size: .6rem;
+  color: rgba(242,240,236,.4); letter-spacing: .08em;
 }
 
 /* ── Store hero — futuristic ────────────────────────── */
