@@ -449,7 +449,13 @@ function renderOrder() {
     cartTotal += sub;
     const purchasePrice = p.purchase_price || 0;
     cartProfit += (p.price - purchasePrice) * qty;
-    rows.push(`<div class="pay-row"><span>${esc(p.name)} × ${qty}</span><span style="font-family:'JetBrains Mono',monospace">₹${sub.toFixed(2)}</span></div>`);
+    rows.push(`<div class="pay-row">
+      <div style="display:flex;flex-direction:column;min-width:0;flex:1;gap:1px">
+        <span style="font-size:.84rem;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>
+        <span style="font-size:.68rem;color:var(--t3);font-family:var(--f-mono)">₹${p.price.toFixed(2)} × ${qty}</span>
+      </div>
+      <span style="font-family:var(--f-mono);font-size:.88rem;font-weight:700;color:var(--t1);white-space:nowrap;margin-left:12px">₹${sub.toFixed(2)}</span>
+    </div>`);
   }
   cartTotal = +cartTotal.toFixed(2);
   cartProfit = +cartProfit.toFixed(2);
