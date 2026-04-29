@@ -101,15 +101,6 @@
     /* Period label */
     .period-label { font-size: .64rem; color: var(--t3); font-family: var(--f-mono); margin-left: auto; }
 
-    /* Profit margin badge */
-    .margin-badge {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 2px 8px; border-radius: 99px; font-family: var(--f-mono);
-      font-size: .6rem; font-weight: 700;
-    }
-    .margin-badge.good { background: rgba(110,231,183,.1); color: #6ee7b7; border: 1px solid rgba(110,231,183,.2); }
-    .margin-badge.warn { background: rgba(200,144,42,.1); color: var(--amber); border: 1px solid rgba(200,144,42,.2); }
-    .margin-badge.bad  { background: rgba(214,79,79,.1);  color: var(--red);   border: 1px solid rgba(214,79,79,.2); }
 
     /* Day-of-week heatmap */
     .dow-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
@@ -163,6 +154,9 @@
 
     <!-- KPI Strip -->
     <div class="kpi-grid" id="kpi-grid"></div>
+    <div style="font-size:.6rem;color:var(--t3);font-family:var(--f-mono);margin-top:6px;padding:0 2px">
+      * Profit tracked from 26-Apr. Revenue includes all orders.
+    </div>
 
     <!-- Revenue & Profit chart -->
     <p class="stats-section-title">Revenue & Profit</p>
@@ -194,11 +188,7 @@
       <div id="top-items-list"></div>
     </div>
 
-    <!-- Profit margin per item -->
-    <p class="stats-section-title">Profit Margin by Item</p>
-    <div class="chart-card" style="padding-bottom:4px">
-      <div id="margin-list"></div>
-    </div>
+
 
     <!-- Day of week heatmap -->
     <p class="stats-section-title">Busiest Days</p>
@@ -206,9 +196,7 @@
       <div class="dow-grid" id="dow-grid"></div>
     </div>
 
-    <!-- Suggestions -->
-    <p class="stats-section-title">Suggestions</p>
-    <div id="suggestions-list"></div>
+
 
   </div><!-- /stats-content -->
 </div>
@@ -226,6 +214,9 @@ let _orders   = [];
 let _products = [];
 let _revenueChart = null;
 let _ordersChart  = null;
+
+// Orders before this date have no purchase_price set — exclude from profit calc
+const PROFIT_START = new Date('2026-04-26T00:00:00+05:30').getTime();
 
 /* ── Period buttons ─────────────────────── */
 document.querySelectorAll('.period-btn').forEach(btn => {
@@ -281,9 +272,12 @@ function deriveStats(orders) {
   const byDow     = [0,0,0,0,0,0,0]; // sun=0..sat=6 revenue
 
   orders.forEach(o => {
-    const d   = new Date(o.created_at);
-    const key = d.toISOString().slice(0,10);
-    const dow = d.getDay();
+    const d       = new Date(o.created_at);
+    const ms      = d.getTime();
+    const key     = d.toISOString().slice(0,10);
+    const dow     = d.getDay();
+    const hasCost = ms >= PROFIT_START; // only count profit for orders after 26 Apr
+
     if (!byDay[key]) byDay[key] = { revenue: 0, profit: 0, orders: 0 };
     byDay[key].orders++;
 
@@ -291,22 +285,24 @@ function deriveStats(orders) {
     items.forEach(i => {
       const qty = parseInt(i.qty,10) || 0;
       const sub = parseFloat(i.sub) || 0;
-      const pp  = parseFloat(i.purchase_price) > 0
-        ? parseFloat(i.purchase_price)
-        : (_products.find(p => String(p.id) === String(i.id))?.purchase_price || 0);
-      const profit = sub - pp * qty;
       totalRevenue += sub;
-      totalProfit  += profit;
       totalItems   += qty;
       byDay[key].revenue += sub;
-      byDay[key].profit  += profit;
       byDow[dow]         += sub;
 
-      const name = i.name || 'Unknown';
-      if (!byItem[name]) byItem[name] = { qty: 0, revenue: 0, profit: 0, pp };
-      byItem[name].qty     += qty;
-      byItem[name].revenue += sub;
-      byItem[name].profit  += profit;
+      if (hasCost) {
+        const pp  = parseFloat(i.purchase_price) > 0
+          ? parseFloat(i.purchase_price)
+          : (_products.find(p => String(p.id) === String(i.id))?.purchase_price || 0);
+        const profit = sub - pp * qty;
+        totalProfit       += profit;
+        byDay[key].profit += profit;
+        const name = i.name || 'Unknown';
+        if (!byItem[name]) byItem[name] = { qty: 0, revenue: 0, profit: 0, pp };
+        byItem[name].qty     += qty;
+        byItem[name].revenue += sub;
+        byItem[name].profit  += profit;
+      }
     });
   });
 
@@ -320,9 +316,7 @@ function renderAll() {
   renderKPIs(s, orders);
   renderCharts(s);
   renderTopItems(s);
-  renderMargins(s);
   renderDow(s);
-  renderSuggestions(s, orders);
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -354,9 +348,10 @@ function renderCharts(s) {
   document.getElementById('chart-period-label').textContent = label;
 
   // Build display labels (shorten to MM/DD)
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const labels = days.map(d => {
     const [,m,dd] = d.split('-');
-    return `${parseInt(m)}/${parseInt(dd)}`;
+    return `${parseInt(dd)}-${MONTHS[parseInt(m)-1]}`;
   });
   const revenues = days.map(d => +s.byDay[d].revenue.toFixed(2));
   const profits  = days.map(d => +s.byDay[d].profit.toFixed(2));
@@ -426,30 +421,6 @@ function renderTopItems(s) {
   `).join('') : '<div style="color:var(--t3);font-size:.74rem;padding:12px 0">No data</div>';
 }
 
-/* ── Margin list ─────────────────────────── */
-function renderMargins(s) {
-  const items = Object.entries(s.byItem)
-    .map(([name, d]) => {
-      const margin = d.revenue > 0 ? (d.profit / d.revenue * 100) : 0;
-      return { name, profit: d.profit, margin, revenue: d.revenue };
-    })
-    .filter(i => i.revenue > 0)
-    .sort((a,b) => b.margin - a.margin);
-
-  document.getElementById('margin-list').innerHTML = items.length ? items.map(item => {
-    const cls = item.margin >= 30 ? 'good' : item.margin >= 10 ? 'warn' : 'bad';
-    return `
-    <div class="item-row">
-      <div class="item-bar-wrap">
-        <div class="item-name">${esc(item.name)}</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-        <span style="font-family:var(--f-mono);font-size:.7rem;color:var(--t2)">₹${fmt(item.profit)}</span>
-        <span class="margin-badge ${cls}">${item.margin.toFixed(0)}%</span>
-      </div>
-    </div>`;
-  }).join('') : '<div style="color:var(--t3);font-size:.74rem;padding:12px 0">No data</div>';
-}
 
 /* ── Day of week ─────────────────────────── */
 function renderDow(s) {
@@ -468,64 +439,6 @@ function renderDow(s) {
   }).join('');
 }
 
-/* ── Suggestions ─────────────────────────── */
-function renderSuggestions(s, orders) {
-  const tips = [];
-
-  // Low margin items
-  const lowMargin = Object.entries(s.byItem)
-    .filter(([,d]) => d.revenue > 0 && (d.profit/d.revenue) < 0.1 && d.revenue > 50)
-    .sort((a,b) => (a[1].profit/a[1].revenue) - (b[1].profit/b[1].revenue))
-    .slice(0,2);
-  lowMargin.forEach(([name, d]) => {
-    const m = (d.profit/d.revenue*100).toFixed(0);
-    tips.push({ icon: 'alert-triangle', color: 'rgba(214,79,79,.1)', iconColor: 'var(--red)', title: `Low margin on ${name}`, body: `Only ${m}% margin. Consider increasing the price or negotiating a lower buying price.` });
-  });
-
-  // Best performing item
-  const best = Object.entries(s.byItem).sort((a,b) => b[1].profit - a[1].profit)[0];
-  if (best) {
-    tips.push({ icon: 'star', color: 'rgba(110,231,183,.07)', iconColor: '#6ee7b7', title: `${best[0]} is your top earner`, body: `₹${fmt(best[1].profit)} profit in this period. Keep it well stocked.` });
-  }
-
-  // Slow days
-  const dowNames = ['Sundays','Mondays','Tuesdays','Wednesdays','Thursdays','Fridays','Saturdays'];
-  const minDow = s.byDow.indexOf(Math.min(...s.byDow));
-  const maxDow = s.byDow.indexOf(Math.max(...s.byDow));
-  if (s.byDow[minDow] === 0 && orders.length > 5) {
-    tips.push({ icon: 'moon', color: 'rgba(200,144,42,.07)', iconColor: 'var(--amber)', title: `No sales on ${dowNames[minDow]}`, body: `Consider closing earlier on ${dowNames[minDow]} to save time. ${dowNames[maxDow]} are your busiest.` });
-  } else if (orders.length > 5) {
-    tips.push({ icon: 'calendar', color: 'rgba(200,144,42,.07)', iconColor: 'var(--amber)', title: `${dowNames[maxDow]} are your busiest`, body: `Make sure you're well stocked before ${dowNames[maxDow]}. ${dowNames[minDow]} are the slowest.` });
-  }
-
-  // Out of stock products
-  const outOfStock = _products.filter(p => !p.hidden && p.stock === 0);
-  if (outOfStock.length) {
-    tips.push({ icon: 'package-x', color: 'rgba(214,79,79,.07)', iconColor: 'var(--red)', title: `${outOfStock.length} item${outOfStock.length > 1 ? 's' : ''} out of stock`, body: outOfStock.map(p => p.name).join(', ') + ` — restock soon to avoid missing sales.` });
-  }
-
-  // Good margin
-  const goodMargin = Object.entries(s.byItem).filter(([,d]) => d.revenue > 0 && d.profit/d.revenue > 0.4);
-  if (goodMargin.length) {
-    tips.push({ icon: 'zap', color: 'rgba(110,231,183,.07)', iconColor: '#6ee7b7', title: `${goodMargin.length} high-margin item${goodMargin.length > 1 ? 's' : ''}`, body: `${goodMargin.map(([n])=>n).join(', ')} have 40%+ margins. Prioritise these in stock.` });
-  }
-
-  if (!tips.length) {
-    tips.push({ icon: 'check-circle', color: 'rgba(110,231,183,.07)', iconColor: '#6ee7b7', title: 'Looking good!', body: 'No major issues detected. Keep monitoring your margins as buying prices change.' });
-  }
-
-  document.getElementById('suggestions-list').innerHTML = tips.map(t => `
-    <div class="suggestion-card">
-      <div class="suggestion-icon" style="background:${t.color}">
-        <i data-lucide="${t.icon}" style="width:14px;height:14px;color:${t.iconColor}"></i>
-      </div>
-      <div>
-        <div class="suggestion-title">${t.title}</div>
-        <div class="suggestion-body">${t.body}</div>
-      </div>
-    </div>
-  `).join('');
-}
 
 /* ── Helpers ─────────────────────────────── */
 function fmt(n) {
