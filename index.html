@@ -493,12 +493,27 @@ function updateCartBar() {
   const prevCount = parseInt(countEl.textContent) || 0;
   countEl.textContent = count;
   totalEl.textContent = total.toFixed(2);
-  // Animate cart bar when count changes
+  const bar = document.getElementById('bottom-bar');
+
+  // Show/hide bar based on cart being empty
   if (count !== prevCount && typeof gsap !== 'undefined') {
-    const bar = document.getElementById('bottom-bar');
-    if (bar && count > prevCount) {
-      gsap.fromTo(bar, { y: 4 }, { y: 0, duration: .3, ease: 'back.out(3)' });
+    if (count > 0 && prevCount === 0) {
+      // Slide up into view — first item added
+      gsap.fromTo(bar,
+        { y: '100%', opacity: 0 },
+        { y: '0%', opacity: 1, duration: .52, ease: 'expo.out' }
+      );
+    } else if (count === 0 && prevCount > 0) {
+      // Slide down out of view — cart emptied
+      gsap.to(bar, {
+        y: '100%', opacity: 0,
+        duration: .32, ease: 'expo.in',
+      });
+    } else if (count > prevCount) {
+      // Item added — tiny bounce to confirm
+      gsap.fromTo(bar, { y: 5 }, { y: 0, duration: .35, ease: 'back.out(4)' });
     }
+    // Qty counter pop
     gsap.fromTo(countEl,
       { scale: count > prevCount ? 1.6 : 0.7 },
       { scale: 1, duration: .3, ease: 'elastic.out(1.2,.5)' }
@@ -702,10 +717,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function runGSAP() {
     gsap.set('#main-nav',    { y: -48, opacity: 0 });
     gsap.set('#store-hero',  { y: 20,  opacity: 0 });
-    gsap.set('#bottom-bar',  { y: 56,  opacity: 0 });
+    gsap.set('#bottom-bar',  { y: '100%', opacity: 0 });
     gsap.to('#main-nav',   { y: 0, opacity: 1, duration: .5,  ease: 'power3.out', delay: .05 });
     gsap.to('#store-hero', { y: 0, opacity: 1, duration: .6,  ease: 'power3.out', delay: .15 });
-    gsap.to('#bottom-bar', { y: 0, opacity: 1, duration: .5,  ease: 'power3.out', delay: .22 });
+    // bottom bar slides up only when cart has items
 
     // Magnetic proceed button (desktop only)
     const btn = document.getElementById('proceed-btn');

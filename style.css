@@ -406,13 +406,62 @@ body {
 .bottom-bar {
   position: fixed; bottom: 0; left: 0; width: 100%;
   z-index: 9999;
-  background: var(--glass-bar);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border-top: 1px solid var(--b1);
-  box-shadow: 0 -1px 0 var(--b0), 0 -12px 40px rgba(0,0,0,.45);
+  /* Liquid morphism — organic fluid background */
+  background: rgba(10, 9, 14, 0.72);
+  backdrop-filter: blur(40px) saturate(200%) brightness(1.08);
+  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.08);
+  /* Animated liquid border top */
+  border-top: 1.5px solid transparent;
+  background-clip: padding-box;
   padding: 10px 16px max(10px, env(safe-area-inset-bottom));
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  /* Liquid blob shadow */
+  box-shadow:
+    0 -1px 0 rgba(255,255,255,.06),
+    0 -24px 60px rgba(0,0,0,.55),
+    0 -4px 20px rgba(110,231,183,.04),
+    inset 0 1px 0 rgba(255,255,255,.07);
+  /* Liquid top border via pseudo element */
+  overflow: visible;
+}
+.bottom-bar::before {
+  content: '';
+  position: absolute;
+  top: -1.5px; left: 0; right: 0; height: 1.5px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(110,231,183,.25) 20%,
+    rgba(200,180,255,.35) 50%,
+    rgba(110,231,183,.25) 80%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: liquidBorder 4s ease-in-out infinite;
+  border-radius: 0;
+}
+@keyframes liquidBorder {
+  0%   { background-position: 0% 0%; opacity: .6; }
+  50%  { background-position: 100% 0%; opacity: 1; }
+  100% { background-position: 0% 0%; opacity: .6; }
+}
+/* Liquid blob glow behind bar */
+.bottom-bar::after {
+  content: '';
+  position: absolute;
+  top: -30px; left: 10%; width: 80%; height: 30px;
+  background: radial-gradient(ellipse at center,
+    rgba(110,231,183,.08) 0%,
+    rgba(200,180,255,.05) 50%,
+    transparent 100%
+  );
+  filter: blur(12px);
+  pointer-events: none;
+  animation: liquidGlow 5s ease-in-out infinite alternate;
+}
+@keyframes liquidGlow {
+  0%   { transform: scaleX(0.8) translateX(-5%); opacity: .6; }
+  100% { transform: scaleX(1.1) translateX(5%);  opacity: 1; }
 }
 .bottom-bar-info { display: flex; align-items: center; gap: 11px; }
 .bottom-stat { display: flex; align-items: center; gap: 4px; font-size: .77rem; color: var(--t2); }
@@ -1101,33 +1150,40 @@ body {
 }
 
 /* ── Bottom bar ──────────────────────────────────────── */
-.bottom-bar {
-  background: rgba(8,8,10,.95) !important;
-  border-top-color: rgba(255,255,255,.07) !important;
-  box-shadow: 0 -1px 0 rgba(255,255,255,.04), 0 -20px 50px rgba(0,0,0,.6) !important;
-}
+/* liquid morphism override handled in main .bottom-bar block above */
 
-/* Proceed button — green glow style */
+/* Proceed button — liquid style */
 .proceed-btn {
-  background: linear-gradient(160deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.06) 100%) !important;
-  border: 1px solid rgba(255,255,255,.22) !important;
-  color: var(--green) !important;
+  background: linear-gradient(135deg,
+    rgba(110,231,183,.18) 0%,
+    rgba(160,210,255,.12) 50%,
+    rgba(200,180,255,.15) 100%) !important;
+  border: 1px solid rgba(110,231,183,.3) !important;
+  color: #e8f8f2 !important;
   font-family: var(--f-mono) !important;
   font-size: .78rem !important;
   letter-spacing: .06em !important;
   text-transform: uppercase !important;
-  border-radius: 10px !important;
-  box-shadow: 0 0 20px rgba(255,255,255,.09), inset 0 1px 0 rgba(255,255,255,.1) !important;
-  transition: box-shadow .2s, background .2s, transform .1s !important;
+  border-radius: 12px !important;
+  box-shadow:
+    0 0 18px rgba(110,231,183,.12),
+    inset 0 1px 0 rgba(255,255,255,.12) !important;
+  transition: all .25s ease !important;
+  background-size: 200% 200% !important;
+  animation: liquidBtn 4s ease infinite !important;
 }
-.proceed-btn:not(:disabled):hover {
-  background: linear-gradient(160deg, rgba(255,255,255,.17) 0%, rgba(255,255,255,.1) 100%) !important;
-  box-shadow: 0 0 32px rgba(255,255,255,.18), inset 0 1px 0 rgba(255,255,255,.13) !important;
-  transform: translateY(-1px) !important;
-  border-color: rgba(255,255,255,.35) !important;
+@keyframes liquidBtn {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.proceed-btn:not(:disabled):active {
+  transform: scale(.96) !important;
+  box-shadow: 0 0 28px rgba(110,231,183,.22), inset 0 1px 0 rgba(255,255,255,.15) !important;
 }
 .proceed-btn:disabled {
-  opacity: .28 !important;
+  opacity: .22 !important;
+  animation: none !important;
   box-shadow: none !important;
 }
 
