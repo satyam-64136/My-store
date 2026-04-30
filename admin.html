@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
   <meta name="theme-color" content="#0c0c0d"/>
   <title>Satyam's Store</title>
   <meta name="robots" content="noindex, nofollow"/>
@@ -532,6 +535,8 @@
 
 <script src="shared.js"></script>
 <script>
+(async function _adminScope() {
+'use strict';
 /* ── Supabase Auth ─────────────────────────────────────────
    Password lives ONLY in Supabase servers — nothing in source.
    To change password: Supabase Dashboard → Auth → Users       */
@@ -549,19 +554,47 @@ async function _sbAuthPost(path, body) {
 async function _getSession() {
   const raw = sessionStorage.getItem('sb_session');
   if (!raw) return null;
-  const s = JSON.parse(raw);
-  // Check expiry (Supabase gives expires_at as unix seconds)
-  if (s.expires_at && Date.now() / 1000 > s.expires_at - 60) {
-    // Try to refresh
-    const { ok, data } = await _sbAuthPost('/token?grant_type=refresh_token', { refresh_token: s.refresh_token });
-    if (ok && data.access_token) {
-      sessionStorage.setItem('sb_session', JSON.stringify(data));
-      return data;
+  try {
+    const s = JSON.parse(raw);
+    if (!s.access_token) { sessionStorage.removeItem('sb_session'); return null; }
+    if (s.expires_at && Date.now() / 1000 > s.expires_at - 60) {
+      const { ok, data } = await _sbAuthPost('/token?grant_type=refresh_token', { refresh_token: s.refresh_token });
+      if (ok && data.access_token) {
+        sessionStorage.setItem('sb_session', JSON.stringify(data));
+        return data;
+      }
+      sessionStorage.removeItem('sb_session');
+      return null;
     }
+    return s;
+  } catch { sessionStorage.removeItem('sb_session'); return null; }
+}
+
+// Validates session by pinging Supabase server — cannot be spoofed locally
+async function _validateSession() {
+  const s = await _getSession();
+  if (!s) return null;
+  try {
+    const res = await fetch(`${_SUPA_AUTH}/user`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + s.access_token }
+    });
+    if (!res.ok) {
+      // Token rejected by server — wipe it
+      sessionStorage.removeItem('sb_session');
+      return null;
+    }
+    const user = await res.json();
+    // Extra check: must be our specific admin email
+    if (user.email !== _ADMIN_EMAIL) {
+      sessionStorage.removeItem('sb_session');
+      return null;
+    }
+    return s;
+  } catch {
+    // Network error — fail closed (no access)
     sessionStorage.removeItem('sb_session');
     return null;
   }
-  return s;
 }
 
 let allProducts       = [];
@@ -588,12 +621,21 @@ function switchTab(name) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   hideLoader();
-  // Clear old hash-based sessions
-  sessionStorage.removeItem('ss_admin_auth');
-  sessionStorage.removeItem('ss_admin_auth_h');
-  // Check for valid Supabase session
-  const _existingSession = await _getSession();
-  if (_existingSession) showAdmin();
+
+  // ── Nuclear flush: wipe every known old session key ──────────
+  const _KILL_KEYS = [
+    'ss_admin_auth', 'ss_admin_auth_h', 'ss_admin_auth_v1',
+    'admin_auth', 'auth', 'session', 'token', 'isAdmin',
+  ];
+  _KILL_KEYS.forEach(k => {
+    sessionStorage.removeItem(k);
+    try { localStorage.removeItem(k); } catch {}
+  });
+
+  // ── Validate Supabase session server-side, not just locally ──
+  const session = await _validateSession();
+  if (session) showAdmin();
+
   const pw = document.getElementById('pw');
   if (pw) pw.focus();
   if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -688,7 +730,9 @@ async function logout() {
 
 async function showAdmin() {
   // Signal the anti-tamper guard that this is a legitimate unlock
-  if (typeof window._adminUnlock === 'function') window._adminUnlock();
+  // Pass the runtime nonce — console callers can't get it (one-time read)
+  const _n = window._getAdminNonce;
+  if (typeof window._adminUnlock === 'function') window._adminUnlock(_n);
   document.getElementById('login-screen').classList.add('hidden');
   const ac = document.getElementById('admin-content');
   if (ac) { ac.removeAttribute('hidden'); ac.style.display = 'block'; }
@@ -1552,6 +1596,42 @@ document.addEventListener('click', e => {
   }
 });
 
+// Expose only UI-facing functions — showAdmin intentionally excluded
+window.adjustStock = adjustStock;
+window.askApprove = askApprove;
+window.askDelete = askDelete;
+window.askDeleteSale = askDeleteSale;
+window.askEdit = askEdit;
+window.closeApproveModal = closeApproveModal;
+window.closeDelModal = closeDelModal;
+window.closeDelSaleModal = closeDelSaleModal;
+window.closeEditModal = closeEditModal;
+window.closeProfitBreakdown = closeProfitBreakdown;
+window.closeSaleQRModal = closeSaleQRModal;
+window.confirmApprove = confirmApprove;
+window.confirmDelete = confirmDelete;
+window.confirmDeleteSale = confirmDeleteSale;
+window.confirmEdit = confirmEdit;
+window.copySaleUPI = copySaleUPI;
+window.loadPendingOrders = loadPendingOrders;
+window.loadProducts = loadProducts;
+window.loadSales = loadSales;
+window.loadSalesByCustomDate = loadSalesByCustomDate;
+window.logout = logout;
+window.rejectOrder = rejectOrder;
+window.saveClosedMessage = saveClosedMessage;
+window.saveSaleQR = saveSaleQR;
+window.showProfitBreakdown = showProfitBreakdown;
+window.switchTab = switchTab;
+window.toggleHide = toggleHide;
+window.togglePw = togglePw;
+window.toggleStoreStatusManual = toggleStoreStatusManual;
+window.doLogin = doLogin;
+window.submitAdd = submitAdd;
+window.changeAutoCloseTime = changeAutoCloseTime;
+window.toggleAutoClose = toggleAutoClose;
+
+})();
 </script>
 
 <div id="sale-qr-modal" class="overlay hidden">
@@ -1611,31 +1691,51 @@ document.addEventListener('click', e => {
 
 <script>
 /* ── Anti-tamper guard ─────────────────────────────────
-   Watches admin-content for any attempt to remove the
-   'hidden' attribute or set display via DevTools.
-   Re-hides immediately and clears the session.           */
+   Nonce-based: _adminUnlock() must be called with the
+   correct runtime nonce — impossible to guess from console.
+   Polls every 800ms as a backup net.                    */
 (function() {
-  let _unlocked = false;
-  window._adminUnlock = function() {
-    _unlocked = true;
-    // Re-arm after 2s — DOM has settled, guard is active again
-    setTimeout(() => { _unlocked = false; }, 2000);
+  const _nonce = crypto.randomUUID ? crypto.randomUUID()
+                : Math.random().toString(36).slice(2) + Date.now().toString(36);
+  let _validUntil = 0;
+
+  window._adminUnlock = function(n) {
+    if (n !== _nonce) return; // wrong nonce = ignored
+    _validUntil = Date.now() + 2500;
   };
+
+  // Expose nonce ONLY to showAdmin via a one-time getter
+  let _nonceClaimed = false;
+  Object.defineProperty(window, '_getAdminNonce', {
+    get() {
+      if (_nonceClaimed) return null; // can only be read once
+      _nonceClaimed = true;
+      return _nonce;
+    },
+    configurable: false,
+  });
 
   const el = document.getElementById('admin-content');
   if (!el) return;
 
-  const observer = new MutationObserver(() => {
-    if (_unlocked) return;
-    // Someone touched it without going through auth
+  const _lockdown = () => {
+    if (Date.now() < _validUntil) return; // legitimate unlock window
     el.setAttribute('hidden', '');
-    el.style.display = 'none';
+    el.style.cssText = 'display:none!important';
     sessionStorage.removeItem('sb_session');
     const ls = document.getElementById('login-screen');
     if (ls) ls.classList.remove('hidden');
-  });
+  };
 
-  observer.observe(el, { attributes: true, attributeFilter: ['hidden','style'] });
+  // Watch attribute changes
+  new MutationObserver(_lockdown)
+    .observe(el, { attributes: true, attributeFilter: ['hidden','style'] });
+
+  // Poll as backup every 800ms
+  setInterval(() => {
+    const visible = !el.hasAttribute('hidden') && getComputedStyle(el).display !== 'none';
+    if (visible && Date.now() >= _validUntil) _lockdown();
+  }, 800);
 })();
 </script>
 </body>
