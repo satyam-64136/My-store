@@ -15,6 +15,7 @@
   <!-- Lucide deferred — does not block HTML parsing or first paint -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/dist/lenis.min.js" defer></script>
 </head>
 <body>
 
@@ -225,14 +226,49 @@
    VIEW MANAGER
    ═══════════════════════════════ */
 function switchView(name) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById('main-nav').classList.toggle('hidden', name !== 'store');
-  document.getElementById('pay-nav').classList.toggle('hidden',  name !== 'payment');
-  document.getElementById('view-' + name).classList.add('active');
-  const bar = document.getElementById('bottom-bar');
-  if (bar) bar.style.display = (name === 'store') ? 'flex' : 'none';
-  requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
-  window.scrollTo({ top: 0, behavior: 'instant' });
+  const incoming = document.getElementById('view-' + name);
+  const outgoing = document.querySelector('.view.active');
+  const bar      = document.getElementById('bottom-bar');
+  if (!incoming || incoming === outgoing) return;
+
+  const _activate = () => {
+    // Hide all, show incoming — but keep it invisible so GSAP can fade in
+    document.querySelectorAll('.view').forEach(v => {
+      v.classList.remove('active');
+      v.style.opacity = '';
+    });
+    document.getElementById('main-nav').classList.toggle('hidden', name !== 'store');
+    document.getElementById('pay-nav').classList.toggle('hidden',  name !== 'payment');
+    if (bar) bar.style.display = (name === 'store') ? 'flex' : 'none';
+
+    // Pre-set opacity to 0 BEFORE making it active (kills the 1-frame flash)
+    if (typeof gsap !== 'undefined') gsap.set(incoming, { opacity: 0, y: 14 });
+    incoming.classList.add('active');
+
+    if (window._lenis) window._lenis.scrollTo(0, { immediate: true });
+    else window.scrollTo({ top: 0 });
+
+    requestAnimationFrame(() => {
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+      if (typeof gsap !== 'undefined') {
+        gsap.to(incoming, {
+          opacity: 1, y: 0,
+          duration: .38, ease: 'power3.out',
+          delay: .04,  // tiny delay lets paint settle before animating in
+        });
+      }
+    });
+  };
+
+  if (typeof gsap !== 'undefined' && outgoing) {
+    gsap.to(outgoing, {
+      opacity: 0, y: -10,
+      duration: .2, ease: 'power2.in',
+      onComplete: _activate,
+    });
+  } else {
+    _activate();
+  }
 }
 
 /* ═══════════════════════════════
@@ -381,14 +417,67 @@ function changeQty(id, delta) {
   if (delta > 0 && p.stock <= 0) { toast("Can't add more — out of stock"); return; }
   const cur = cart[id] || 0;
   const next = Math.max(0, Math.min(cur + delta, p.stock));
-  if (delta > 0 && next === cur) { toast('Can\'t add more, stock limit reached'); return; }
+  if (delta > 0 && next === cur) { toast("Can't add more, stock limit reached"); return; }
   if (next === 0) delete cart[id]; else cart[id] = next;
   sessionStorage.setItem('ss_cart', JSON.stringify(cart));
-  // ss_products not written here — allProducts is already in memory and localStorage cache
-  const el = document.getElementById(`card-${id}`);
-  if (el) el.outerHTML = buildCard(p);
-  // Defer lucide refresh to next frame — doesn't block tap response
-  requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
+
+  const card = document.getElementById(`card-${id}`);
+  if (!card) { updateCartBar(); return; }
+
+  // ── Surgical DOM update — zero flicker ──────────────────────
+  const qtyVal   = card.querySelector('.qty-val');
+  const minusBtn = card.querySelector('.qty-btn.minus');
+  const plusBtn  = card.querySelector('.qty-btn.plus');
+  let   badge    = card.querySelector('.cart-badge');
+
+  // Update qty display with GSAP pop
+  if (qtyVal) {
+    qtyVal.textContent = next;
+    if (typeof gsap !== 'undefined') {
+      gsap.fromTo(qtyVal,
+        { scale: delta > 0 ? 1.5 : 0.6, opacity: 0 },
+        { scale: 1, opacity: 1, duration: .22, ease: 'back.out(2)' }
+      );
+    }
+  }
+
+  // Update minus button disabled state
+  if (minusBtn) minusBtn.disabled = next === 0;
+
+  // Update card in-cart class
+  if (next > 0) {
+    card.classList.add('in-cart');
+    // Badge
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'cart-badge';
+      card.prepend(badge);
+    }
+    badge.textContent = next;
+    if (typeof gsap !== 'undefined') {
+      gsap.fromTo(badge,
+        { scale: 0.5, opacity: 0 },
+        { scale: 1,   opacity: 1, duration: .2, ease: 'back.out(3)' }
+      );
+    }
+  } else {
+    card.classList.remove('in-cart');
+    if (badge) {
+      if (typeof gsap !== 'undefined') {
+        gsap.to(badge, { scale: 0, opacity: 0, duration: .15, ease: 'power2.in',
+          onComplete: () => badge.remove() });
+      } else { badge.remove(); }
+    }
+  }
+
+  // Plus button pulse on add
+  if (delta > 0 && plusBtn && typeof gsap !== 'undefined') {
+    gsap.fromTo(plusBtn,
+      { scale: 0.85 },
+      { scale: 1, duration: .25, ease: 'elastic.out(1.5, .5)' }
+    );
+  }
+
   updateCartBar();
 }
 
@@ -399,8 +488,22 @@ function updateCartBar() {
     const p = allProducts.find(x => x.id === id);
     if (p) { count += qty; total += qty * p.price; }
   }
-  document.getElementById('cart-count').textContent = count;
-  document.getElementById('cart-total').textContent = total.toFixed(2);
+  const countEl = document.getElementById('cart-count');
+  const totalEl = document.getElementById('cart-total');
+  const prevCount = parseInt(countEl.textContent) || 0;
+  countEl.textContent = count;
+  totalEl.textContent = total.toFixed(2);
+  // Animate cart bar when count changes
+  if (count !== prevCount && typeof gsap !== 'undefined') {
+    const bar = document.getElementById('bottom-bar');
+    if (bar && count > prevCount) {
+      gsap.fromTo(bar, { y: 4 }, { y: 0, duration: .3, ease: 'back.out(3)' });
+    }
+    gsap.fromTo(countEl,
+      { scale: count > prevCount ? 1.6 : 0.7 },
+      { scale: 1, duration: .3, ease: 'elastic.out(1.2,.5)' }
+    );
+  }
   document.getElementById('proceed-btn').disabled = closed || count === 0;
 }
 
@@ -414,7 +517,7 @@ function proceedToPayment() {
   renderOrder();
   buildQR();
   switchView('payment');
-  window.scrollTo(0, 0);
+  if (window._lenis) window._lenis.scrollTo(0, { immediate: true }); else window.scrollTo(0, 0);
 }
 
 function showState(s) {
@@ -509,8 +612,20 @@ function copyUPI() {
 
 async function confirmPayment() {
   const btn = document.getElementById('confirm-btn');
+  if (btn.disabled) return; // prevent double-tap
+
+  const originalHTML = btn.innerHTML;
+  const _resetBtn = () => {
+    btn.disabled = false;
+    btn.innerHTML = originalHTML;
+  };
+
   btn.disabled = true;
   btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Placing order…`;
+
+  // Safety timeout — if something hangs, always re-enable after 12s
+  const _safetyTimer = setTimeout(_resetBtn, 12000);
+
   const saleItems = [];
   for (const [id, qty] of Object.entries(cartData)) {
     const p = productsData.find(x => x.id === id); if (!p) continue;
@@ -518,45 +633,65 @@ async function confirmPayment() {
     saleItems.push({ id, name: p.name, qty, sub });
   }
   const total = +saleItems.reduce((s, i) => s + i.sub, 0).toFixed(2);
-  // items stored as JSONB array in Supabase orders table
+
   let insertedOrder = null;
   try {
-    // Explicitly send created_at so there is no ambiguity about the timestamp source.
-    // new Date().toISOString() always produces a clean UTC string: "2026-03-23T04:12:00.000Z"
     const nowISO = new Date().toISOString();
-    console.log('[order] client timestamp:', nowISO);
-
     const result = await sbPost('orders', {
       items:      saleItems,
       total,
       status:     'pending',
       created_at: nowISO,
     });
-    // sbPost returns array; grab first row
     insertedOrder = Array.isArray(result) ? result[0] : result;
-    console.log('[order] supabase returned created_at:', insertedOrder?.created_at);
-    console.log('[order] match:', nowISO === insertedOrder?.created_at ? 'YES' : 'CLOSE (Supabase may normalise ms)');
-  } catch(e) { console.warn('[order] insert failed:', e); }
+  } catch(e) {
+    clearTimeout(_safetyTimer);
+    _resetBtn();
+    toast('Failed to place order. Please try again.');
+    return;
+  }
 
-  // Sync to Google Sheets via webhook (fire-and-forget, never blocks UI)
+  clearTimeout(_safetyTimer);
+
+  // Webhook sync — fire and forget
   if (insertedOrder && ORDERS_WEBHOOK) {
     fetch(ORDERS_WEBHOOK, {
-      method: 'POST',
-      mode:   'no-cors',
+      method: 'POST', mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body:    JSON.stringify(insertedOrder),
+      body: JSON.stringify(insertedOrder),
     }).catch(() => {});
   }
+
   sessionStorage.removeItem('ss_cart');
   sessionStorage.removeItem('ss_products');
   cart = {};
-  document.getElementById('success-overlay').classList.remove('hidden');
+
+  const overlay = document.getElementById('success-overlay');
+  overlay.classList.remove('hidden');
+  if (typeof gsap !== 'undefined') {
+    gsap.fromTo(overlay,
+      { opacity: 0, scale: .96 },
+      { opacity: 1, scale: 1, duration: .3, ease: 'back.out(1.5)' }
+    );
+  }
   if (typeof lucide !== 'undefined') lucide.createIcons();
+
   setTimeout(() => {
-    document.getElementById('success-overlay').classList.add('hidden');
-    updateCartBar();
-    switchView('store');
-  }, 2500);
+    if (typeof gsap !== 'undefined') {
+      gsap.to(overlay, {
+        opacity: 0, scale: .96, duration: .2, ease: 'power2.in',
+        onComplete: () => {
+          overlay.classList.add('hidden');
+          updateCartBar();
+          switchView('store');
+        }
+      });
+    } else {
+      overlay.classList.add('hidden');
+      updateCartBar();
+      switchView('store');
+    }
+  }, 2400);
 }
 
 document.addEventListener('contextmenu', e => e.preventDefault());
@@ -582,6 +717,30 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.addEventListener('mouseleave', () => gsap.to(btn, { x: 0, y: 0, duration: .45, ease: 'elastic.out(1,.55)' }));
     }
 
+  }
+
+  // ── Lenis smooth scroll ──────────────────────────────
+  function initLenis() {
+    if (typeof Lenis === 'undefined') return;
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smooth: true,
+      smoothTouch: true,
+      touchMultiplier: 1.8,
+    });
+    function raf(time) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+    // Pause lenis when modals are open so they can scroll independently
+    window._lenis = lenis;
+  }
+  if (typeof Lenis !== 'undefined') { initLenis(); }
+  else {
+    const ls = document.querySelector('script[src*="lenis"]');
+    if (ls) ls.addEventListener('load', initLenis);
   }
 
   if (typeof gsap !== 'undefined') { runGSAP(); }

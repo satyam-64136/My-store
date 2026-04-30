@@ -1691,24 +1691,24 @@ window.toggleAutoClose = toggleAutoClose;
 
 <script>
 /* ── Anti-tamper guard ─────────────────────────────────
-   Nonce-based: _adminUnlock() must be called with the
-   correct runtime nonce — impossible to guess from console.
-   Polls every 800ms as a backup net.                    */
+   Nonce-based: only showAdmin() can unlock via one-time nonce.
+   MutationObserver watches for DevTools element tampering.
+   NO polling — polling caused "Aw Snap" crashes.        */
 (function() {
   const _nonce = crypto.randomUUID ? crypto.randomUUID()
                 : Math.random().toString(36).slice(2) + Date.now().toString(36);
   let _validUntil = 0;
 
   window._adminUnlock = function(n) {
-    if (n !== _nonce) return; // wrong nonce = ignored
+    if (n !== _nonce) return;
     _validUntil = Date.now() + 2500;
   };
 
-  // Expose nonce ONLY to showAdmin via a one-time getter
+  // One-time nonce getter — after showAdmin reads it, returns null forever
   let _nonceClaimed = false;
   Object.defineProperty(window, '_getAdminNonce', {
     get() {
-      if (_nonceClaimed) return null; // can only be read once
+      if (_nonceClaimed) return null;
       _nonceClaimed = true;
       return _nonce;
     },
@@ -1719,23 +1719,17 @@ window.toggleAutoClose = toggleAutoClose;
   if (!el) return;
 
   const _lockdown = () => {
-    if (Date.now() < _validUntil) return; // legitimate unlock window
+    if (Date.now() < _validUntil) return; // legitimate unlock in progress
     el.setAttribute('hidden', '');
-    el.style.cssText = 'display:none!important';
+    el.style.display = 'none';
     sessionStorage.removeItem('sb_session');
     const ls = document.getElementById('login-screen');
     if (ls) ls.classList.remove('hidden');
   };
 
-  // Watch attribute changes
+  // MutationObserver only — no setInterval, no getComputedStyle
   new MutationObserver(_lockdown)
-    .observe(el, { attributes: true, attributeFilter: ['hidden','style'] });
-
-  // Poll as backup every 800ms
-  setInterval(() => {
-    const visible = !el.hasAttribute('hidden') && getComputedStyle(el).display !== 'none';
-    if (visible && Date.now() >= _validUntil) _lockdown();
-  }, 800);
+    .observe(el, { attributes: true, attributeFilter: ['hidden', 'style'] });
 })();
 </script>
 </body>
