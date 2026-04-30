@@ -4,7 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <meta name="theme-color" content="#0c0c0d"/>
-  <title>Admin — Satyam's Store</title>
+  <title>Satyam's Store</title>
+  <meta name="robots" content="noindex, nofollow"/>
   <link rel="stylesheet" href="style.css"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -531,14 +532,36 @@
 
 <script src="shared.js"></script>
 <script>
-// Password is stored as SHA-256 hash only — plain text never exists in source
-// To change password: generate new hash via https://emn178.github.io/online-tools/sha256.html
-const PASS_HASH = '29b7d97343d8348643ccc06ede01348228849cd6b6c8f8116e7a59689cfa2d14';
-const SK = 'ss_admin_auth_h'; // new key so old plain-text sessions are invalidated
+/* ── Supabase Auth ─────────────────────────────────────────
+   Password lives ONLY in Supabase servers — nothing in source.
+   To change password: Supabase Dashboard → Auth → Users       */
+const _SUPA_AUTH = `${SB_URL}/auth/v1`;
 
-async function _sha256(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+async function _sbAuthPost(path, body) {
+  const res = await fetch(`${_SUPA_AUTH}${path}`, {
+    method: 'POST',
+    headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return { ok: res.ok, data: await res.json() };
+}
+
+async function _getSession() {
+  const raw = sessionStorage.getItem('sb_session');
+  if (!raw) return null;
+  const s = JSON.parse(raw);
+  // Check expiry (Supabase gives expires_at as unix seconds)
+  if (s.expires_at && Date.now() / 1000 > s.expires_at - 60) {
+    // Try to refresh
+    const { ok, data } = await _sbAuthPost('/token?grant_type=refresh_token', { refresh_token: s.refresh_token });
+    if (ok && data.access_token) {
+      sessionStorage.setItem('sb_session', JSON.stringify(data));
+      return data;
+    }
+    sessionStorage.removeItem('sb_session');
+    return null;
+  }
+  return s;
 }
 
 let allProducts       = [];
@@ -563,9 +586,14 @@ function switchTab(name) {
   requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   hideLoader();
-  if (sessionStorage.getItem(SK) === PASS_HASH) showAdmin();
+  // Clear old hash-based sessions
+  sessionStorage.removeItem('ss_admin_auth');
+  sessionStorage.removeItem('ss_admin_auth_h');
+  // Check for valid Supabase session
+  const _existingSession = await _getSession();
+  if (_existingSession) showAdmin();
   const pw = document.getElementById('pw');
   if (pw) pw.focus();
   if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -573,24 +601,67 @@ document.addEventListener('DOMContentLoaded', () => {
          ?.addEventListener('load', () => lucide.createIcons());
 });
 
+const _MAX_ATTEMPTS = 5;
+const _LOCKOUT_MS   = 60000;
+let _loginAttempts  = 0;
+let _lockedUntil    = 0;
+const _ADMIN_EMAIL  = 'satyam64136@gmail.com';
+
 async function doLogin(e) {
   e.preventDefault();
   const pw  = document.getElementById('pw');
   const err = document.getElementById('login-err');
   const btn = document.querySelector('.login-btn');
+
+  // Brute-force lockout (client-side — Supabase also rate-limits server-side)
+  if (Date.now() < _lockedUntil) {
+    const secs = Math.ceil((_lockedUntil - Date.now()) / 1000);
+    err.textContent = `Too many attempts. Try again in ${secs}s.`;
+    pw.value = '';
+    return;
+  }
+
   if (btn) btn.disabled = true;
-  const hash = await _sha256(pw.value);
-  if (hash === PASS_HASH) {
-    // Store the hash as the session token, not "true"
-    sessionStorage.setItem(SK, PASS_HASH);
-    showAdmin();
-  } else {
+  err.textContent = '';
+
+  try {
+    const { ok, data } = await _sbAuthPost('/token?grant_type=password', {
+      email: _ADMIN_EMAIL,
+      password: pw.value,
+    });
+
+    if (ok && data.access_token) {
+      _loginAttempts = 0;
+      sessionStorage.setItem('sb_session', JSON.stringify(data));
+      showAdmin();
+    } else {
+      // Show actual Supabase error to help diagnose
+      err.textContent = data?.error_description || data?.msg || data?.message || 'Login failed.';
+      if (btn) btn.disabled = false;
+      pw.focus();
+      return;
+    }
+  } catch {
+    _loginAttempts++;
     pw.classList.add('error');
-    err.textContent = 'Incorrect password.';
     pw.value = '';
     setTimeout(() => pw.classList.remove('error'), 500);
-    pw.focus();
-    if (btn) btn.disabled = false;
+
+    if (_loginAttempts >= _MAX_ATTEMPTS) {
+      _lockedUntil = Date.now() + _LOCKOUT_MS;
+      err.textContent = 'Too many wrong attempts. Locked for 60 seconds.';
+      if (btn) btn.disabled = true;
+      setTimeout(() => {
+        _loginAttempts = 0;
+        err.textContent = '';
+        if (btn) btn.disabled = false;
+        pw.focus();
+      }, _LOCKOUT_MS);
+    } else {
+      err.textContent = `Incorrect password. ${_MAX_ATTEMPTS - _loginAttempts} attempt${_MAX_ATTEMPTS - _loginAttempts !== 1 ? 's' : ''} left.`;
+      if (btn) btn.disabled = false;
+      pw.focus();
+    }
   }
 }
 
@@ -602,7 +673,18 @@ function togglePw() {
   lucide.createIcons();
 }
 
-function logout() { sessionStorage.removeItem(SK); location.href = 'index.html'; }
+async function logout() {
+  const s = JSON.parse(sessionStorage.getItem('sb_session') || '{}');
+  if (s.access_token) {
+    // Sign out from Supabase server too
+    fetch(`${_SUPA_AUTH}/logout`, {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + s.access_token },
+    }).catch(() => {});
+  }
+  sessionStorage.removeItem('sb_session');
+  location.href = 'index.html';
+}
 
 async function showAdmin() {
   // Signal the anti-tamper guard that this is a legitimate unlock
@@ -754,7 +836,7 @@ async function loadProducts({ noCache = false } = {}) {
     renderProducts();
     renderStats();
   } catch(e) {
-    console.error('loadProducts failed:', e);
+    /* error suppressed */
     if (!allProducts.length) setProdState('error');
   } finally {
     if (icon) icon.style.animation = 'none';
@@ -946,7 +1028,7 @@ async function submitAdd(e) {
   } catch(err) {
     const msg = err && err.message ? err.message : 'Failed to add product';
     toast(msg, 5000);
-    console.error('submitAdd error:', err);
+    /* error suppressed */
   } finally {
     btn.disabled = false; lbl.textContent = 'Add Product';
   }
@@ -1534,7 +1616,11 @@ document.addEventListener('click', e => {
    Re-hides immediately and clears the session.           */
 (function() {
   let _unlocked = false;
-  window._adminUnlock = function() { _unlocked = true; };
+  window._adminUnlock = function() {
+    _unlocked = true;
+    // Re-arm after 2s — DOM has settled, guard is active again
+    setTimeout(() => { _unlocked = false; }, 2000);
+  };
 
   const el = document.getElementById('admin-content');
   if (!el) return;
@@ -1544,7 +1630,7 @@ document.addEventListener('click', e => {
     // Someone touched it without going through auth
     el.setAttribute('hidden', '');
     el.style.display = 'none';
-    sessionStorage.clear();
+    sessionStorage.removeItem('sb_session');
     const ls = document.getElementById('login-screen');
     if (ls) ls.classList.remove('hidden');
   });

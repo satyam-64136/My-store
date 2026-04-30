@@ -101,7 +101,7 @@ async function getStoreConfig() {
     } catch (_) {}
     return { ..._DEFAULT_CONFIG };
   } catch (error) {
-    console.error('Failed to get store config:', error);
+    /* suppressed */
     return { ..._DEFAULT_CONFIG };
   }
 }
