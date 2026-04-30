@@ -9,9 +9,18 @@ const SB_KEY = 'sb_publishable_E3W5FNr_zAmej5fLElsvCA_OeDkde6L';
 /* ── Supabase REST helpers ─────────────────────────────── */
 
 function _sbHeaders(extras = {}) {
+  // Use authenticated JWT if available (admin), fall back to anon key (store)
+  let token = SB_KEY;
+  try {
+    const raw = sessionStorage.getItem('sb_session');
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s.access_token) token = s.access_token;
+    }
+  } catch {}
   return {
     'apikey':        SB_KEY,
-    'Authorization': 'Bearer ' + SB_KEY,
+    'Authorization': 'Bearer ' + token,
     'Content-Type':  'application/json',
     'Prefer':        'return=representation',
     ...extras,
@@ -20,13 +29,17 @@ function _sbHeaders(extras = {}) {
 
 // GET  /rest/v1/<table>?<query>
 async function sbGet(tableAndQuery) {
+  let token = SB_KEY;
+  try {
+    const raw = sessionStorage.getItem('sb_session');
+    if (raw) { const s = JSON.parse(raw); if (s.access_token) token = s.access_token; }
+  } catch {}
   const res = await fetch(
     `${SB_URL}/rest/v1/${tableAndQuery}`,
     {
       headers: {
         'apikey':        SB_KEY,
-        'Authorization': 'Bearer ' + SB_KEY,
-        // Omit Content-Type and Prefer on GETs — only needed for writes
+        'Authorization': 'Bearer ' + token,
       }
     }
   );

@@ -232,6 +232,21 @@ document.querySelectorAll('.period-btn').forEach(btn => {
 window.addEventListener('DOMContentLoaded', async () => {
   if (typeof lucide !== 'undefined') lucide.createIcons();
   else document.querySelector('script[src*="lucide"]')?.addEventListener('load', () => lucide.createIcons());
+
+  // Stats page is admin-only — redirect if no valid session
+  const raw = sessionStorage.getItem('sb_session');
+  if (!raw) { location.href = 'admin.html'; return; }
+  try {
+    const s = JSON.parse(raw);
+    if (!s.access_token) { location.href = 'admin.html'; return; }
+    // Check expiry
+    if (s.expires_at && Date.now() / 1000 > s.expires_at) {
+      sessionStorage.removeItem('sb_session');
+      location.href = 'admin.html';
+      return;
+    }
+  } catch { location.href = 'admin.html'; return; }
+
   await loadData();
 });
 
@@ -250,7 +265,7 @@ async function loadData() {
     renderAll();
   } catch(e) {
     document.getElementById('stats-loading').innerHTML =
-      `<div style="color:var(--red);font-size:.74rem">Failed to load data.<br><small>${e.message}</small></div>`;
+      `<div style="color:var(--red);font-size:.74rem">Failed to load data. Please try again.</div>`;
   }
 }
 
