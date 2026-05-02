@@ -357,6 +357,15 @@
                 <div class="field"><label>Stock <span class="req">*</span></label><input id="f-stock" type="number" min="0" required placeholder="50" inputmode="numeric"/></div>
               </div>
               <div class="field"><label>Purchase Price ₹</label><input id="f-purchase-price" type="number" step="0.01" min="0" placeholder="0" inputmode="decimal"/></div>
+              <div class="field"><label>Category</label>
+                <select id="f-category" class="cat-select">
+                  <option value="others">Others</option>
+                  <option value="chips">Chips</option>
+                  <option value="chocolates">Chocolates</option>
+                  <option value="cake">Cake</option>
+                  <option value="biscuits">Biscuits</option>
+                  <option value="noodles">Noodles</option>
+                </select></div>
               <div class="field"><label>Image URL</label><input id="f-image" type="url" placeholder="https://…"/></div>
               <button type="submit" id="add-btn" class="btn-primary" style="width:100%;margin-top:2px">
                 <i data-lucide="plus" style="width:12px;height:12px"></i>
@@ -481,6 +490,15 @@
       <div class="field"><label>Stock <span class="req">*</span></label><input id="e-stock" type="number" min="0" inputmode="numeric"/></div>
     </div>
     <div class="field"><label>Purchase Price ₹</label><input id="e-purchase-price" type="number" step="0.01" min="0" placeholder="0" inputmode="decimal"/></div>
+    <div class="field"><label>Category</label>
+    <select id="e-category" class="cat-select">
+      <option value="others">Others</option>
+      <option value="chips">Chips</option>
+      <option value="chocolates">Chocolates</option>
+      <option value="cake">Cake</option>
+      <option value="biscuits">Biscuits</option>
+      <option value="noodles">Noodles</option>
+    </select></div>
     <div class="field"><label>Image URL</label><input id="e-image" type="url" placeholder="https://…"/></div>
     <div class="store-ctl-row" style="margin-bottom:14px;padding:10px 12px;background:var(--surface-1);border:1px solid var(--b1);border-radius:var(--r1)">
       <div>
@@ -874,7 +892,7 @@ async function loadProducts({ noCache = false } = {}) {
   if (icon) icon.style.animation = 'spin .7s linear infinite';
   if (!allProducts.length) setProdState('loading');
   try {
-    const rows = await sbGet('products?select=id,name,price,stock,image,purchase_price,hidden&order=name.asc');
+    const rows = await sbGet('products?select=id,name,price,stock,image,purchase_price,hidden,category&order=name.asc');
     _cacheSet(_cacheKey('products'), rows);
     allProducts = parseProducts(rows);
     renderProducts();
@@ -1005,6 +1023,7 @@ function askEdit(id) {
   document.getElementById('e-stock').value = p.stock;
   document.getElementById('e-image').value = p.image;
   document.getElementById('e-purchase-price').value = p.purchase_price || 0;
+  document.getElementById('e-category').value = p.category || 'others';
   document.getElementById('e-hidden').checked = !!p.hidden;
   document.getElementById('edit-modal').classList.remove('hidden');
   requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
@@ -1023,6 +1042,7 @@ async function confirmEdit() {
   const stock = parseInt(document.getElementById('e-stock').value, 10);
   const image = document.getElementById('e-image').value.trim();
   const purchase_price = parseFloat(document.getElementById('e-purchase-price').value) || 0;
+  const category = document.getElementById('e-category').value || 'others';
   const hidden = document.getElementById('e-hidden').checked;
 
   if (!name || isNaN(price) || isNaN(stock)) { toast('Fill all required fields'); return; }
@@ -1032,13 +1052,14 @@ async function confirmEdit() {
   btn.disabled = true; lbl.textContent = 'Saving…';
 
   try {
-    await sbPatch(`products?id=eq.${encodeURIComponent(editTarget.id)}`, { name, price, stock, image, purchase_price, hidden });
+    await sbPatch(`products?id=eq.${encodeURIComponent(editTarget.id)}`, { name, price, stock, image, purchase_price, hidden, category });
     editTarget.name  = name;
     editTarget.price = price;
     editTarget.stock = stock;
     editTarget.image = image;
     editTarget.purchase_price = purchase_price;
     editTarget.hidden = hidden;
+    editTarget.category = category;
     _cacheInvalidate('products');
     renderProducts();
     renderStats();
@@ -1058,12 +1079,13 @@ async function submitAdd(e) {
   const stock   = parseInt(document.getElementById('f-stock').value, 10);
   const image   = document.getElementById('f-image').value.trim();
   const purchase_price = parseFloat(document.getElementById('f-purchase-price').value) || 0;
+  const category = document.getElementById('f-category').value || 'others';
   if (!name || isNaN(price) || isNaN(stock)) { toast('Fill required fields'); return; }
   const btn = document.getElementById('add-btn');
   const lbl = document.getElementById('add-lbl');
   btn.disabled = true; lbl.textContent = 'Saving…';
   try {
-    await sbPost('products', { name, price, stock, image, purchase_price });
+    await sbPost('products', { name, price, stock, image, purchase_price, category });
     toast(`"${name}" added`);
     document.getElementById('add-form').reset();
     _cacheInvalidate('products');
