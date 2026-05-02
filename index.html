@@ -15,7 +15,6 @@
   <!-- Lucide deferred — does not block HTML parsing or first paint -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/dist/lenis.min.js" defer></script>
 </head>
 <body>
 
@@ -35,12 +34,17 @@
   </div>
 </div>
 
-<!-- ════ LOADER ════ (puff card animation) -->
+<!-- ════ LOADER ════ -->
 <div id="page-loader">
-  <div class="animating-card">
-    <div class="card-content">
-      <h1>Animation Complete</h1>
-      <p>Your content goes here. It will gracefully fade in once the card finishes expanding.</p>
+  <div class="loader-inner">
+    <div class="loader-logo">
+      <div class="loader-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      </div>
+      <span class="loader-name">Satyam's Store</span>
+    </div>
+    <div class="loader-bar-wrap">
+      <div class="loader-bar"></div>
     </div>
   </div>
 </div>
@@ -96,6 +100,16 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Category filter chips -->
+    <div class="filter-bar" id="filter-bar">
+      <button class="filter-chip active" data-cat="all" onclick="setFilter('all')">All</button>
+      <button class="filter-chip" data-cat="chips" onclick="setFilter('chips')">Chips</button>
+      <button class="filter-chip" data-cat="cake" onclick="setFilter('cake')">Cake</button>
+      <button class="filter-chip" data-cat="biscuits" onclick="setFilter('biscuits')">Biscuits</button>
+      <button class="filter-chip" data-cat="noodles" onclick="setFilter('noodles')">Noodles</button>
+      <button class="filter-chip" data-cat="others" onclick="setFilter('others')">Others</button>
     </div>
 
     <!-- Shimmer skeleton (shown while loading) -->
@@ -242,30 +256,20 @@ function switchView(name) {
     if (bar) bar.style.display = (name === 'store') ? 'flex' : 'none';
 
     // Pre-set opacity to 0 BEFORE making it active (kills the 1-frame flash)
-    if (typeof gsap !== 'undefined') gsap.set(incoming, { opacity: 0, y: 14 });
+    if (typeof gsap !== 'undefined') gsap.set(incoming, { opacity: 0 });
     incoming.classList.add('active');
-
-    if (window._lenis) window._lenis.scrollTo(0, { immediate: true });
-    else window.scrollTo({ top: 0 });
+    window.scrollTo(0, 0);
 
     requestAnimationFrame(() => {
       if (typeof lucide !== 'undefined') lucide.createIcons();
       if (typeof gsap !== 'undefined') {
-        gsap.to(incoming, {
-          opacity: 1, y: 0,
-          duration: .38, ease: 'power3.out',
-          delay: .04,  // tiny delay lets paint settle before animating in
-        });
+        gsap.to(incoming, { opacity: 1, duration: .35, ease: 'power2.out', delay: .03 });
       }
     });
   };
 
   if (typeof gsap !== 'undefined' && outgoing) {
-    gsap.to(outgoing, {
-      opacity: 0, y: -10,
-      duration: .2, ease: 'power2.in',
-      onComplete: _activate,
-    });
+    gsap.to(outgoing, { opacity: 0, duration: .18, ease: 'power2.in', onComplete: _activate });
   } else {
     _activate();
   }
@@ -278,7 +282,7 @@ const UPI_ID = '9162591726@yesfam';
 const STORE  = "Your's Store";
 // Paste your deployed Apps Script Web App URL here after deploying sync-orders-to-sheets.gs
 const ORDERS_WEBHOOK = '';  // e.g. 'https://script.google.com/macros/s/.../exec'
-let allProducts = [], cart = {};
+let allProducts = [], cart = {}, _activeFilter = 'all';
 let cartData = {}, productsData = [], cartTotal = 0;
 let _storeClosed = false;
 
@@ -292,7 +296,18 @@ async function checkStoreStatus() {
     if (msgEl && cfg.closedMessage) msgEl.textContent = cfg.closedMessage;
   } catch(_) { /* keep previous value on network error */ }
   const overlay = document.getElementById('store-closed-overlay');
-  if (overlay) overlay.classList.toggle('hidden', !_storeClosed);
+  if (overlay) {
+    if (_storeClosed) {
+      overlay.style.opacity = '0';
+      overlay.classList.remove('hidden');
+      if (typeof gsap !== 'undefined') {
+        gsap.to(overlay, { opacity: 1, duration: .5, ease: 'power2.out', delay: .1 });
+      } else { overlay.style.opacity = '1'; }
+    } else {
+      overlay.classList.add('hidden');
+      overlay.style.opacity = '';
+    }
+  }
   updateCartBar();
   // Update hero badge
   const tag = document.querySelector('.hero-tag');
@@ -316,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const cached = _cacheGet(_cacheKey('products'));
   if (cached) {
     allProducts = parseProducts(cached);
-    renderGrid(allProducts.filter(p => !p.hidden));
+    _renderFiltered();
     updateCartBar();
     hideLoader();
     loadProducts({ background: true });
@@ -341,12 +356,12 @@ async function loadProducts({ background = false } = {}) {
       const newStr = JSON.stringify(fresh.map(p => ({ id: p.id, stock: p.stock, price: p.price, hidden: p.hidden })));
       if (oldStr !== newStr) {
         allProducts = fresh;
-        renderGrid(allProducts.filter(p => !p.hidden));
+        _renderFiltered();
         updateCartBar();
       }
     } else {
       allProducts = fresh;
-      renderGrid(allProducts.filter(p => !p.hidden));
+      _renderFiltered();
       updateCartBar();
     }
   } catch(err) {
@@ -359,6 +374,40 @@ async function loadProducts({ background = false } = {}) {
     // Always hide loader — whether success, empty, or error
     if (!background) hideLoader();
   }
+}
+
+// Category keyword map — product name must contain one of these (case-insensitive)
+const _CAT_KEYS = {
+  chips:    ['chips','lays','kurkure','pringles','doritos','cheetos','uncle','bingo','haldiram','bhujia','namkeen','snack','cracker','popcorn','fryums'],
+  cake:     ['cake','bar','5 star','oreo','kitkat','dairy milk','silk','munch','milky','éclair','eclairs','twix','bounty','snickers','gems','chocolate','choco','candy','wafer','truffle','brownie','pastry'],
+  biscuits: ['biscuit','bourbon','marie','parle','hide & seek','good day','monaco','tiger','kreams','cookies','cookie','digestive','crackers','britannia','sunfeast','priyagold','hobnob','rich'],
+  noodles:  ['noodles','maggie','maggi','yippee','top ramen','ramen','pasta','vermicelli','hakka','instant','wai wai'],
+};
+
+function _renderFiltered() {
+  const visible = allProducts.filter(p => !p.hidden);
+  const filtered = _activeFilter === 'all' ? visible : visible.filter(p => _matchCat(p.name) === _activeFilter);
+  renderGrid(filtered);
+}
+
+function _matchCat(name) {
+  const n = name.toLowerCase();
+  for (const [cat, keys] of Object.entries(_CAT_KEYS)) {
+    if (keys.some(k => n.includes(k))) return cat;
+  }
+  return 'others';
+}
+
+function setFilter(cat) {
+  _activeFilter = cat;
+  // Update chip active state
+  document.querySelectorAll('.filter-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.cat === cat);
+  });
+  // Re-render with filter applied
+  const visible = allProducts.filter(p => !p.hidden);
+  const filtered = cat === 'all' ? visible : visible.filter(p => _matchCat(p.name) === cat);
+  renderGrid(filtered, true);
 }
 
 function renderGrid(products) {
@@ -510,8 +559,11 @@ function updateCartBar() {
         duration: .32, ease: 'expo.in',
       });
     } else if (count > prevCount) {
-      // Item added — tiny bounce to confirm
-      gsap.fromTo(bar, { y: 5 }, { y: 0, duration: .35, ease: 'back.out(4)' });
+      // Item added — scale pulse, not y movement (y movement causes flicker)
+      gsap.fromTo(bar,
+        { scaleY: 1.03, transformOrigin: 'bottom center' },
+        { scaleY: 1, duration: .25, ease: 'back.out(3)' }
+      );
     }
     // Qty counter pop
     gsap.fromTo(countEl,
@@ -532,7 +584,7 @@ function proceedToPayment() {
   renderOrder();
   buildQR();
   switchView('payment');
-  if (window._lenis) window._lenis.scrollTo(0, { immediate: true }); else window.scrollTo(0, 0);
+  window.scrollTo(0, 0);
 }
 
 function showState(s) {
@@ -549,8 +601,8 @@ function _animateCardsIn() {
   const cards = document.querySelectorAll('.p-card');
   if (!cards.length) return;
   gsap.fromTo(cards,
-    { opacity: 0, y: 18, scale: .97 },
-    { opacity: 1, y: 0, scale: 1, duration: .35, ease: 'power2.out', stagger: .04, clearProps: 'all' }
+    { opacity: 0 },
+    { opacity: 1, duration: .4, ease: 'power1.out', stagger: .025, clearProps: 'opacity' }
   );
 }
 
@@ -715,47 +767,13 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 /* ── GSAP page-enter animations ─────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   function runGSAP() {
-    gsap.set('#main-nav',    { y: -48, opacity: 0 });
-    gsap.set('#store-hero',  { y: 20,  opacity: 0 });
-    gsap.set('#bottom-bar',  { y: '100%', opacity: 0 });
-    gsap.to('#main-nav',   { y: 0, opacity: 1, duration: .5,  ease: 'power3.out', delay: .05 });
-    gsap.to('#store-hero', { y: 0, opacity: 1, duration: .6,  ease: 'power3.out', delay: .15 });
-    // bottom bar slides up only when cart has items
-
-    // Magnetic proceed button (desktop only)
-    const btn = document.getElementById('proceed-btn');
-    if (btn && window.matchMedia('(hover:hover)').matches) {
-      btn.addEventListener('mousemove', e => {
-        const r = btn.getBoundingClientRect();
-        gsap.to(btn, { x: (e.clientX - r.left - r.width/2) * .3, y: (e.clientY - r.top - r.height/2) * .3, duration: .25, ease: 'power2.out' });
-      });
-      btn.addEventListener('mouseleave', () => gsap.to(btn, { x: 0, y: 0, duration: .45, ease: 'elastic.out(1,.55)' }));
-    }
-
-  }
-
-  // ── Lenis smooth scroll ──────────────────────────────
-  function initLenis() {
-    if (typeof Lenis === 'undefined') return;
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smooth: true,
-      smoothTouch: true,
-      touchMultiplier: 1.8,
-    });
-    function raf(time) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-    requestAnimationFrame(raf);
-    // Pause lenis when modals are open so they can scroll independently
-    window._lenis = lenis;
-  }
-  if (typeof Lenis !== 'undefined') { initLenis(); }
-  else {
-    const ls = document.querySelector('script[src*="lenis"]');
-    if (ls) ls.addEventListener('load', initLenis);
+    // Pure fade-in on load — no position shifts, no y movement
+    gsap.set('#main-nav',   { opacity: 0 });
+    gsap.set('#store-hero', { opacity: 0 });
+    gsap.set('#bottom-bar', { y: '100%', opacity: 0 });
+    gsap.to('#main-nav',   { opacity: 1, duration: .45, ease: 'power2.out', delay: .05 });
+    gsap.to('#store-hero', { opacity: 1, duration: .5,  ease: 'power2.out', delay: .12 });
+    // bottom bar only appears when cart has items (updateCartBar handles it)
   }
 
   if (typeof gsap !== 'undefined') { runGSAP(); }
