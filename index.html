@@ -103,13 +103,16 @@
     </div>
 
     <!-- Category filter chips -->
-    <div class="filter-bar" id="filter-bar">
-      <button class="filter-chip active" data-cat="all" onclick="setFilter('all')">All</button>
-      <button class="filter-chip" data-cat="chips" onclick="setFilter('chips')">Chips</button>
-      <button class="filter-chip" data-cat="cake" onclick="setFilter('cake')">Cake</button>
-      <button class="filter-chip" data-cat="biscuits" onclick="setFilter('biscuits')">Biscuits</button>
-      <button class="filter-chip" data-cat="noodles" onclick="setFilter('noodles')">Noodles</button>
-      <button class="filter-chip" data-cat="others" onclick="setFilter('others')">Others</button>
+    <div class="filter-bar-wrap">
+      <div class="filter-bar" id="filter-bar">
+        <button class="filter-chip active" data-cat="all" onclick="setFilter('all')">All</button>
+        <button class="filter-chip" data-cat="chips" onclick="setFilter('chips')">🟡 Chips</button>
+        <button class="filter-chip" data-cat="chocolates" onclick="setFilter('chocolates')">🍫 Chocolates</button>
+        <button class="filter-chip" data-cat="biscuits" onclick="setFilter('biscuits')">🍪 Biscuits</button>
+        <button class="filter-chip" data-cat="cake" onclick="setFilter('cake')">🎂 Cake</button>
+        <button class="filter-chip" data-cat="noodles" onclick="setFilter('noodles')">🍜 Noodles</button>
+        <button class="filter-chip" data-cat="others" onclick="setFilter('others')">Others</button>
+      </div>
     </div>
 
     <!-- Shimmer skeleton (shown while loading) -->
@@ -347,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadProducts({ background = false } = {}) {
   if (!background) showState('loading');
   try {
-    const rows = await sbGet('products?select=id,name,price,stock,image,purchase_price,hidden&order=name.asc');
+    const rows = await sbGet('products?select=id,name,price,stock,image,purchase_price,hidden,category&order=name.asc');
     const fresh = parseProducts(rows);
     _cacheSet(_cacheKey('products'), rows);
 
@@ -376,38 +379,20 @@ async function loadProducts({ background = false } = {}) {
   }
 }
 
-// Category keyword map — product name must contain one of these (case-insensitive)
-const _CAT_KEYS = {
-  chips:    ['chips','lays','kurkure','pringles','doritos','cheetos','uncle','bingo','haldiram','bhujia','namkeen','snack','cracker','popcorn','fryums'],
-  cake:     ['cake','bar','5 star','oreo','kitkat','dairy milk','silk','munch','milky','éclair','eclairs','twix','bounty','snickers','gems','chocolate','choco','candy','wafer','truffle','brownie','pastry'],
-  biscuits: ['biscuit','bourbon','marie','parle','hide & seek','good day','monaco','tiger','kreams','cookies','cookie','digestive','crackers','britannia','sunfeast','priyagold','hobnob','rich'],
-  noodles:  ['noodles','maggie','maggi','yippee','top ramen','ramen','pasta','vermicelli','hakka','instant','wai wai'],
-};
-
 function _renderFiltered() {
   const visible = allProducts.filter(p => !p.hidden);
-  const filtered = _activeFilter === 'all' ? visible : visible.filter(p => _matchCat(p.name) === _activeFilter);
+  const filtered = _activeFilter === 'all'
+    ? visible
+    : visible.filter(p => (p.category || 'others') === _activeFilter);
   renderGrid(filtered);
-}
-
-function _matchCat(name) {
-  const n = name.toLowerCase();
-  for (const [cat, keys] of Object.entries(_CAT_KEYS)) {
-    if (keys.some(k => n.includes(k))) return cat;
-  }
-  return 'others';
 }
 
 function setFilter(cat) {
   _activeFilter = cat;
-  // Update chip active state
   document.querySelectorAll('.filter-chip').forEach(c => {
     c.classList.toggle('active', c.dataset.cat === cat);
   });
-  // Re-render with filter applied
-  const visible = allProducts.filter(p => !p.hidden);
-  const filtered = cat === 'all' ? visible : visible.filter(p => _matchCat(p.name) === cat);
-  renderGrid(filtered, true);
+  _renderFiltered();
 }
 
 function renderGrid(products) {
