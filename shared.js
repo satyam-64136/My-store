@@ -172,6 +172,7 @@ function parseProducts(rows) {
       image:          String(r.image ?? '').trim(),
       purchase_price: parseFloat(r.purchase_price) || 0,
       hidden: r.hidden === true || r.hidden === 'true',
+      category: String(r.category || 'others').trim(),
     }))
     .filter(p => p.id && p.name);
 }
