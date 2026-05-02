@@ -1416,11 +1416,25 @@ async function confirmDeleteSale() {
   const btn = document.getElementById('del-sale-btn');
   btn.disabled = true; btn.textContent = 'Deleting…';
   try {
+    // Restore stock for each item in the deleted sale
+    const sale = _salesCache[String(deleteSaleTarget)];
+    if (sale && Array.isArray(sale.itemsArr)) {
+      await Promise.all(sale.itemsArr.map(async i => {
+        const p = allProducts.find(x => String(x.id) === String(i.id));
+        if (!p) return;
+        const restored = p.stock + (parseInt(i.qty, 10) || 0);
+        await sbPatch(`products?id=eq.${encodeURIComponent(i.id)}`, { stock: restored });
+        p.stock = restored;
+      }));
+    }
+
     await sbDelete(`orders?id=eq.${encodeURIComponent(deleteSaleTarget)}`);
     const row = document.getElementById('sale-row-' + deleteSaleTarget);
     if (row) row.remove();
-    toast('Sale deleted');
+    toast('Sale deleted — stock restored');
     closeDelSaleModal();
+    // Refresh products table to show updated stock
+    renderProducts();
 
     const remaining = [...document.querySelectorAll('#sales-tbody .order-card')].map(card => {
       const tot = card.querySelector('.order-card-total');
