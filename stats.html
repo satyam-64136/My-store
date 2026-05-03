@@ -10,31 +10,66 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="style.css"/>
   <style>
-    /* ── Stats page specific ── */
-    .stats-wrap { max-width: 700px; margin: 0 auto; padding: calc(54px + 16px) 14px 60px; }
+    /* ── Neon + Liquid palette ── */
+    :root {
+      --neon-rev:    #c8f0ff;
+      --neon-prof:   #6ee7b7;
+      --neon-order:  #a78bfa;
+      /* liquid glass layers */
+      --liq-bg:      rgba(255,255,255,.032);
+      --liq-border:  rgba(255,255,255,.09);
+      --liq-shine:   rgba(255,255,255,.07);
+      --liq-glow-b:  rgba(200,240,255,.08);
+      --liq-glow-g:  rgba(110,231,183,.06);
+      --liq-blur:    18px;
+    }
 
-    /* ── Nav alias — stats.html uses class="nav" while style.css defines .site-nav ── */
+    /* ── Ambient blobs behind everything ── */
+    body::before, body::after {
+      content: ''; position: fixed; border-radius: 50%;
+      pointer-events: none; z-index: 0; filter: blur(80px);
+      animation: blobDrift 18s ease-in-out infinite alternate;
+    }
+    body::before {
+      width: 420px; height: 420px;
+      background: radial-gradient(circle, rgba(200,240,255,.07), transparent 70%);
+      top: -80px; left: -120px;
+    }
+    body::after {
+      width: 380px; height: 380px;
+      background: radial-gradient(circle, rgba(110,231,183,.055), transparent 70%);
+      bottom: 60px; right: -100px;
+      animation-delay: -9s; animation-duration: 22s;
+    }
+    @keyframes blobDrift {
+      0%   { transform: translate(0,0) scale(1); }
+      50%  { transform: translate(30px,20px) scale(1.06); }
+      100% { transform: translate(-20px,40px) scale(.96); }
+    }
+
+    /* ── Base wrap ── */
+    .stats-wrap { max-width: 700px; margin: 0 auto; padding: calc(54px + 16px) 14px 60px; position: relative; z-index: 1; }
+
+    /* ── Nav ── */
     .nav {
       position: fixed; top: 0; left: 0; width: 100%; z-index: 9999;
-      background: var(--glass-nav);
-      backdrop-filter: blur(28px) saturate(180%);
-      -webkit-backdrop-filter: blur(28px) saturate(180%);
-      border-bottom: 1px solid var(--b1);
-      box-shadow: 0 1px 0 var(--b0), 0 8px 32px rgba(0,0,0,.4);
+      background: rgba(10,10,14,.55);
+      backdrop-filter: blur(32px) saturate(200%);
+      -webkit-backdrop-filter: blur(32px) saturate(200%);
+      border-bottom: 1px solid var(--liq-border);
+      box-shadow: 0 1px 0 rgba(255,255,255,.04), 0 8px 40px rgba(0,0,0,.5);
     }
     .nav::after {
-      content: '';
-      position: absolute; bottom: -1px; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.1) 30%, rgba(91,155,214,.15) 70%, transparent 100%);
+      content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(200,240,255,.18), rgba(110,231,183,.12), transparent);
       pointer-events: none;
     }
-    /* nav-logo = brand name link */
     .nav-logo {
       font-family: var(--f-head); font-size: .92rem; font-weight: 700;
       color: var(--t1); text-decoration: none; letter-spacing: -.02em;
     }
-    /* nav-inner already defined in style.css via .nav-inner */
 
+    /* ── Section titles ── */
     .stats-section-title {
       font-family: var(--f-head); font-size: .72rem; font-weight: 700;
       color: var(--t3); text-transform: uppercase; letter-spacing: .1em;
@@ -44,36 +79,52 @@
       content: ''; display: inline-block; width: 3px; height: .7em;
       background: linear-gradient(180deg, var(--neon-rev), var(--neon-prof));
       border-radius: 2px; margin-right: 7px; vertical-align: middle;
-      box-shadow: 0 0 8px rgba(200,240,255,.5);
-      opacity: .7;
+      box-shadow: 0 0 8px rgba(200,240,255,.5); opacity: .7;
     }
 
-    /* ── Neon palette ── */
-    :root {
-      --neon-rev:    #c8f0ff;   /* cold blue-white — revenue line  */
-      --neon-prof:   #6ee7b7;   /* emerald green  — profit line    */
-      --neon-order:  #a78bfa;   /* violet         — orders bars    */
-      --neon-accent: rgba(200,240,255,.12);
+    /* ════════════════════════════════════
+       LIQUID GLASS mixin — applied to all cards
+       ════════════════════════════════════ */
+    .liq {
+      background: var(--liq-bg);
+      backdrop-filter: blur(var(--liq-blur)) saturate(160%);
+      -webkit-backdrop-filter: blur(var(--liq-blur)) saturate(160%);
+      border: 1px solid var(--liq-border);
+      position: relative; overflow: hidden;
+    }
+    /* top shine streak */
+    .liq::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent 5%, rgba(255,255,255,.14) 40%, rgba(200,240,255,.1) 60%, transparent 95%);
+      pointer-events: none; z-index: 1;
+    }
+    /* inner wet-surface gradient */
+    .liq::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.04) 0%, transparent 50%, rgba(200,240,255,.025) 100%);
+      pointer-events: none; z-index: 0;
     }
 
-    /* KPI strip */
+    /* ── KPI strip ── */
     .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
     @media (min-width: 500px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
     .kpi-card {
-      background: var(--surface-2); border: 1px solid var(--b1);
-      border-radius: 12px; padding: 14px 12px;
+      border-radius: 14px; padding: 14px 12px;
       display: flex; flex-direction: column; gap: 4px;
-      transition: border-color .2s, box-shadow .2s;
+      transition: border-color .25s, box-shadow .25s, transform .25s;
+      box-shadow: 0 4px 24px rgba(0,0,0,.25), 0 1px 0 rgba(255,255,255,.04);
     }
     .kpi-card:hover {
-      border-color: rgba(200,240,255,.18);
-      box-shadow: 0 0 18px rgba(200,240,255,.06), inset 0 1px 0 rgba(200,240,255,.06);
+      border-color: rgba(200,240,255,.22);
+      box-shadow: 0 8px 32px rgba(0,0,0,.3), 0 0 20px rgba(200,240,255,.08), inset 0 1px 0 rgba(200,240,255,.07);
+      transform: translateY(-1px);
     }
     .kpi-icon { color: var(--t3); margin-bottom: 4px; }
     .kpi-val {
       font-family: var(--f-mono); font-size: 1.2rem; font-weight: 700;
       color: var(--t1); letter-spacing: -.02em;
-      text-shadow: 0 0 20px rgba(200,240,255,.25);
+      text-shadow: 0 0 22px rgba(200,240,255,.28);
     }
     .kpi-lbl { font-size: .62rem; color: var(--t3); font-family: var(--f-head); text-transform: uppercase; letter-spacing: .07em; }
     .kpi-delta { font-size: .62rem; font-family: var(--f-mono); margin-top: 2px; }
@@ -81,17 +132,10 @@
     .kpi-delta.down { color: var(--red); }
     .kpi-delta.neutral { color: var(--t3); }
 
-    /* Chart cards */
+    /* ── Chart cards ── */
     .chart-card {
-      background: var(--surface-2); border: 1px solid var(--b1);
-      border-radius: 14px; padding: 16px; margin-bottom: 10px;
-      box-shadow: 0 1px 0 rgba(255,255,255,.03), inset 0 1px 0 rgba(255,255,255,.03);
-      position: relative; overflow: hidden;
-    }
-    .chart-card::before {
-      content: ''; position: absolute; top: 0; left: 15%; right: 15%; height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(200,240,255,.12), transparent);
-      pointer-events: none;
+      border-radius: 16px; padding: 16px; margin-bottom: 10px;
+      box-shadow: 0 4px 32px rgba(0,0,0,.28), 0 1px 0 rgba(255,255,255,.04);
     }
     .chart-title {
       font-family: var(--f-head); font-size: .78rem; font-weight: 600;
@@ -101,92 +145,105 @@
     .chart-title svg { color: rgba(200,240,255,.35); }
     .chart-wrap { position: relative; height: 180px; }
 
-    /* Period selector */
+    /* ── Period selector ── */
     .period-bar { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
     .period-btn {
-      padding: 5px 12px; border-radius: 99px; border: 1px solid var(--b1);
-      background: transparent; color: var(--t3); font-family: var(--f-mono);
+      padding: 5px 12px; border-radius: 99px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      color: var(--t3); font-family: var(--f-mono);
       font-size: .62rem; cursor: pointer; transition: all .18s; font-weight: 600;
       letter-spacing: .04em;
     }
-    .period-btn:hover { color: var(--t2); border-color: var(--b2); background: var(--b0); }
+    .period-btn:hover {
+      color: var(--t2); border-color: rgba(200,240,255,.18);
+      background: rgba(200,240,255,.05);
+      box-shadow: 0 0 10px rgba(200,240,255,.06);
+    }
     .period-btn.active {
-      background: rgba(200,240,255,.07);
-      border-color: rgba(200,240,255,.22);
+      background: rgba(200,240,255,.08);
+      border-color: rgba(200,240,255,.28);
       color: var(--neon-rev);
-      box-shadow: 0 0 12px rgba(200,240,255,.1), inset 0 1px 0 rgba(200,240,255,.08);
-      text-shadow: 0 0 8px rgba(200,240,255,.5);
+      box-shadow: 0 0 14px rgba(200,240,255,.12), inset 0 1px 0 rgba(200,240,255,.1);
+      text-shadow: 0 0 8px rgba(200,240,255,.55);
     }
 
-    /* Top items list */
+    /* ── Top items list ── */
     .item-row {
       display: flex; align-items: center; gap: 10px;
-      padding: 9px 0; border-bottom: 1px solid var(--b0);
+      padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.04);
     }
     .item-row:last-child { border-bottom: none; }
-    .item-rank {
-      font-family: var(--f-mono); font-size: .62rem; color: var(--t3);
-      width: 18px; text-align: center; flex-shrink: 0;
-    }
+    .item-rank { font-family: var(--f-mono); font-size: .62rem; color: var(--t3); width: 18px; text-align: center; flex-shrink: 0; }
     .item-bar-wrap { flex: 1; min-width: 0; }
     .item-name { font-size: .78rem; font-weight: 600; color: var(--t1); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .item-bar-track { height: 3px; background: var(--b1); border-radius: 99px; overflow: hidden; }
+    .item-bar-track { height: 3px; background: rgba(255,255,255,.05); border-radius: 99px; overflow: hidden; }
     .item-bar-fill {
       height: 100%; border-radius: 99px;
-      background: linear-gradient(90deg, rgba(200,240,255,.55), rgba(110,231,183,.3));
-      box-shadow: 0 0 6px rgba(200,240,255,.2);
+      background: linear-gradient(90deg, rgba(200,240,255,.6), rgba(110,231,183,.35));
+      box-shadow: 0 0 8px rgba(200,240,255,.22);
       transition: width .6s cubic-bezier(.4,0,.2,1);
     }
     .item-meta { font-family: var(--f-mono); font-size: .64rem; color: var(--t2); white-space: nowrap; text-align: right; flex-shrink: 0; }
     .item-meta span { display: block; color: var(--t3); font-size: .58rem; margin-top: 1px; }
 
-    /* Suggestions */
+    /* ── Suggestion cards ── */
     .suggestion-card {
-      background: var(--surface-2); border: 1px solid var(--b1);
       border-radius: 12px; padding: 14px;
       margin-bottom: 8px; display: flex; gap: 12px; align-items: flex-start;
+      box-shadow: 0 4px 20px rgba(0,0,0,.2);
     }
     .suggestion-icon {
       width: 32px; height: 32px; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
     .suggestion-title { font-size: .78rem; font-weight: 600; color: var(--t1); margin-bottom: 3px; }
     .suggestion-body { font-size: .7rem; color: var(--t3); line-height: 1.55; }
 
-    /* Loading / empty */
+    /* ── Loading ── */
     .stats-loading { text-align: center; padding: 60px 0; color: var(--t3); font-size: .76rem; }
-    .stats-spinner { width: 24px; height: 24px; border: 2px solid rgba(200,240,255,.1); border-top-color: rgba(200,240,255,.6); border-radius: 50%; animation: spin .75s linear infinite; margin: 0 auto 12px; box-shadow: 0 0 12px rgba(200,240,255,.15); }
+    .stats-spinner {
+      width: 24px; height: 24px;
+      border: 2px solid rgba(200,240,255,.1);
+      border-top-color: rgba(200,240,255,.65);
+      border-radius: 50%; animation: spin .75s linear infinite;
+      margin: 0 auto 12px;
+      box-shadow: 0 0 14px rgba(200,240,255,.18);
+    }
 
-    /* Period label */
+    /* ── Period label ── */
     .period-label { font-size: .64rem; color: var(--t3); font-family: var(--f-mono); margin-left: auto; }
 
-
-    /* Day-of-week cards */
+    /* ── Busiest Days cards ── */
     .dow-grid { display: flex; flex-direction: column; gap: 5px; }
     .dow-cell {
       display: grid; grid-template-columns: 28px 1fr auto;
       align-items: center; gap: 10px;
-      padding: 8px 10px; border-radius: 8px;
-      background: var(--surface-3); border: 1px solid var(--b1);
+      padding: 8px 10px; border-radius: 10px;
+      background: rgba(255,255,255,.025);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,.06);
+      transition: border-color .2s, box-shadow .2s;
     }
-    .dow-cell.dow-peak { border-color: rgba(200,240,255,.22); background: rgba(200,240,255,.05); box-shadow: 0 0 14px rgba(200,240,255,.05), inset 0 1px 0 rgba(200,240,255,.06); }
-    .dow-label {
-      font-family: var(--f-mono); font-size: .62rem; font-weight: 600;
-      color: var(--t3); letter-spacing: .04em; text-align: center;
+    .dow-cell.dow-peak {
+      border-color: rgba(200,240,255,.24);
+      background: rgba(200,240,255,.045);
+      box-shadow: 0 0 18px rgba(200,240,255,.07), inset 0 1px 0 rgba(200,240,255,.08);
     }
+    .dow-label { font-family: var(--f-mono); font-size: .62rem; font-weight: 600; color: var(--t3); letter-spacing: .04em; text-align: center; }
     .dow-cell.dow-peak .dow-label { color: var(--t2); }
-    .dow-bar-track { height: 4px; background: var(--b1); border-radius: 99px; overflow: hidden; }
+    .dow-bar-track { height: 4px; background: rgba(255,255,255,.06); border-radius: 99px; overflow: hidden; }
     .dow-bar-fill {
       height: 100%; border-radius: 99px;
-      background: linear-gradient(90deg, rgba(242,240,236,.35), rgba(242,240,236,.12));
+      background: linear-gradient(90deg, rgba(242,240,236,.3), rgba(242,240,236,.1));
       transition: width .6s cubic-bezier(.4,0,.2,1);
     }
-    .dow-cell.dow-peak .dow-bar-fill { background: linear-gradient(90deg, rgba(200,240,255,.8), rgba(110,231,183,.4)); box-shadow: 0 0 8px rgba(200,240,255,.3); }
-    .dow-val {
-      font-family: var(--f-mono); font-size: .66rem; font-weight: 700;
-      color: var(--t2); white-space: nowrap; text-align: right; min-width: 42px;
+    .dow-cell.dow-peak .dow-bar-fill {
+      background: linear-gradient(90deg, rgba(200,240,255,.85), rgba(110,231,183,.45));
+      box-shadow: 0 0 10px rgba(200,240,255,.32);
     }
+    .dow-val { font-family: var(--f-mono); font-size: .66rem; font-weight: 700; color: var(--t2); white-space: nowrap; text-align: right; min-width: 42px; }
     .dow-cell.dow-peak .dow-val { color: var(--neon-rev); text-shadow: 0 0 10px rgba(200,240,255,.5); }
   </style>
 </head>
@@ -238,7 +295,7 @@
 
     <!-- Revenue & Profit chart -->
     <p class="stats-section-title">Revenue & Profit</p>
-    <div class="chart-card">
+    <div class="chart-card liq">
       <div class="chart-title">
         <i data-lucide="trending-up" style="width:12px;height:12px"></i>
         Daily Overview
@@ -250,7 +307,7 @@
     </div>
 
     <!-- Orders per day chart -->
-    <div class="chart-card">
+    <div class="chart-card liq">
       <div class="chart-title">
         <i data-lucide="shopping-bag" style="width:12px;height:12px"></i>
         Orders per Day
@@ -262,7 +319,7 @@
 
     <!-- Top items -->
     <p class="stats-section-title">Top Items by Revenue</p>
-    <div class="chart-card" style="padding-bottom:4px">
+    <div class="chart-card liq" style="padding-bottom:4px">
       <div id="top-items-list"></div>
     </div>
 
@@ -270,7 +327,7 @@
 
     <!-- Day of week heatmap -->
     <p class="stats-section-title">Busiest Days</p>
-    <div class="chart-card">
+    <div class="chart-card liq">
       <div class="dow-grid" id="dow-grid"></div>
     </div>
 
@@ -376,7 +433,6 @@ function filteredOrders() {
 function deriveStats(orders) {
   let totalRevenue = 0, totalProfit = 0, totalItems = 0;
   const byDay     = {};  // "YYYY-MM-DD" -> { revenue, profit, orders }
-  const byHour    = {};  // "YYYY-MM-DD HH" (IST) -> { revenue, orders }
   const byItem    = {};  // item name -> { qty, revenue, profit }
   const byDow     = [0,0,0,0,0,0,0]; // sun=0..sat=6 revenue
 
@@ -388,11 +444,8 @@ function deriveStats(orders) {
     const dow     = istDate.getDay();                  // IST day-of-week
     const hasCost = ms >= PROFIT_START; // only count profit for orders after 26 Apr
 
-    const hourKey = key + ' ' + String(istDate.getUTCHours()).padStart(2,'0');
-    if (!byDay[key])  byDay[key]  = { revenue: 0, profit: 0, orders: 0 };
-    if (!byHour[hourKey]) byHour[hourKey] = { revenue: 0, orders: 0 };
+    if (!byDay[key]) byDay[key] = { revenue: 0, profit: 0, orders: 0 };
     byDay[key].orders++;
-    byHour[hourKey].orders++;
 
     const items = Array.isArray(o.items) ? o.items : [];
     const orderTotal = parseFloat(o.total) || 0;
@@ -415,7 +468,6 @@ function deriveStats(orders) {
       totalRevenue += sub;
       totalItems   += qty;
       byDay[key].revenue   += sub;
-      byHour[hourKey].revenue += sub;
       byDow[dow]             += sub;
 
       // Always track items for Top Items list (revenue ranking)
@@ -436,7 +488,7 @@ function deriveStats(orders) {
     });
   });
 
-  return { totalRevenue, totalProfit, totalItems, byDay, byHour, byItem, byDow, orderCount: orders.length };
+  return { totalRevenue, totalProfit, totalItems, byDay, byItem, byDow, orderCount: orders.length };
 }
 
 /* ── Main render ────────────────────────── */
@@ -463,7 +515,7 @@ function renderKPIs(s, orders) {
   ];
 
   document.getElementById('kpi-grid').innerHTML = kpis.map(k => `
-    <div class="kpi-card">
+    <div class="kpi-card liq">
       <div class="kpi-icon"><i data-lucide="${k.icon}" style="width:13px;height:13px"></i></div>
       <div class="kpi-val">${k.val}</div>
       <div class="kpi-lbl">${k.lbl}</div>
@@ -510,120 +562,9 @@ function buildChartDefaults(revYMax) {
 /* ── Charts ─────────────────────────────── */
 function renderCharts(s) {
   const MONTHS  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const DOW     = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const label   = _period === 0 ? 'All Time' : `Last ${_period} Days`;
   document.getElementById('chart-period-label').textContent = label;
 
-  /* ── 7-day view: hourly granularity ── */
-  if (_period === 7) {
-    const hourKeys = Object.keys(s.byHour).sort();
-    const labels   = hourKeys.map(k => {
-      // k = "YYYY-MM-DD HH"
-      const [datePart, hh] = k.split(' ');
-      const h = parseInt(hh, 10);
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      const h12  = (h % 12) || 12;
-      // Show day label only at midnight (hour 0) to mark day boundaries
-      const [,m,dd] = datePart.split('-');
-      return h === 0 ? `${parseInt(dd)}-${MONTHS[parseInt(m)-1]}` : `${h12}${ampm}`;
-    });
-    const revenues    = hourKeys.map(k => +s.byHour[k].revenue.toFixed(2));
-    const orderCounts = hourKeys.map(k => s.byHour[k].orders);
-    const maxRevenue  = revenues.length ? Math.max(...revenues) : 0;
-    const maxOrders   = orderCounts.length ? Math.max(...orderCounts) : 0;
-    const revYMax     = maxRevenue > 0 ? maxRevenue * 1.15 : undefined;
-    const ordYMax     = maxOrders  > 0 ? Math.ceil(maxOrders * 1.2) : undefined;
-
-    // Find which label indices mark day boundaries for grid lines
-    const dayBoundaries = hourKeys.reduce((acc, k, i) => {
-      if (k.endsWith(' 00')) acc.push(i);
-      return acc;
-    }, []);
-
-    const chartDefaults = buildChartDefaults(revYMax);
-    // Override tooltip title for hourly chart — show "2-May · 3PM"
-    chartDefaults.plugins.tooltip.callbacks.title = items => {
-      const idx = items[0]?.dataIndex;
-      const k   = hourKeys[idx];
-      if (!k) return '';
-      const [datePart, hh] = k.split(' ');
-      const [,m,dd] = datePart.split('-');
-      const h = parseInt(hh, 10);
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      const h12  = (h % 12) || 12;
-      return `${parseInt(dd)}-${MONTHS[parseInt(m)-1]} · ${h12}${ampm}`;
-    };
-
-    if (_revenueChart) _revenueChart.destroy();
-    _revenueChart = new Chart(document.getElementById('revenue-chart'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          { label: 'Revenue', data: revenues, borderColor: 'rgba(200,240,255,.7)', borderWidth: 1.5, pointRadius: 0, tension: .4, fill: true, backgroundColor: 'rgba(200,240,255,.04)' },
-        ],
-      },
-      options: {
-        ...chartDefaults,
-        interaction: { mode: 'index', intersect: false },
-        scales: {
-          x: {
-            ...chartDefaults.scales.x,
-            ticks: {
-              ...chartDefaults.scales.x.ticks,
-              maxTicksLimit: 24,
-              callback: (val, idx) => {
-                const k = hourKeys[idx];
-                if (!k) return '';
-                const h = parseInt(k.split(' ')[1], 10);
-                if (h === 0) return labels[idx];
-                if (h % 6 === 0) return labels[idx];
-                return '';
-              }
-            },
-          },
-          y: { ...chartDefaults.scales.y, suggestedMax: revYMax },
-        },
-      },
-    });
-
-    if (_ordersChart) _ordersChart.destroy();
-    _ordersChart = new Chart(document.getElementById('orders-chart'), {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{ label: 'Orders', data: orderCounts, backgroundColor: 'rgba(167,139,250,.18)', borderRadius: 2, borderSkipped: false, hoverBackgroundColor: 'rgba(167,139,250,.32)' }],
-      },
-      options: {
-        ...chartDefaults,
-        scales: {
-          x: {
-            ...chartDefaults.scales.x,
-            ticks: {
-              ...chartDefaults.scales.x.ticks,
-              maxTicksLimit: 24,
-              callback: (val, idx) => {
-                const k = hourKeys[idx];
-                if (!k) return '';
-                const h = parseInt(k.split(' ')[1], 10);
-                if (h === 0) return labels[idx];
-                if (h % 6 === 0) return labels[idx];
-                return '';
-              }
-            },
-          },
-          y: {
-            suggestedMax: ordYMax,
-            ticks: { color: 'rgba(167,139,250,.35)', font: { family: 'JetBrains Mono', size: 9 }, callback: v => v },
-            grid: { color: 'rgba(255,255,255,.04)' },
-            border: { display: false },
-          },
-        },
-      },
-    });
-
-    return; // hourly path done
-  }
 
   /* ── Default: daily granularity ── */
   const days = Object.keys(s.byDay).sort();
@@ -644,26 +585,6 @@ function renderCharts(s) {
   const chartDefaults = buildChartDefaults(revYMax);
 
   /* Revenue + Profit line chart */
-  // Build peak-hour lookup per day for tooltip context
-  const peakHourByDay = {};
-  Object.keys(s.byHour).forEach(hk => {
-    const [datePart] = hk.split(' ');
-    if (!peakHourByDay[datePart] || s.byHour[hk].revenue > s.byHour[peakHourByDay[datePart]].revenue) {
-      peakHourByDay[datePart] = hk;
-    }
-  });
-  chartDefaults.plugins.tooltip.callbacks.title = items => {
-    const idx = items[0]?.dataIndex;
-    const dayKey = days[idx];
-    if (!dayKey) return labels[idx] || '';
-    const peakHk = peakHourByDay[dayKey];
-    if (!peakHk) return labels[idx] || '';
-    const h = parseInt(peakHk.split(' ')[1], 10);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const h12  = (h % 12) || 12;
-    return `${labels[idx]}  ·  peak ${h12}${ampm}`;
-  };
-
   if (_revenueChart) _revenueChart.destroy();
   _revenueChart = new Chart(document.getElementById('revenue-chart'), {
     type: 'line',
