@@ -488,6 +488,11 @@ function deriveStats(orders) {
     });
   });
 
+  // Deduct 15% expenses from all profit figures
+  totalProfit = totalProfit - (totalProfit * 0.15);
+  Object.values(byDay).forEach(d => { d.profit = d.profit - (d.profit * 0.15); });
+  Object.values(byItem).forEach(it => { it.profit = it.profit - (it.profit * 0.15); });
+
   return { totalRevenue, totalProfit, totalItems, byDay, byItem, byDow, orderCount: orders.length };
 }
 
