@@ -1,0 +1,16 @@
+{
+  "name": "Tether",
+  "short_name": "Tether",
+  "description": "just the two of you",
+  "start_url": "/Tether/",
+  "scope": "/Tether/",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
+  "background_color": "#f9f4f5",
+  "theme_color": "#f9f4f5",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
