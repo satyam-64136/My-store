@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0c0c0d"/>
+  <title>Satyam's Store</title>
+  <link rel="stylesheet" href="style.css"/>
+  <!-- Preconnect to font origin so the TCP handshake is done before CSS requests it -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <!-- Font CSS with display=swap — doesn't block render, swaps in when ready -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/></noscript>
+  <!-- Lucide deferred — does not block HTML parsing or first paint -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+</head>
+<body>
+
+<div id="store-closed-overlay" class="store-closed-overlay hidden" aria-live="polite">
+  <div class="store-closed-card">
+    <div class="sc-icon-wrap">
+      <div class="sc-icon-ring"></div>
+      <i data-lucide="store" style="width:24px;height:24px;position:relative;z-index:1"></i>
+    </div>
+    <div class="sc-label">Store Status</div>
+    <div class="sc-title">Temporarily Closed</div>
+    <p id="store-closed-msg" class="sc-sub">We’ll be back soon. You can still browse products in the meantime.</p>
+    <div class="sc-status-row">
+      <div class="sc-dot"></div>
+      <span class="sc-status-text">Closed right now</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════ LOADER ════ -->
+<div id="page-loader">
+  <div class="loader-inner">
+    <div class="loader-logo">
+      <div class="loader-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      </div>
+      <span class="loader-name">Satyam's Store</span>
+    </div>
+    <div class="loader-bar-wrap">
+      <div class="loader-bar"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ NAV ════ -->
+<nav class="site-nav" id="main-nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="index.html">
+      <div class="nav-brand-icon"><i data-lucide="zap" style="width:13px;height:13px"></i></div>
+      <span class="nav-brand-name">Your's Store</span>
+    </a>
+    <div class="nav-links">
+      <!-- Order button removed — already on the store page -->
+      <!-- Icon only for admin, no label -->
+      <a class="nav-link-icon" href="admin.html" title="Admin">
+        <i data-lucide="settings" style="width:14px;height:14px"></i>
+      </a>
+    </div>
+  </div>
+</nav>
+<nav class="site-nav hidden" id="pay-nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="index.html">
+      <div class="nav-brand-icon"><i data-lucide="zap" style="width:13px;height:13px"></i></div>
+      <span class="nav-brand-name">Your's Store</span>
+    </a>
+    <a class="nav-link" href="#" onclick="switchView('store');return false;">
+      <i data-lucide="arrow-left" style="width:12px;height:12px"></i> Back
+    </a>
+  </div>
+</nav>
+
+<!-- ════ VIEW: STORE ════ -->
+<div id="view-store" class="view active">
+  <main class="page-wrap">
+
+    <!-- Store hero -->
+    <div class="store-hero" id="store-hero">
+      <div class="hero-grid-lines"></div>
+      <div class="hero-scan"></div>
+      <div class="hero-content">
+        <div class="hero-left">
+          <div class="hero-eyebrow"><span class="hero-tag"><span class="hero-tag-dot"></span>Open now</span></div>
+          <div class="hero-title">Your's Store</div>
+          <div class="hero-sub">Fresh stock · Daily drops · UPI payments</div>
+        </div>
+        <div class="hero-right">
+          <div class="hero-stat-box">
+            <div class="hero-stat-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+            </div>
+            <div class="hero-stat-val" id="hero-prod-count">—</div>
+            <div class="hero-stat-lbl">Products</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category filter chips -->
+    <div class="filter-bar-wrap">
+      <div class="filter-bar" id="filter-bar">
+        <button class="filter-chip active" data-cat="all" onclick="setFilter('all')"><i data-lucide="sparkles" style="width:12px;height:12px"></i>All</button>
+        <button class="filter-chip" data-cat="chips" onclick="setFilter('chips')"><i data-lucide="popcorn" style="width:12px;height:12px"></i>Chips</button>
+        <button class="filter-chip" data-cat="chocolates" onclick="setFilter('chocolates')"><i data-lucide="candy" style="width:12px;height:12px"></i>Chocolates</button>
+        <button class="filter-chip" data-cat="biscuits" onclick="setFilter('biscuits')"><i data-lucide="cookie" style="width:12px;height:12px"></i>Biscuits</button>
+        <button class="filter-chip" data-cat="cake" onclick="setFilter('cake')"><i data-lucide="cake-slice" style="width:12px;height:12px"></i>Cake</button>
+        <button class="filter-chip" data-cat="noodles" onclick="setFilter('noodles')"><i data-lucide="soup" style="width:12px;height:12px"></i>Noodles</button>
+        <button class="filter-chip" data-cat="others" onclick="setFilter('others')"><i data-lucide="package" style="width:12px;height:12px"></i>Others</button>
+      </div>
+    </div>
+
+    <!-- Shimmer skeleton (shown while loading) -->
+    <div id="shimmer-grid" class="p-grid">
+      <div class="shimmer-card"><div class="shimmer-img shimmer"></div><div class="shimmer-line shimmer" style="width:75%;margin-top:10px"></div><div class="shimmer-line shimmer" style="width:45%;margin-top:6px"></div><div class="shimmer-btn shimmer" style="margin-top:10px"></div></div>
+      <div class="shimmer-card"><div class="shimmer-img shimmer"></div><div class="shimmer-line shimmer" style="width:75%;margin-top:10px"></div><div class="shimmer-line shimmer" style="width:45%;margin-top:6px"></div><div class="shimmer-btn shimmer" style="margin-top:10px"></div></div>
+      <div class="shimmer-card"><div class="shimmer-img shimmer"></div><div class="shimmer-line shimmer" style="width:75%;margin-top:10px"></div><div class="shimmer-line shimmer" style="width:45%;margin-top:6px"></div><div class="shimmer-btn shimmer" style="margin-top:10px"></div></div>
+      <div class="shimmer-card"><div class="shimmer-img shimmer"></div><div class="shimmer-line shimmer" style="width:75%;margin-top:10px"></div><div class="shimmer-line shimmer" style="width:45%;margin-top:6px"></div><div class="shimmer-btn shimmer" style="margin-top:10px"></div></div>
+      <div class="shimmer-card"><div class="shimmer-img shimmer"></div><div class="shimmer-line shimmer" style="width:75%;margin-top:10px"></div><div class="shimmer-line shimmer" style="width:45%;margin-top:6px"></div><div class="shimmer-btn shimmer" style="margin-top:10px"></div></div>
+      <div class="shimmer-card"><div class="shimmer-img shimmer"></div><div class="shimmer-line shimmer" style="width:75%;margin-top:10px"></div><div class="shimmer-line shimmer" style="width:45%;margin-top:6px"></div><div class="shimmer-btn shimmer" style="margin-top:10px"></div></div>
+      
+    </div>
+
+    <div id="loading-state" class="state-box hidden">
+      <div class="spinner"></div>
+      <p style="color:var(--t3);font-size:.76rem">Fetching products…</p>
+    </div>
+    <div id="error-state" class="state-box hidden">
+      <i data-lucide="wifi-off" style="width:30px;height:30px;opacity:.25;margin-bottom:10px"></i>
+      <p id="error-msg" style="color:var(--red);font-weight:600;font-size:.8rem">Connection failed</p>
+      <button onclick="loadProducts()" class="retry-btn">
+        <i data-lucide="refresh-cw" style="width:11px;height:11px"></i> Retry
+      </button>
+    </div>
+    <div id="empty-state" class="state-box hidden">
+      <i data-lucide="package" style="width:30px;height:30px;opacity:.18;margin-bottom:10px"></i>
+      <p style="color:var(--t3);font-size:.8rem">No products available</p>
+    </div>
+    <div id="product-grid" class="p-grid hidden"></div>
+  </main>
+
+</div>
+
+<!-- ════ VIEW: PAYMENT ════ -->
+<div id="view-payment" class="view">
+  <div class="pay-wrap">
+
+    <!-- Order summary -->
+    <div class="pay-card">
+      <div class="pay-card-title">
+        <i data-lucide="receipt-text" style="width:12px;height:12px"></i> Order Summary
+      </div>
+      <div id="order-items"></div>
+      <div class="pay-total-row">
+        <span class="pay-total-lbl">Total</span>
+        <span class="pay-total-amt" id="total-display">₹0.00</span>
+      </div>
+    </div>
+
+    <!-- UPI section -->
+    <div class="pay-card">
+      <!-- UPI display (title removed per spec) -->
+      <div class="upi-display">
+        <div class="upi-display-info">
+          <span class="upi-display-name">Your's Store</span>
+          <span class="upi-display-id">satyamm@fam</span>
+        </div>
+        <button class="copy-btn" onclick="copyUPI()">
+          <i data-lucide="copy" style="width:10px;height:10px"></i>
+          <span id="copy-lbl">Copy</span>
+        </button>
+      </div>
+
+      <div class="divider-or">Scan QR to pay</div>
+
+      <div class="qr-wrap">
+        <div class="qr-box">
+          <div id="qr-spinner" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%">
+            <div class="spinner" style="margin:0;width:24px;height:24px"></div>
+          </div>
+          <img id="qr-img" src="" alt="UPI QR" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:4px"/>
+        </div>
+        <div class="qr-actions">
+          <button class="qr-action-btn" onclick="saveQR()">
+            <i data-lucide="download" style="width:11px;height:11px"></i> Save QR
+          </button>
+        </div>
+        <p class="qr-hint">PhonePe · GPay · Paytm · BHIM</p>
+      </div>
+      <div class="pay-confirm-section">
+        <p class="pay-confirm-hint">Complete payment on your UPI app, then confirm below.</p>
+        <button class="confirm-btn" id="confirm-btn" onclick="confirmPayment()">
+          <i data-lucide="check-circle" style="width:15px;height:15px"></i>
+          Confirm Order
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════ BOTTOM BAR — always fixed, outside all views ════ -->
+<div class="bottom-bar" id="bottom-bar">
+  <div class="bottom-bar-info">
+    <div class="bottom-stat">
+      <i data-lucide="shopping-cart" style="width:12px;height:12px;color:var(--t3)"></i>
+      <span>Items:</span>
+      <strong id="cart-count">0</strong>
+    </div>
+    <div class="bottom-divider"></div>
+    <div class="bottom-stat">
+      <i data-lucide="indian-rupee" style="width:12px;height:12px;color:var(--t3)"></i>
+      <strong id="cart-total" class="gold">0.00</strong>
+    </div>
+  </div>
+  <button class="proceed-btn" id="proceed-btn" onclick="proceedToPayment()" disabled>
+    <i data-lucide="arrow-right" style="width:13px;height:13px"></i> Proceed
+  </button>
+</div>
+
+<!-- ════ MODALS ════ -->
+<div id="toast" class="toast hidden"></div>
+
+<div id="success-overlay" class="overlay hidden">
+  <div class="modal" style="max-width:320px;text-align:center">
+    <div class="success-icon" style="margin-bottom:12px">
+      <i data-lucide="check-circle-2" style="width:24px;height:24px;color:var(--green)"></i>
+    </div>
+    <div class="modal-title">Order Placed</div>
+    <p class="modal-sub" style="margin-top:5px">Pending admin approval.</p>
+    <p style="font-size:.68rem;color:var(--t3);margin-top:10px">Redirecting to store…</p>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+/* ═══════════════════════════════
+   VIEW MANAGER
+   ═══════════════════════════════ */
+function switchView(name) {
+  const incoming = document.getElementById('view-' + name);
+  const outgoing = document.querySelector('.view.active');
+  const bar      = document.getElementById('bottom-bar');
+  if (!incoming || incoming === outgoing) return;
+
+  const _activate = () => {
+    // Hide all, show incoming — but keep it invisible so GSAP can fade in
+    document.querySelectorAll('.view').forEach(v => {
+      v.classList.remove('active');
+      v.style.opacity = '';
+    });
+    document.getElementById('main-nav').classList.toggle('hidden', name !== 'store');
+    document.getElementById('pay-nav').classList.toggle('hidden',  name !== 'payment');
+    if (bar) bar.style.display = (name === 'store') ? 'flex' : 'none';
+
+    // Pre-set opacity to 0 BEFORE making it active (kills the 1-frame flash)
+    if (typeof gsap !== 'undefined') gsap.set(incoming, { opacity: 0 });
+    incoming.classList.add('active');
+    window.scrollTo(0, 0);
+
+    requestAnimationFrame(() => {
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+      if (typeof gsap !== 'undefined') {
+        gsap.to(incoming, { opacity: 1, duration: .35, ease: 'power2.out', delay: .03 });
+      }
+    });
+  };
+
+  if (typeof gsap !== 'undefined' && outgoing) {
+    gsap.to(outgoing, { opacity: 0, duration: .18, ease: 'power2.in', onComplete: _activate });
+  } else {
+    _activate();
+  }
+}
+
+/* ═══════════════════════════════
+   STORE — products
+   ═══════════════════════════════ */
+const UPI_ID = '9162591726@yesfam';
+const STORE  = "Your's Store";
+// Paste your deployed Apps Script Web App URL here after deploying sync-orders-to-sheets.gs
+const ORDERS_WEBHOOK = '';  // e.g. 'https://script.google.com/macros/s/.../exec'
+let allProducts = [], cart = {}, _activeFilter = 'all';
+let cartData = {}, productsData = [], cartTotal = 0;
+let _storeClosed = false;
+
+function isStoreClosed() { return _storeClosed; }
+
+async function checkStoreStatus() {
+  try {
+    const cfg = await getStoreConfig();
+    _storeClosed = cfg.storeStatus === 'closed';
+    const msgEl = document.getElementById('store-closed-msg');
+    if (msgEl && cfg.closedMessage) msgEl.textContent = cfg.closedMessage;
+  } catch(_) { /* keep previous value on network error */ }
+  const overlay = document.getElementById('store-closed-overlay');
+  if (overlay) {
+    if (_storeClosed) {
+      overlay.style.opacity = '0';
+      overlay.classList.remove('hidden');
+      if (typeof gsap !== 'undefined') {
+        gsap.to(overlay, { opacity: 1, duration: .5, ease: 'power2.out', delay: .1 });
+      } else { overlay.style.opacity = '1'; }
+    } else {
+      overlay.classList.add('hidden');
+      overlay.style.opacity = '';
+    }
+  }
+  updateCartBar();
+  // Update hero badge
+  const tag = document.querySelector('.hero-tag');
+  if (tag) {
+    tag.innerHTML = _storeClosed
+      ? '<span class="hero-tag-dot" style="background:var(--red);box-shadow:0 0 6px rgba(214,79,79,.8)"></span>Closed'
+      : '<span class="hero-tag-dot"></span>Open now';
+    if (_storeClosed) { tag.style.background = 'rgba(214,79,79,.07)'; tag.style.borderColor = 'rgba(214,79,79,.2)'; tag.style.color = 'var(--red)'; }
+    else { tag.style.background = ''; tag.style.borderColor = ''; tag.style.color = ''; }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = sessionStorage.getItem('ss_cart');
+  if (saved) { try { cart = JSON.parse(saved); } catch(e){} }
+  checkStoreStatus();
+  window.addEventListener('focus', checkStoreStatus);
+  setInterval(checkStoreStatus, 30000);
+
+  // Show cached products instantly — zero-wait first paint
+  const cached = _cacheGet(_cacheKey('products'));
+  if (cached) {
+    allProducts = parseProducts(cached);
+    _renderFiltered();
+    updateCartBar();
+    hideLoader();
+    loadProducts({ background: true });
+  } else {
+    showState('loading');
+    loadProducts({ background: false });
+  }
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  else window.addEventListener('lucide-ready', () => lucide.createIcons());
+});
+
+async function loadProducts({ background = false } = {}) {
+  if (!background) showState('loading');
+  try {
+    const rows = await sbGet('products?select=id,name,price,stock,image,purchase_price,hidden,category&order=name.asc');
+    const fresh = parseProducts(rows);
+    _cacheSet(_cacheKey('products'), rows);
+
+    if (background) {
+      const oldStr = JSON.stringify(allProducts.map(p => ({ id: p.id, stock: p.stock, price: p.price, hidden: p.hidden })));
+      const newStr = JSON.stringify(fresh.map(p => ({ id: p.id, stock: p.stock, price: p.price, hidden: p.hidden })));
+      if (oldStr !== newStr) {
+        allProducts = fresh;
+        _renderFiltered();
+        updateCartBar();
+      }
+    } else {
+      allProducts = fresh;
+      _renderFiltered();
+      updateCartBar();
+    }
+  } catch(err) {
+    if (!background) {
+      document.getElementById('error-msg').textContent =
+        'Could not load products. Check your internet connection and try again.';
+      showState('error');
+    }
+  } finally {
+    // Always hide loader — whether success, empty, or error
+    if (!background) hideLoader();
+  }
+}
+
+function _renderFiltered() {
+  const visible = allProducts.filter(p => !p.hidden);
+  const filtered = _activeFilter === 'all'
+    ? visible
+    : visible.filter(p => (p.category || 'others') === _activeFilter);
+  renderGrid(filtered);
+}
+
+function setFilter(cat) {
+  _activeFilter = cat;
+  document.querySelectorAll('.filter-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.cat === cat);
+  });
+  _renderFiltered();
+}
+
+function renderGrid(products) {
+  if (!products.length) { showState('empty'); return; }
+  showState('grid');
+  const grid = document.getElementById('product-grid');
+  grid.innerHTML = products.map(p => buildCard(p)).join('');
+  const cnt = document.getElementById('hero-prod-count');
+  if (cnt) cnt.textContent = products.length;
+  requestAnimationFrame(() => {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    _animateCardsIn();
+  });
+}
+
+function buildCard(p) {
+  const qty = cart[p.id] || 0;
+  const oos = p.stock <= 0;
+  const inCart = qty > 0;
+  const imgHtml = (p.image && p.image.startsWith('http'))
+    ? `<img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+       <div class="card-img-placeholder" style="display:none">${placeholderSVG()}</div>`
+    : `<div class="card-img-placeholder">${placeholderSVG()}</div>`;
+  const stockLabel = oos ? 'Out of stock' : `Stock: ${p.stock}`;
+  return `
+  <div class="p-card ${inCart?'in-cart':''} ${oos?'oos':''}" id="card-${esc(p.id)}">
+    ${inCart ? `<div class="cart-badge">${qty}</div>` : ''}
+    <div class="card-img">
+      ${imgHtml}
+      ${oos ? `<div class="oos-label"><span class="oos-label-text">Out of stock</span></div>` : ''}
+    </div>
+    <div class="card-body">
+      <div class="card-name">${esc(p.name)}</div>
+      <div class="card-price">₹${p.price.toFixed(2)}</div>
+      <div class="card-stock-bar">
+        <span class="card-stock-dot ${oos?'out':'ok'}"></span>
+        <span class="card-stock-text ${oos?'oos-text':''}">${stockLabel}</span>
+      </div>
+    </div>
+    <div class="qty-row">
+      <button class="qty-btn minus" onclick="changeQty('${esc(p.id)}',-1)" ${qty===0?'disabled':''}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <span class="qty-val">${qty}</span>
+      <button class="qty-btn plus" onclick="changeQty('${esc(p.id)}',1)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+  </div>`;
+}
+
+function changeQty(id, delta) {
+  const p = allProducts.find(x => x.id === id);
+  if (!p) return;
+  if (delta > 0 && p.stock <= 0) { toast("Can't add more — out of stock"); return; }
+  const cur = cart[id] || 0;
+  const next = Math.max(0, Math.min(cur + delta, p.stock));
+  if (delta > 0 && next === cur) { toast("Can't add more, stock limit reached"); return; }
+  if (next === 0) delete cart[id]; else cart[id] = next;
+  sessionStorage.setItem('ss_cart', JSON.stringify(cart));
+
+  const card = document.getElementById(`card-${id}`);
+  if (!card) { updateCartBar(); return; }
+
+  // ── Surgical DOM update — zero flicker ──────────────────────
+  const qtyVal   = card.querySelector('.qty-val');
+  const minusBtn = card.querySelector('.qty-btn.minus');
+  const plusBtn  = card.querySelector('.qty-btn.plus');
+  let   badge    = card.querySelector('.cart-badge');
+
+  // Update qty display with GSAP pop
+  if (qtyVal) {
+    qtyVal.textContent = next;
+    if (typeof gsap !== 'undefined') {
+      gsap.fromTo(qtyVal,
+        { scale: delta > 0 ? 1.5 : 0.6, opacity: 0 },
+        { scale: 1, opacity: 1, duration: .22, ease: 'back.out(2)' }
+      );
+    }
+  }
+
+  // Update minus button disabled state
+  if (minusBtn) minusBtn.disabled = next === 0;
+
+  // Update card in-cart class
+  if (next > 0) {
+    card.classList.add('in-cart');
+    // Badge
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'cart-badge';
+      card.prepend(badge);
+    }
+    badge.textContent = next;
+    if (typeof gsap !== 'undefined') {
+      gsap.fromTo(badge,
+        { scale: 0.5, opacity: 0 },
+        { scale: 1,   opacity: 1, duration: .2, ease: 'back.out(3)' }
+      );
+    }
+  } else {
+    card.classList.remove('in-cart');
+    if (badge) {
+      if (typeof gsap !== 'undefined') {
+        gsap.to(badge, { scale: 0, opacity: 0, duration: .15, ease: 'power2.in',
+          onComplete: () => badge.remove() });
+      } else { badge.remove(); }
+    }
+  }
+
+  // Plus button pulse on add
+  if (delta > 0 && plusBtn && typeof gsap !== 'undefined') {
+    gsap.fromTo(plusBtn,
+      { scale: 0.85 },
+      { scale: 1, duration: .25, ease: 'elastic.out(1.5, .5)' }
+    );
+  }
+
+  updateCartBar();
+}
+
+function updateCartBar() {
+  const closed = isStoreClosed();
+  let count = 0, total = 0;
+  for (const [id, qty] of Object.entries(cart)) {
+    const p = allProducts.find(x => x.id === id);
+    if (p) { count += qty; total += qty * p.price; }
+  }
+  const countEl = document.getElementById('cart-count');
+  const totalEl = document.getElementById('cart-total');
+  const prevCount = parseInt(countEl.textContent) || 0;
+  countEl.textContent = count;
+  totalEl.textContent = total.toFixed(2);
+  const bar = document.getElementById('bottom-bar');
+
+  // Show/hide bar based on cart being empty
+  if (count !== prevCount && typeof gsap !== 'undefined') {
+    if (count > 0 && prevCount === 0) {
+      // Slide up into view — first item added
+      gsap.fromTo(bar,
+        { y: '100%', opacity: 0 },
+        { y: '0%', opacity: 1, duration: .52, ease: 'expo.out' }
+      );
+    } else if (count === 0 && prevCount > 0) {
+      // Slide down out of view — cart emptied
+      gsap.to(bar, {
+        y: '100%', opacity: 0,
+        duration: .32, ease: 'expo.in',
+      });
+    } else if (count > prevCount) {
+      // Item added — scale pulse, not y movement (y movement causes flicker)
+      gsap.fromTo(bar,
+        { scaleY: 1.03, transformOrigin: 'bottom center' },
+        { scaleY: 1, duration: .25, ease: 'back.out(3)' }
+      );
+    }
+    // Qty counter pop
+    gsap.fromTo(countEl,
+      { scale: count > prevCount ? 1.6 : 0.7 },
+      { scale: 1, duration: .3, ease: 'elastic.out(1.2,.5)' }
+    );
+  }
+  document.getElementById('proceed-btn').disabled = closed || count === 0;
+}
+
+function proceedToPayment() {
+  if (isStoreClosed()) { toast('Store is currently closed. Please come back later.'); return; }
+  if (!Object.keys(cart).length) { toast('Add items first'); return; }
+  cartData = cart;
+  productsData = allProducts;
+  sessionStorage.setItem('ss_cart', JSON.stringify(cart));
+  sessionStorage.setItem('ss_products', JSON.stringify(allProducts));
+  renderOrder();
+  buildQR();
+  switchView('payment');
+  window.scrollTo(0, 0);
+}
+
+function showState(s) {
+  const shimmer = document.getElementById('shimmer-grid');
+  if (shimmer) shimmer.classList.toggle('hidden', s !== 'loading');
+  document.getElementById('loading-state').classList.toggle('hidden', true);
+  document.getElementById('error-state').classList.toggle('hidden',   s !== 'error');
+  document.getElementById('empty-state').classList.toggle('hidden',   s !== 'empty');
+  document.getElementById('product-grid').classList.toggle('hidden',  s !== 'grid');
+}
+
+function _animateCardsIn() {
+  if (typeof gsap === 'undefined') return;
+  const cards = document.querySelectorAll('.p-card');
+  if (!cards.length) return;
+  gsap.fromTo(cards,
+    { opacity: 0 },
+    { opacity: 1, duration: .4, ease: 'power1.out', stagger: .025, clearProps: 'opacity' }
+  );
+}
+
+/* ═══════════════════════════════
+   PAYMENT
+   ═══════════════════════════════ */
+function renderOrder() {
+  cartTotal = 0;
+  let cartProfit = 0;
+  const rows = [];
+  for (const [id, qty] of Object.entries(cartData)) {
+    const p = productsData.find(x => x.id === id); if (!p) continue;
+    const sub = +(qty * p.price).toFixed(2);
+    cartTotal += sub;
+    const purchasePrice = p.purchase_price || 0;
+    cartProfit += (p.price - purchasePrice) * qty;
+    rows.push(`<div class="pay-row">
+      <div style="display:flex;flex-direction:column;min-width:0;flex:1;gap:1px">
+        <span style="font-size:.84rem;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>
+        <span style="font-size:.68rem;color:var(--t3);font-family:var(--f-mono)">₹${p.price.toFixed(2)} × ${qty}</span>
+      </div>
+      <span style="font-family:var(--f-mono);font-size:.88rem;font-weight:700;color:var(--t1);white-space:nowrap;margin-left:12px">₹${sub.toFixed(2)}</span>
+    </div>`);
+  }
+  cartTotal = +cartTotal.toFixed(2);
+  cartProfit = +cartProfit.toFixed(2);
+  document.getElementById('order-items').innerHTML = rows.join('') || `<p style="color:var(--t3);font-size:.78rem">No items</p>`;
+  document.getElementById('total-display').textContent = `₹${cartTotal.toFixed(2)}`;
+  const profitEl = document.getElementById('profit-display');
+  if (profitEl) profitEl.textContent = `₹${cartProfit.toFixed(2)}`;
+}
+
+function buildQR() {
+  const link = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(STORE)}&am=${cartTotal.toFixed(2)}&cu=INR`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(link)}`;
+  window._qrUrl = qrUrl;
+  const img = document.getElementById('qr-img');
+  const spinner = document.getElementById('qr-spinner');
+  // Reset
+  img.style.display = 'none';
+  spinner.style.display = 'flex';
+  spinner.innerHTML = '<div class="spinner" style="margin:0;width:24px;height:24px"></div>';
+  img.onload = () => { spinner.style.display = 'none'; img.style.display = 'block'; };
+  img.onerror = () => { spinner.innerHTML = '<p style="font-size:.65rem;color:var(--t3);text-align:center">QR unavailable</p>'; };
+  img.src = qrUrl;
+}
+
+async function saveQR() {
+  if (!window._qrUrl) { toast('QR not ready yet'); return; }
+  try {
+    const res = await fetch(window._qrUrl);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = 'payment-qr.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    toast('QR saved!');
+  } catch(e) { toast('Download failed'); }
+}
+
+let _ct;
+function copyUPI() {
+  navigator.clipboard.writeText(UPI_ID).then(() => {
+    const lbl = document.getElementById('copy-lbl');
+    lbl.textContent = 'Copied!';
+    clearTimeout(_ct);
+    _ct = setTimeout(() => { lbl.textContent = 'Copy'; }, 2000);
+  }).catch(() => toast('Copy failed'));
+}
+
+async function confirmPayment() {
+  const btn = document.getElementById('confirm-btn');
+  if (btn.disabled) return; // prevent double-tap
+
+  const originalHTML = btn.innerHTML;
+  const _resetBtn = () => {
+    btn.disabled = false;
+    btn.innerHTML = originalHTML;
+  };
+
+  btn.disabled = true;
+  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Placing order…`;
+
+  // Safety timeout — if something hangs, always re-enable after 12s
+  const _safetyTimer = setTimeout(_resetBtn, 12000);
+
+  const saleItems = [];
+  for (const [id, qty] of Object.entries(cartData)) {
+    const p = productsData.find(x => x.id === id); if (!p) continue;
+    const sub = +(qty * p.price).toFixed(2);
+    saleItems.push({ id, name: p.name, qty, sub });
+  }
+  const total = +saleItems.reduce((s, i) => s + i.sub, 0).toFixed(2);
+
+  let insertedOrder = null;
+  try {
+    const nowISO = new Date().toISOString();
+    const result = await sbPost('orders', {
+      items:      saleItems,
+      total,
+      status:     'pending',
+      created_at: nowISO,
+    });
+    insertedOrder = Array.isArray(result) ? result[0] : result;
+  } catch(e) {
+    clearTimeout(_safetyTimer);
+    _resetBtn();
+    toast('Failed to place order. Please try again.');
+    return;
+  }
+
+  clearTimeout(_safetyTimer);
+
+  // Webhook sync — fire and forget
+  if (insertedOrder && ORDERS_WEBHOOK) {
+    fetch(ORDERS_WEBHOOK, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(insertedOrder),
+    }).catch(() => {});
+  }
+
+  sessionStorage.removeItem('ss_cart');
+  sessionStorage.removeItem('ss_products');
+  cart = {};
+
+  const overlay = document.getElementById('success-overlay');
+  overlay.classList.remove('hidden');
+  if (typeof gsap !== 'undefined') {
+    gsap.fromTo(overlay,
+      { opacity: 0, scale: .96 },
+      { opacity: 1, scale: 1, duration: .3, ease: 'back.out(1.5)' }
+    );
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+
+  setTimeout(() => {
+    if (typeof gsap !== 'undefined') {
+      gsap.to(overlay, {
+        opacity: 0, scale: .96, duration: .2, ease: 'power2.in',
+        onComplete: () => {
+          overlay.classList.add('hidden');
+          updateCartBar();
+          switchView('store');
+        }
+      });
+    } else {
+      overlay.classList.add('hidden');
+      updateCartBar();
+      switchView('store');
+    }
+  }, 2400);
+}
+
+document.addEventListener('contextmenu', e => e.preventDefault());
+// Note: do NOT call preventDefault() on touchstart — it kills scroll on mobile
+
+/* ── GSAP page-enter animations ─────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  function runGSAP() {
+    // Pure fade-in on load — no position shifts, no y movement
+    gsap.set('#main-nav',   { opacity: 0 });
+    gsap.set('#store-hero', { opacity: 0 });
+    gsap.set('#bottom-bar', { y: '100%', opacity: 0 });
+    gsap.to('#main-nav',   { opacity: 1, duration: .45, ease: 'power2.out', delay: .05 });
+    gsap.to('#store-hero', { opacity: 1, duration: .5,  ease: 'power2.out', delay: .12 });
+    // bottom bar only appears when cart has items (updateCartBar handles it)
+  }
+
+  if (typeof gsap !== 'undefined') { runGSAP(); }
+  else {
+    const s = document.querySelector('script[src*="gsap"]');
+    if (s) s.addEventListener('load', runGSAP);
+  }
+});
+</script>
+</body>
+</html>
