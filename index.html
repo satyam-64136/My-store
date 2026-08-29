@@ -4,6 +4,9 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <meta name="theme-color" content="#0c0c0d"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <title>Satyam's Store</title>
   <link rel="stylesheet" href="style.css"/>
   <!-- Preconnect to font origin so the TCP handshake is done before CSS requests it -->
@@ -230,7 +233,10 @@
 <div id="success-overlay" class="overlay hidden">
   <div class="modal" style="max-width:320px;text-align:center">
     <div class="success-icon" style="margin-bottom:12px">
-      <i data-lucide="check-circle-2" style="width:24px;height:24px;color:var(--green)"></i>
+      <svg id="success-check-svg" width="26" height="26" viewBox="0 0 52 52" fill="none">
+        <circle id="success-check-circle" cx="26" cy="26" r="23" fill="none" stroke="var(--green)" stroke-width="2.5"/>
+        <path id="success-check-path" d="M15 27l7 7 15-15" fill="none" stroke="var(--green)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
     </div>
     <div class="modal-title">Order Placed</div>
     <p class="modal-sub" style="margin-top:5px">Pending admin approval.</p>
@@ -249,31 +255,39 @@ function switchView(name) {
   const bar      = document.getElementById('bottom-bar');
   if (!incoming || incoming === outgoing) return;
 
+  // Native-app-style directional push: payment slides in from the right,
+  // going back to the store slides in from the left. Most visitors are on
+  // phones, so this is the transition they'll feel on every single tap.
+  const forward = name === 'payment';
+  const offset  = forward ? 22 : -22;
+
   const _activate = () => {
-    // Hide all, show incoming — but keep it invisible so GSAP can fade in
     document.querySelectorAll('.view').forEach(v => {
       v.classList.remove('active');
       v.style.opacity = '';
+      if (typeof gsap !== 'undefined') gsap.set(v, { clearProps: 'transform' });
     });
     document.getElementById('main-nav').classList.toggle('hidden', name !== 'store');
     document.getElementById('pay-nav').classList.toggle('hidden',  name !== 'payment');
     if (bar) bar.style.display = (name === 'store') ? 'flex' : 'none';
 
-    // Pre-set opacity to 0 BEFORE making it active (kills the 1-frame flash)
-    if (typeof gsap !== 'undefined') gsap.set(incoming, { opacity: 0 });
     incoming.classList.add('active');
     window.scrollTo(0, 0);
 
+    if (typeof gsap !== 'undefined') {
+      gsap.fromTo(incoming,
+        { opacity: 0, x: offset },
+        { opacity: 1, x: 0, duration: .42, ease: 'power3.out', clearProps: 'all' }
+      );
+    }
+
     requestAnimationFrame(() => {
       if (typeof lucide !== 'undefined') lucide.createIcons();
-      if (typeof gsap !== 'undefined') {
-        gsap.to(incoming, { opacity: 1, duration: .35, ease: 'power2.out', delay: .03 });
-      }
     });
   };
 
   if (typeof gsap !== 'undefined' && outgoing) {
-    gsap.to(outgoing, { opacity: 0, duration: .18, ease: 'power2.in', onComplete: _activate });
+    gsap.to(outgoing, { opacity: 0, x: -offset, duration: .22, ease: 'power2.in', onComplete: _activate });
   } else {
     _activate();
   }
@@ -391,7 +405,11 @@ function _renderFiltered() {
 function setFilter(cat) {
   _activeFilter = cat;
   document.querySelectorAll('.filter-chip').forEach(c => {
-    c.classList.toggle('active', c.dataset.cat === cat);
+    const isNowActive = c.dataset.cat === cat;
+    c.classList.toggle('active', isNowActive);
+    if (isNowActive && typeof gsap !== 'undefined') {
+      gsap.fromTo(c, { scale: .88 }, { scale: 1, duration: .4, ease: 'back.out(3)' });
+    }
   });
   _renderFiltered();
 }
@@ -402,7 +420,10 @@ function renderGrid(products) {
   const grid = document.getElementById('product-grid');
   grid.innerHTML = products.map(p => buildCard(p)).join('');
   const cnt = document.getElementById('hero-prod-count');
-  if (cnt) cnt.textContent = products.length;
+  if (cnt) {
+    const prev = parseInt(cnt.textContent) || 0;
+    _animateNumber(cnt, prev, products.length, { duration: .45 });
+  }
   requestAnimationFrame(() => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
     _animateCardsIn();
@@ -526,8 +547,9 @@ function updateCartBar() {
   const countEl = document.getElementById('cart-count');
   const totalEl = document.getElementById('cart-total');
   const prevCount = parseInt(countEl.textContent) || 0;
+  const prevTotal = parseFloat(totalEl.textContent) || 0;
   countEl.textContent = count;
-  totalEl.textContent = total.toFixed(2);
+  _animateNumber(totalEl, prevTotal, total, { decimals: 2, duration: .4 });
   const bar = document.getElementById('bottom-bar');
 
   // Show/hide bar based on cart being empty
@@ -587,9 +609,22 @@ function _animateCardsIn() {
   const cards = document.querySelectorAll('.p-card');
   if (!cards.length) return;
   gsap.fromTo(cards,
-    { opacity: 0 },
-    { opacity: 1, duration: .4, ease: 'power1.out', stagger: .025, clearProps: 'opacity' }
+    { opacity: 0, y: 14, scale: .95 },
+    { opacity: 1, y: 0, scale: 1, duration: .5, ease: 'power3.out', stagger: .03, clearProps: 'all' }
   );
+}
+
+// Smooth number count-up — used for the cart total and hero product count
+// so values glide instead of snapping, without needing a GSAP plugin.
+function _animateNumber(el, from, to, { decimals = 0, prefix = '', duration = .5 } = {}) {
+  if (typeof gsap === 'undefined' || from === to) { el.textContent = prefix + to.toFixed(decimals); return; }
+  gsap.killTweensOf(el);
+  const obj = { v: from };
+  gsap.to(obj, {
+    v: to, duration, ease: 'power2.out',
+    onUpdate: () => { el.textContent = prefix + obj.v.toFixed(decimals); },
+    onComplete: () => { el.textContent = prefix + to.toFixed(decimals); }
+  });
 }
 
 /* ═══════════════════════════════
@@ -663,6 +698,21 @@ function copyUPI() {
   }).catch(() => toast('Copy failed'));
 }
 
+// Draws the success checkmark stroke-by-stroke — ring first, then the tick —
+// so the payment-confirmed moment feels earned rather than just appearing.
+function _drawSuccessCheck() {
+  const circle = document.getElementById('success-check-circle');
+  const path   = document.getElementById('success-check-path');
+  if (!circle || !path) return;
+  const circleLen = circle.getTotalLength();
+  const pathLen   = path.getTotalLength();
+  gsap.set(circle, { strokeDasharray: circleLen, strokeDashoffset: circleLen });
+  gsap.set(path,   { strokeDasharray: pathLen,   strokeDashoffset: pathLen });
+  gsap.timeline()
+    .to(circle, { strokeDashoffset: 0, duration: .5, ease: 'power2.out' })
+    .to(path,   { strokeDashoffset: 0, duration: .35, ease: 'power2.out' }, '-=.1');
+}
+
 async function confirmPayment() {
   const btn = document.getElementById('confirm-btn');
   if (btn.disabled) return; // prevent double-tap
@@ -726,6 +776,7 @@ async function confirmPayment() {
       { opacity: 0, scale: .96 },
       { opacity: 1, scale: 1, duration: .3, ease: 'back.out(1.5)' }
     );
+    _drawSuccessCheck();
   }
   if (typeof lucide !== 'undefined') lucide.createIcons();
 
