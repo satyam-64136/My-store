@@ -12,6 +12,8 @@
   <!-- Preconnect to font origin so the TCP handshake is done before CSS requests it -->
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="preconnect" href="https://unpkg.com"/>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin/>
   <!-- Font CSS with display=swap — doesn't block render, swaps in when ready -->
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
   <noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/></noscript>
@@ -240,7 +242,11 @@
     </div>
     <div class="modal-title">Order Placed</div>
     <p class="modal-sub" style="margin-top:5px">Pending admin approval.</p>
-    <p style="font-size:.68rem;color:var(--t3);margin-top:10px">Redirecting to store…</p>
+    <div class="pickup-notice">
+      <i data-lucide="map-pin" style="width:15px;height:15px;flex-shrink:0"></i>
+      <span>Please come collect your order from the store</span>
+    </div>
+    <button class="btn-primary" style="margin-top:14px;width:100%" onclick="_dismissSuccess()">Got it</button>
   </div>
 </div>
 
@@ -474,6 +480,7 @@ function changeQty(id, delta) {
   const cur = cart[id] || 0;
   const next = Math.max(0, Math.min(cur + delta, p.stock));
   if (delta > 0 && next === cur) { toast("Can't add more, stock limit reached"); return; }
+  _haptic(delta > 0 ? 10 : 6);
   if (next === 0) delete cart[id]; else cart[id] = next;
   sessionStorage.setItem('ss_cart', JSON.stringify(cart));
 
@@ -585,6 +592,7 @@ function updateCartBar() {
 function proceedToPayment() {
   if (isStoreClosed()) { toast('Store is currently closed. Please come back later.'); return; }
   if (!Object.keys(cart).length) { toast('Add items first'); return; }
+  _haptic(12);
   cartData = cart;
   productsData = allProducts;
   sessionStorage.setItem('ss_cart', JSON.stringify(cart));
@@ -768,6 +776,7 @@ async function confirmPayment() {
   sessionStorage.removeItem('ss_cart');
   sessionStorage.removeItem('ss_products');
   cart = {};
+  _haptic(16);
 
   const overlay = document.getElementById('success-overlay');
   overlay.classList.remove('hidden');
@@ -780,26 +789,69 @@ async function confirmPayment() {
   }
   if (typeof lucide !== 'undefined') lucide.createIcons();
 
-  setTimeout(() => {
-    if (typeof gsap !== 'undefined') {
-      gsap.to(overlay, {
-        opacity: 0, scale: .96, duration: .2, ease: 'power2.in',
-        onComplete: () => {
-          overlay.classList.add('hidden');
-          updateCartBar();
-          switchView('store');
-        }
-      });
-    } else {
-      overlay.classList.add('hidden');
-      updateCartBar();
-      switchView('store');
-    }
-  }, 2400);
+  // Auto-dismiss is just a safety net now — the "Got it" button is the
+  // primary way people leave this screen, so they actually read the
+  // pickup notice instead of it vanishing on them.
+  clearTimeout(_successAutoTimer);
+  _successAutoTimer = setTimeout(_dismissSuccess, 6000);
+}
+
+let _successAutoTimer = null;
+function _dismissSuccess() {
+  clearTimeout(_successAutoTimer);
+  const overlay = document.getElementById('success-overlay');
+  if (overlay.classList.contains('hidden')) return;
+  if (typeof gsap !== 'undefined') {
+    gsap.to(overlay, {
+      opacity: 0, scale: .96, duration: .2, ease: 'power2.in',
+      onComplete: () => {
+        overlay.classList.add('hidden');
+        updateCartBar();
+        switchView('store');
+      }
+    });
+  } else {
+    overlay.classList.add('hidden');
+    updateCartBar();
+    switchView('store');
+  }
 }
 
 document.addEventListener('contextmenu', e => e.preventDefault());
 // Note: do NOT call preventDefault() on touchstart — it kills scroll on mobile
+
+// Tiny haptic tick on key actions — Android Chrome supports the Vibration
+// API, iOS Safari silently ignores it, so this is a free upgrade with no
+// downside. Kept very short (6-15ms) so it reads as a tick, not a buzz.
+function _haptic(ms = 10) {
+  try { if (navigator.vibrate) navigator.vibrate(ms); } catch(_) {}
+}
+
+// Edge swipe-back — swiping in from the left edge of the payment screen
+// returns to the store, mirroring the native iOS/Android back gesture.
+// Edge-only + mostly-horizontal checks keep it from firing during normal
+// scrolling or while using the QR/copy buttons.
+(function initSwipeBack() {
+  const EDGE = 24, THRESHOLD = 70, MAX_VERTICAL = 55;
+  let startX = 0, startY = 0, tracking = false;
+
+  document.addEventListener('touchstart', (e) => {
+    const payView = document.getElementById('view-payment');
+    if (!payView || !payView.classList.contains('active')) { tracking = false; return; }
+    const t = e.touches[0];
+    if (t.clientX > EDGE) { tracking = false; return; }
+    startX = t.clientX; startY = t.clientY; tracking = true;
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX;
+    const dy = Math.abs(t.clientY - startY);
+    if (dx > THRESHOLD && dy < MAX_VERTICAL) switchView('store');
+  }, { passive: true });
+})();
 
 /* ── GSAP page-enter animations ─────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
