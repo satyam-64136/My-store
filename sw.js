@@ -33,8 +33,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'New order!';
   const options = {
     body: data.body || 'Tap to view the order',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: 'icon-192.png',
+    badge: 'icon-192.png',
     vibrate: [120, 60, 120],
     data: { orderId: data.orderId || null },
     // tag + renotify: if two orders come in back-to-back, the second
@@ -52,8 +52,8 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const orderId = event.notification.data && event.notification.data.orderId;
   const targetUrl = orderId
-    ? `/admin.html?order=${encodeURIComponent(orderId)}`
-    : '/admin.html';
+    ? `admin.html?order=${encodeURIComponent(orderId)}`
+    : 'admin.html';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
