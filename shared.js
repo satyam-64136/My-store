@@ -8,11 +8,18 @@ const SB_KEY = 'sb_publishable_E3W5FNr_zAmej5fLElsvCA_OeDkde6L';
 
 /* ── Supabase REST helpers ─────────────────────────────── */
 
+// Session lives in localStorage for a persistent (Google) login, or
+// sessionStorage for a password login that should clear when the tab/app
+// closes. Check both so either login method's session gets picked up.
+function _readSbSession() {
+  return localStorage.getItem('sb_session') || sessionStorage.getItem('sb_session');
+}
+
 function _sbHeaders(extras = {}) {
   // Use authenticated JWT if available (admin), fall back to anon key (store)
   let token = SB_KEY;
   try {
-    const raw = sessionStorage.getItem('sb_session');
+    const raw = _readSbSession();
     if (raw) {
       const s = JSON.parse(raw);
       if (s.access_token) token = s.access_token;
@@ -31,7 +38,7 @@ function _sbHeaders(extras = {}) {
 async function sbGet(tableAndQuery) {
   let token = SB_KEY;
   try {
-    const raw = sessionStorage.getItem('sb_session');
+    const raw = _readSbSession();
     if (raw) { const s = JSON.parse(raw); if (s.access_token) token = s.access_token; }
   } catch {}
   const res = await fetch(
