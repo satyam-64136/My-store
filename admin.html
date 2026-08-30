@@ -7,6 +7,10 @@
   <meta http-equiv="Pragma" content="no-cache"/>
   <meta http-equiv="Expires" content="0"/>
   <meta name="theme-color" content="#0c0c0d"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icon-192.png"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <title>Satyam's Store</title>
   <meta name="robots" content="noindex, nofollow"/>
   <link rel="stylesheet" href="style.css"/>
@@ -756,6 +760,94 @@ async function showAdmin() {
   if (ac) { ac.removeAttribute('hidden'); ac.style.display = 'block'; }
   requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
   await Promise.all([loadProducts(), loadPendingOrders(), loadStoreControls()]);
+
+  // Push notifications are opt-in and non-blocking — the admin panel works
+  // fine even if this fails or is denied, so failures here are swallowed.
+  _initPushNotifications();
+
+  // Deep link from a tapped notification: admin.html?order=<id>
+  const urlOrderId = new URLSearchParams(location.search).get('order');
+  if (urlOrderId) {
+    switchTab('admin');
+    requestAnimationFrame(() => askApprove(urlOrderId));
+    history.replaceState({}, '', 'admin.html');
+  }
+}
+
+/* ── Push notifications ────────────────────────────────
+   Public VAPID key — safe to embed client-side, this is how push
+   services verify the notification came from your server. The
+   matching PRIVATE key lives only in the Supabase Edge Function's
+   environment secrets, never in this file. */
+const _VAPID_PUBLIC_KEY = 'BHH1a5bC0RxhrOrgW6xP5wSsAvZw3CCn8wKdnizQ276iSQmw_gqvQx4gOX-gsSQwK5bIQ7bfmgxmmQBGQrXxSNg';
+
+function _urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function _initPushNotifications() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  // Only an installed, home-screen-launched instance should ever receive
+  // push — logging into admin.html from an ordinary browser tab (e.g. to
+  // quickly check something from a laptop) should never turn that device
+  // into a notification target. `display-mode: standalone` is true only
+  // when launched from the installed icon; `navigator.standalone` is the
+  // older iOS equivalent.
+  const isInstalledApp = window.matchMedia('(display-mode: standalone)').matches
+                       || window.navigator.standalone === true;
+
+  if (!isInstalledApp) {
+    await _unsubscribeThisBrowser();
+    return;
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.register('sw.js');
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return;
+
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: _urlBase64ToUint8Array(_VAPID_PUBLIC_KEY),
+      });
+    }
+    const raw = sub.toJSON();
+    // If this endpoint is already stored (e.g. re-opening the app), the
+    // unique constraint on `endpoint` rejects the duplicate — that's fine,
+    // it just means we're already subscribed from this device.
+    await sbPost('push_subscriptions', {
+      endpoint: raw.endpoint,
+      p256dh: raw.keys.p256dh,
+      auth: raw.keys.auth,
+    }).catch(() => {});
+  } catch (_) {
+    // Notification permission blocked, unsupported browser, etc. —
+    // the rest of the admin panel doesn't depend on this.
+  }
+}
+
+// Cleans up a subscription that may have been created before the
+// installed-app-only restriction existed (e.g. an earlier ordinary
+// browser-tab login) — so old non-installed sessions stop getting
+// notified too, not just future ones.
+async function _unsubscribeThisBrowser() {
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    const endpoint = sub.endpoint;
+    await sub.unsubscribe().catch(() => {});
+    await sbDelete(`push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`).catch(() => {});
+  } catch (_) {
+    // Nothing to clean up, or no permission to — either way, harmless.
+  }
 }
 
 /* ── Store controls ────────────────── */
