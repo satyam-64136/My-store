@@ -790,6 +790,21 @@ function _urlBase64ToUint8Array(base64String) {
 
 async function _initPushNotifications() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  // Only an installed, home-screen-launched instance should ever receive
+  // push — logging into admin.html from an ordinary browser tab (e.g. to
+  // quickly check something from a laptop) should never turn that device
+  // into a notification target. `display-mode: standalone` is true only
+  // when launched from the installed icon; `navigator.standalone` is the
+  // older iOS equivalent.
+  const isInstalledApp = window.matchMedia('(display-mode: standalone)').matches
+                       || window.navigator.standalone === true;
+
+  if (!isInstalledApp) {
+    await _unsubscribeThisBrowser();
+    return;
+  }
+
   try {
     const reg = await navigator.serviceWorker.register('sw.js');
     const perm = await Notification.requestPermission();
@@ -814,6 +829,24 @@ async function _initPushNotifications() {
   } catch (_) {
     // Notification permission blocked, unsupported browser, etc. —
     // the rest of the admin panel doesn't depend on this.
+  }
+}
+
+// Cleans up a subscription that may have been created before the
+// installed-app-only restriction existed (e.g. an earlier ordinary
+// browser-tab login) — so old non-installed sessions stop getting
+// notified too, not just future ones.
+async function _unsubscribeThisBrowser() {
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    const endpoint = sub.endpoint;
+    await sub.unsubscribe().catch(() => {});
+    await sbDelete(`push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`).catch(() => {});
+  } catch (_) {
+    // Nothing to clean up, or no permission to — either way, harmless.
   }
 }
 
