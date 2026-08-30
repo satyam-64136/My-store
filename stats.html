@@ -368,22 +368,49 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (typeof lucide !== 'undefined') lucide.createIcons();
   else document.querySelector('script[src*="lucide"]')?.addEventListener('load', () => lucide.createIcons());
 
-  // Stats page is admin-only — redirect if no valid session
-  const raw = sessionStorage.getItem('sb_session');
-  if (!raw) { location.href = 'admin.html'; return; }
-  try {
-    const s = JSON.parse(raw);
-    if (!s.access_token) { location.href = 'admin.html'; return; }
-    // Check expiry
-    if (s.expires_at && Date.now() / 1000 > s.expires_at) {
-      sessionStorage.removeItem('sb_session');
-      location.href = 'admin.html';
-      return;
-    }
-  } catch { location.href = 'admin.html'; return; }
+  // Stats page is admin-only — session may live in localStorage (a
+  // persistent Google login) or sessionStorage (a password login, which
+  // clears when the tab/app closes). Check both, and try a refresh before
+  // giving up — otherwise a merely-expired-but-refreshable token bounces
+  // you out here even though admin.html would have quietly renewed it.
+  const session = await _getValidStatsSession();
+  if (!session) { location.href = 'admin.html'; return; }
 
   await loadData();
 });
+
+async function _getValidStatsSession() {
+  const raw = localStorage.getItem('sb_session') || sessionStorage.getItem('sb_session');
+  if (!raw) return null;
+
+  let s;
+  try { s = JSON.parse(raw); } catch { return null; }
+  if (!s.access_token) return null;
+
+  if (s.expires_at && Date.now() / 1000 > s.expires_at - 60) {
+    try {
+      const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: s.refresh_token }),
+      });
+      const data = await res.json();
+      if (res.ok && data.access_token) {
+        // Keep it in whichever storage it came from
+        const persistent = localStorage.getItem('sb_session') !== null;
+        localStorage.removeItem('sb_session');
+        sessionStorage.removeItem('sb_session');
+        (persistent ? localStorage : sessionStorage).setItem('sb_session', JSON.stringify(data));
+        return data;
+      }
+    } catch { /* fall through to failure below */ }
+    localStorage.removeItem('sb_session');
+    sessionStorage.removeItem('sb_session');
+    return null;
+  }
+
+  return s;
+}
 
 async function loadData() {
   try {
