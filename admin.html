@@ -344,6 +344,41 @@
         </div>
       </div>
 
+      <!-- Broadcast to Customers -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title-row">
+          <span style="display:flex;align-items:center;gap:7px;font-size:.82rem;font-weight:600;color:var(--t1)">
+            <i data-lucide="megaphone" style="width:13px;height:13px;color:var(--sky)"></i>
+            Broadcast to Customers
+          </span>
+          <span id="broadcast-subscriber-count" style="font-family:var(--f-mono);font-size:.66rem;color:var(--t3)">—</span>
+        </div>
+        <p style="font-size:.68rem;color:var(--t3);margin-bottom:11px;line-height:1.5">
+          Sends a push notification to everyone who tapped "Notify me" on the storefront.
+        </p>
+        <div style="display:flex;gap:6px;margin-bottom:11px">
+          <button class="btn-sm" style="flex:1;justify-content:center" onclick="sendQuickBroadcast('open')">
+            <i data-lucide="store" style="width:10px;height:10px"></i> Store Opened
+          </button>
+          <button class="btn-sm" style="flex:1;justify-content:center" onclick="sendQuickBroadcast('closed')">
+            <i data-lucide="store" style="width:10px;height:10px"></i> Store Closed
+          </button>
+        </div>
+        <div class="field" style="margin-bottom:8px">
+          <label>Title (optional)</label>
+          <input id="broadcast-title" type="text" placeholder="Store update" maxlength="60"/>
+        </div>
+        <div class="field" style="margin-bottom:10px">
+          <label>Message <span class="req">*</span></label>
+          <input id="broadcast-message" type="text" placeholder="e.g. Fresh stock just arrived!" maxlength="180"
+            onkeydown="if(event.key==='Enter')sendCustomBroadcast()">
+        </div>
+        <button class="btn-primary" style="width:100%" onclick="sendCustomBroadcast()" id="broadcast-send-btn">
+          <i data-lucide="send" style="width:12px;height:12px"></i>
+          <span id="broadcast-send-lbl">Send to All</span>
+        </button>
+      </div>
+
       <!-- Pending Orders -->
       <div class="card" style="margin-bottom:14px">
         <div class="card-title-row">
@@ -850,7 +885,12 @@ async function showAdmin() {
   const ac = document.getElementById('admin-content');
   if (ac) { ac.removeAttribute('hidden'); ac.style.display = 'block'; }
   requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
-  await Promise.all([loadProducts(), loadPendingOrders(), loadStoreControls()]);
+  await Promise.all([loadProducts(), loadPendingOrders(), loadStoreControls(), loadBroadcastSubscriberCount()]);
+
+  // Keep pending orders fresh automatically — this is specifically so a
+  // "PAID" badge from the payment-verification webhook shows up on its
+  // own instead of needing a manual tap on Refresh.
+  setInterval(() => loadPendingOrders({ background: true }), 20000);
 
   // Push notifications are opt-in and non-blocking — the admin panel works
   // fine even if this fails or is denied, so failures here are swallowed.
@@ -1054,6 +1094,68 @@ async function saveClosedMessage() {
     toast('Failed to save message');
   } finally {
     btn.disabled = false;
+  }
+}
+
+/* ── Broadcast to customers ────────────────────────────── */
+async function loadBroadcastSubscriberCount() {
+  const el = document.getElementById('broadcast-subscriber-count');
+  if (!el) return;
+  try {
+    const rows = await sbGet('customer_push_subscriptions?select=id');
+    el.textContent = `${rows.length} subscriber${rows.length === 1 ? '' : 's'}`;
+  } catch {
+    el.textContent = '—';
+  }
+}
+
+async function _sendBroadcast(title, message) {
+  const btn = document.getElementById('broadcast-send-btn');
+  const lbl = document.getElementById('broadcast-send-lbl');
+  if (!message || !message.trim()) { toast('Enter a message first'); return; }
+
+  const session = await _getSession();
+  if (!session) { toast('Session expired — log in again'); return; }
+
+  if (btn) btn.disabled = true;
+  if (lbl) lbl.textContent = 'Sending…';
+  try {
+    const res = await fetch(`${SB_URL}/functions/v1/broadcast-notification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + session.access_token,
+        'apikey': SB_KEY,
+      },
+      body: JSON.stringify({ title, message }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Broadcast failed');
+    toast(`Sent to ${data.sent} of ${data.total} subscriber${data.total === 1 ? '' : 's'}`);
+    const msgInput = document.getElementById('broadcast-message');
+    const titleInput = document.getElementById('broadcast-title');
+    if (msgInput) msgInput.value = '';
+    if (titleInput) titleInput.value = '';
+    loadBroadcastSubscriberCount();
+  } catch (e) {
+    toast(e.message || 'Broadcast failed');
+  } finally {
+    if (btn) btn.disabled = false;
+    if (lbl) lbl.textContent = 'Send to All';
+  }
+}
+
+function sendCustomBroadcast() {
+  const title = document.getElementById('broadcast-title').value.trim();
+  const message = document.getElementById('broadcast-message').value.trim();
+  _sendBroadcast(title, message);
+}
+
+function sendQuickBroadcast(kind) {
+  if (kind === 'open') {
+    _sendBroadcast('Store Opened', "We're open now — come place your order!");
+  } else if (kind === 'closed') {
+    _sendBroadcast('Store Closed', "We've closed up for now. Check back soon!");
   }
 }
 
@@ -1312,12 +1414,14 @@ async function confirmDelete() {
 }
 
 /* ── Pending Orders ───────────────────────────────────── */
-async function loadPendingOrders() {
+async function loadPendingOrders({ background = false } = {}) {
   const icon = document.getElementById('pending-refresh');
-  if (icon) icon.style.animation = 'spin .7s linear infinite';
-  setPendingState('loading');
+  if (!background) {
+    if (icon) icon.style.animation = 'spin .7s linear infinite';
+    setPendingState('loading');
+  }
   try {
-    const rows = await sbGet('orders?status=eq.pending&order=created_at.desc&select=id,items,total,status,created_at');
+    const rows = await sbGet('orders?status=eq.pending&order=created_at.desc&select=id,items,total,status,created_at,payment_verified');
     pendingOrdersMap.clear();
     (rows || []).forEach(row => {
       const orderId = String(row.id);
@@ -1334,10 +1438,12 @@ async function loadPendingOrders() {
         itemsArr: itemsArr,
         total: String(row.total || '0'),
         products: itemsArr.map(i => ({ id: i.id, qty: i.qty })),
+        paymentVerified: !!row.payment_verified,
       });
     });
     renderPendingOrders();
   } catch(e) {
+    if (background) return; // silent — keep showing the last good data
     const msg = (e && e.message)
       ? e.message
       : 'Could not load pending orders. Check your connection and try again.';
@@ -1346,7 +1452,7 @@ async function loadPendingOrders() {
     setPendingState('error');
     toast('Could not load pending orders');
   } finally {
-    if (icon) icon.style.animation = 'none';
+    if (!background && icon) icon.style.animation = 'none';
   }
 }
 
@@ -1375,7 +1481,10 @@ function renderPendingOrders() {
           <span>${esc(order.time)}</span>
           <span class="order-card-date">${esc(order.date)}</span>
         </div>
-        <div class="order-card-total">₹${parseFloat(order.total).toFixed(2)}</div>
+        <div style="display:flex;align-items:center;gap:7px">
+          ${order.paymentVerified ? `<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(110,231,183,.1);border:1px solid rgba(110,231,183,.28);color:#6ee7b7;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:99px;font-family:var(--f-mono);white-space:nowrap"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg> PAID</span>` : ''}
+          <div class="order-card-total">₹${parseFloat(order.total).toFixed(2)}</div>
+        </div>
       </div>
       <div class="order-card-items">
         ${(order.itemsArr && order.itemsArr.length
@@ -1839,6 +1948,8 @@ window.loadSalesByCustomDate = loadSalesByCustomDate;
 window.logout = logout;
 window.rejectOrder = rejectOrder;
 window.saveClosedMessage = saveClosedMessage;
+window.sendQuickBroadcast = sendQuickBroadcast;
+window.sendCustomBroadcast = sendCustomBroadcast;
 window.saveSaleQR = saveSaleQR;
 window.showProfitBreakdown = showProfitBreakdown;
 window.switchTab = switchTab;
