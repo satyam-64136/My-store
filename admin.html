@@ -887,9 +887,8 @@ async function showAdmin() {
   requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
   await Promise.all([loadProducts(), loadPendingOrders(), loadStoreControls(), loadBroadcastSubscriberCount()]);
 
-  // Keep pending orders fresh automatically — this is specifically so a
-  // "PAID" badge from the payment-verification webhook shows up on its
-  // own instead of needing a manual tap on Refresh.
+  // Keep pending orders fresh automatically — no need to tap Refresh
+  // to see a new order that just came in.
   setInterval(() => loadPendingOrders({ background: true }), 20000);
 
   // Push notifications are opt-in and non-blocking — the admin panel works
@@ -1421,7 +1420,7 @@ async function loadPendingOrders({ background = false } = {}) {
     setPendingState('loading');
   }
   try {
-    const rows = await sbGet('orders?status=eq.pending&order=created_at.desc&select=id,items,total,status,created_at,payment_verified');
+    const rows = await sbGet('orders?status=eq.pending&order=created_at.desc&select=id,items,total,status,created_at');
     pendingOrdersMap.clear();
     (rows || []).forEach(row => {
       const orderId = String(row.id);
@@ -1438,7 +1437,6 @@ async function loadPendingOrders({ background = false } = {}) {
         itemsArr: itemsArr,
         total: String(row.total || '0'),
         products: itemsArr.map(i => ({ id: i.id, qty: i.qty })),
-        paymentVerified: !!row.payment_verified,
       });
     });
     renderPendingOrders();
@@ -1481,10 +1479,7 @@ function renderPendingOrders() {
           <span>${esc(order.time)}</span>
           <span class="order-card-date">${esc(order.date)}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:7px">
-          ${order.paymentVerified ? `<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(110,231,183,.1);border:1px solid rgba(110,231,183,.28);color:#6ee7b7;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:99px;font-family:var(--f-mono);white-space:nowrap"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg> PAID</span>` : ''}
-          <div class="order-card-total">₹${parseFloat(order.total).toFixed(2)}</div>
-        </div>
+        <div class="order-card-total">₹${parseFloat(order.total).toFixed(2)}</div>
       </div>
       <div class="order-card-items">
         ${(order.itemsArr && order.itemsArr.length

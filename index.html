@@ -235,6 +235,22 @@
 <!-- ════ MODALS ════ -->
 <div id="toast" class="toast hidden"></div>
 
+<div id="notify-prompt-overlay" class="overlay hidden">
+  <div class="modal" style="max-width:340px;text-align:center">
+    <div class="success-icon" style="margin-bottom:12px">
+      <i data-lucide="bell-ring" style="width:22px;height:22px;color:var(--accent)"></i>
+    </div>
+    <div class="modal-title">Stay in the loop</div>
+    <p class="modal-sub" style="margin:6px 0 18px;line-height:1.6">Get notified the moment the store opens, closes, or has an update — nothing else, no spam.</p>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="_acceptNotifyPrompt()">
+        <i data-lucide="bell" style="width:12px;height:12px"></i> Turn on notifications
+      </button>
+      <button class="btn-ghost" onclick="_dismissNotifyPrompt()">Maybe later</button>
+    </div>
+  </div>
+</div>
+
 <div id="success-overlay" class="overlay hidden">
   <div class="modal" style="max-width:320px;text-align:center">
     <div class="success-icon" style="margin-bottom:12px">
@@ -963,8 +979,48 @@ async function toggleCustomerNotify() {
   }
 }
 
+/* ── Automatic notification prompt ──────────────────────
+   Shown prominently and automatically (not buried as a small icon
+   someone has to notice) — but it's dismissible and never blocks
+   browsing or ordering. It only shows once: after the person answers
+   either way, it doesn't nag them again on future visits. */
+const _NOTIFY_PROMPT_DISMISS_KEY = 'ss_notify_prompt_dismissed';
+
+function _shouldShowNotifyPrompt() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  if (Notification.permission !== 'default') return false; // already answered, one way or the other
+  if (localStorage.getItem(_NOTIFY_PROMPT_DISMISS_KEY)) return false;
+  return true;
+}
+
+function _showNotifyPromptIfNeeded() {
+  if (!_shouldShowNotifyPrompt()) return;
+  const overlay = document.getElementById('notify-prompt-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('hidden');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function _hideNotifyPrompt() {
+  const overlay = document.getElementById('notify-prompt-overlay');
+  if (overlay) overlay.classList.add('hidden');
+}
+
+function _dismissNotifyPrompt() {
+  localStorage.setItem(_NOTIFY_PROMPT_DISMISS_KEY, '1');
+  _hideNotifyPrompt();
+}
+
+async function _acceptNotifyPrompt() {
+  _hideNotifyPrompt();
+  localStorage.setItem(_NOTIFY_PROMPT_DISMISS_KEY, '1'); // don't ask again either way
+  await toggleCustomerNotify();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   _checkCustomerNotifyState();
+  // Small delay so this doesn't compete with the page's own load animation
+  setTimeout(_showNotifyPromptIfNeeded, 1400);
 });
 
 /* ── GSAP page-enter animations ─────────────────────── */
