@@ -54,6 +54,30 @@
   </div>
 </div>
 
+<!-- ════ AUTH GATE — only approved Google accounts get past this ════ -->
+<div id="auth-gate" class="hidden">
+  <div class="login-box" id="gate-signin">
+    <div class="login-icon"><i data-lucide="lock" style="width:18px;height:18px"></i></div>
+    <div class="login-title">Sign in to continue</div>
+    <p class="login-sub">This store is invite-only. Sign in with your approved Google account to browse.</p>
+    <button class="google-btn" onclick="startGoogleLogin()">
+      <svg width="16" height="16" viewBox="0 0 48 48" style="flex-shrink:0">
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/>
+        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 18.9 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4c-7.4 0-13.8 4.1-17.1 10.2z"/>
+        <path fill="#4CAF50" d="M24 44c5.5 0 10.4-1.9 14.3-5.1l-6.6-5.4C29.6 35.4 26.9 36.4 24 36.4c-5.2 0-9.6-3.3-11.2-7.9l-6.6 5.1C9.9 39.7 16.4 44 24 44z"/>
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.6 5.4C41.4 35.9 44 30.3 44 24c0-1.3-.1-2.7-.4-3.5z"/>
+      </svg>
+      Continue with Google
+    </button>
+  </div>
+  <div class="login-box hidden" id="gate-pending">
+    <div class="login-icon"><i data-lucide="clock" style="width:18px;height:18px"></i></div>
+    <div class="login-title">Access pending</div>
+    <p class="login-sub">Signed in as <strong id="gate-pending-email"></strong>. This email hasn't been approved yet — ask the store admin to add it.</p>
+    <button class="login-btn" onclick="signOutGate()">Sign out</button>
+  </div>
+</div>
+
 <!-- ════ NAV ════ -->
 <nav class="site-nav" id="main-nav">
   <div class="nav-inner">
@@ -63,9 +87,6 @@
     </a>
     <div class="nav-links">
       <!-- Order button removed — already on the store page -->
-      <button class="nav-link-icon" id="notify-bell-btn" onclick="toggleCustomerNotify()" title="Get notified">
-        <i data-lucide="bell" id="notify-bell-icon" style="width:14px;height:14px"></i>
-      </button>
       <!-- Icon only for admin, no label -->
       <a class="nav-link-icon" href="admin.html" title="Admin">
         <i data-lucide="settings" style="width:14px;height:14px"></i>
@@ -235,22 +256,6 @@
 <!-- ════ MODALS ════ -->
 <div id="toast" class="toast hidden"></div>
 
-<div id="notify-prompt-overlay" class="overlay hidden">
-  <div class="modal" style="max-width:340px;text-align:center">
-    <div class="success-icon" style="margin-bottom:12px">
-      <i data-lucide="bell-ring" style="width:22px;height:22px;color:var(--accent)"></i>
-    </div>
-    <div class="modal-title">Stay in the loop</div>
-    <p class="modal-sub" style="margin:6px 0 18px;line-height:1.6">Get notified the moment the store opens, closes, or has an update — nothing else, no spam.</p>
-    <div class="modal-actions">
-      <button class="btn-primary" onclick="_acceptNotifyPrompt()">
-        <i data-lucide="bell" style="width:12px;height:12px"></i> Turn on notifications
-      </button>
-      <button class="btn-ghost" onclick="_dismissNotifyPrompt()">Maybe later</button>
-    </div>
-  </div>
-</div>
-
 <div id="success-overlay" class="overlay hidden">
   <div class="modal" style="max-width:320px;text-align:center">
     <div class="success-icon" style="margin-bottom:12px">
@@ -364,6 +369,44 @@ async function checkStoreStatus() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  else window.addEventListener('lucide-ready', () => lucide.createIcons());
+  initAuthGate();
+});
+
+// Runs before anything else loads — only an approved, signed-in
+// Google account gets past this into startApp().
+async function initAuthGate() {
+  const gate = document.getElementById('auth-gate');
+  let result;
+  try {
+    result = await getGateStatus();
+  } catch {
+    result = { status: 'signed_out' };
+  }
+
+  if (result.status === 'approved') {
+    gate.classList.add('hidden');
+    startApp();
+    return;
+  }
+
+  hideLoader();
+  gate.classList.remove('hidden');
+  const signinBox  = document.getElementById('gate-signin');
+  const pendingBox = document.getElementById('gate-pending');
+  if (result.status === 'unapproved') {
+    signinBox.classList.add('hidden');
+    pendingBox.classList.remove('hidden');
+    document.getElementById('gate-pending-email').textContent = result.email;
+  } else {
+    pendingBox.classList.add('hidden');
+    signinBox.classList.remove('hidden');
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function startApp() {
   const saved = sessionStorage.getItem('ss_cart');
   if (saved) { try { cart = JSON.parse(saved); } catch(e){} }
   checkStoreStatus();
@@ -383,17 +426,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadProducts({ background: false });
   }
 
-  // Keep stock live while someone's browsing — without this, an item can
-  // sell out (via admin approving someone else's order) and still show as
-  // available here until the page happens to reload. Background mode
-  // always fetches fresh and only re-renders if something actually
-  // changed, so this doesn't cause flicker or interrupt anyone mid-tap.
-  setInterval(() => loadProducts({ background: true }), 15000);
-  window.addEventListener('focus', () => loadProducts({ background: true }));
-
   if (typeof lucide !== 'undefined') lucide.createIcons();
-  else window.addEventListener('lucide-ready', () => lucide.createIcons());
-});
+}
 
 async function loadProducts({ background = false } = {}) {
   if (!background) showState('loading');
@@ -407,7 +441,6 @@ async function loadProducts({ background = false } = {}) {
       const newStr = JSON.stringify(fresh.map(p => ({ id: p.id, stock: p.stock, price: p.price, hidden: p.hidden })));
       if (oldStr !== newStr) {
         allProducts = fresh;
-        _clampCartToStock();
         _renderFiltered();
         updateCartBar();
       }
@@ -426,29 +459,6 @@ async function loadProducts({ background = false } = {}) {
     // Always hide loader — whether success, empty, or error
     if (!background) hideLoader();
   }
-}
-
-// If a background stock refresh finds less stock than someone already has
-// in their cart (someone else's order just got approved on that item, for
-// example), trim their cart down to what's actually left instead of
-// letting them proceed to pay for more than exists.
-function _clampCartToStock() {
-  let changed = false;
-  for (const id of Object.keys(cart)) {
-    const p = allProducts.find(x => x.id === id);
-    const available = p ? p.stock : 0;
-    if (cart[id] > available) {
-      changed = true;
-      if (available <= 0) {
-        toast(`${p ? p.name : 'An item'} just sold out — removed from your cart`);
-        delete cart[id];
-      } else {
-        toast(`Only ${available} left of ${p.name} — updated your cart`);
-        cart[id] = available;
-      }
-    }
-  }
-  if (changed) sessionStorage.setItem('ss_cart', JSON.stringify(cart));
 }
 
 function _renderFiltered() {
@@ -814,7 +824,6 @@ async function confirmPayment() {
   }
 
   clearTimeout(_safetyTimer);
-  _resetBtn(); // success path never reset it otherwise — next order attempt would find the button permanently stuck disabled
 
   // Webhook sync — fire and forget
   if (insertedOrder && ORDERS_WEBHOOK) {
@@ -904,124 +913,6 @@ function _haptic(ms = 10) {
     if (dx > THRESHOLD && dy < MAX_VERTICAL) switchView('store');
   }, { passive: true });
 })();
-
-/* ── Customer "notify me" push subscription ────────────
-   Opt-in only — never auto-prompts. Tapping the bell asks for
-   notification permission with real context (they just chose to), which
-   both respects the user and gets a far higher accept rate than a
-   surprise permission popup on page load. */
-const _VAPID_PUBLIC_KEY = 'BHH1a5bC0RxhrOrgW6xP5wSsAvZw3CCn8wKdnizQ276iSQmw_gqvQx4gOX-gsSQwK5bIQ7bfmgxmmQBGQrXxSNg';
-
-function _urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = atob(base64);
-  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
-}
-
-function _setBellState(subscribed) {
-  const icon = document.getElementById('notify-bell-icon');
-  const btn  = document.getElementById('notify-bell-btn');
-  if (!icon || !btn) return;
-  icon.setAttribute('data-lucide', subscribed ? 'bell-ring' : 'bell');
-  btn.title = subscribed ? "You'll get store updates" : 'Get notified';
-  btn.style.color = subscribed ? 'var(--accent)' : '';
-  if (typeof lucide !== 'undefined') lucide.createIcons();
-}
-
-async function _checkCustomerNotifyState() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-  try {
-    const reg = await navigator.serviceWorker.getRegistration();
-    const sub = reg && await reg.pushManager.getSubscription();
-    _setBellState(!!sub);
-  } catch (_) {}
-}
-
-async function toggleCustomerNotify() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    toast('Notifications are not supported on this browser');
-    return;
-  }
-  try {
-    const reg = await navigator.serviceWorker.register('sw.js');
-    let sub = await reg.pushManager.getSubscription();
-
-    if (sub) {
-      // Already subscribed — tapping again unsubscribes
-      const endpoint = sub.endpoint;
-      await sub.unsubscribe().catch(() => {});
-      await sbDelete(`customer_push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`).catch(() => {});
-      _setBellState(false);
-      toast("You won't get store notifications anymore");
-      return;
-    }
-
-    const perm = await Notification.requestPermission();
-    if (perm !== 'granted') {
-      toast('Notifications permission was not granted');
-      return;
-    }
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: _urlBase64ToUint8Array(_VAPID_PUBLIC_KEY),
-    });
-    const raw = sub.toJSON();
-    await sbPost('customer_push_subscriptions', {
-      endpoint: raw.endpoint,
-      p256dh: raw.keys.p256dh,
-      auth: raw.keys.auth,
-    }).catch(() => {});
-    _setBellState(true);
-    toast("You'll now get store updates");
-  } catch (_) {
-    toast('Could not enable notifications');
-  }
-}
-
-/* ── Automatic notification prompt ──────────────────────
-   Shown prominently and automatically (not buried as a small icon
-   someone has to notice) — but it's dismissible and never blocks
-   browsing or ordering. It only shows once: after the person answers
-   either way, it doesn't nag them again on future visits. */
-const _NOTIFY_PROMPT_DISMISS_KEY = 'ss_notify_prompt_dismissed';
-
-function _shouldShowNotifyPrompt() {
-  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return false;
-  if (Notification.permission !== 'default') return false; // already answered, one way or the other
-  if (localStorage.getItem(_NOTIFY_PROMPT_DISMISS_KEY)) return false;
-  return true;
-}
-
-function _showNotifyPromptIfNeeded() {
-  if (!_shouldShowNotifyPrompt()) return;
-  const overlay = document.getElementById('notify-prompt-overlay');
-  if (!overlay) return;
-  overlay.classList.remove('hidden');
-  if (typeof lucide !== 'undefined') lucide.createIcons();
-}
-
-function _hideNotifyPrompt() {
-  const overlay = document.getElementById('notify-prompt-overlay');
-  if (overlay) overlay.classList.add('hidden');
-}
-
-function _dismissNotifyPrompt() {
-  localStorage.setItem(_NOTIFY_PROMPT_DISMISS_KEY, '1');
-  _hideNotifyPrompt();
-}
-
-async function _acceptNotifyPrompt() {
-  _hideNotifyPrompt();
-  localStorage.setItem(_NOTIFY_PROMPT_DISMISS_KEY, '1'); // don't ask again either way
-  await toggleCustomerNotify();
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  _checkCustomerNotifyState();
-  // Small delay so this doesn't compete with the page's own load animation
-  setTimeout(_showNotifyPromptIfNeeded, 1400);
-});
 
 /* ── GSAP page-enter animations ─────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {

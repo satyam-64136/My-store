@@ -657,6 +657,11 @@ body {
 .login-back:hover { color:var(--t2); }
 @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-5px)} 40%,80%{transform:translateX(5px)} }
 
+#auth-gate { position:fixed; inset:0; z-index:9998; display:flex; align-items:center; justify-content:center; padding:20px; background:var(--bg); }
+#auth-gate.hidden { display:none; }
+.google-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:10px; padding:11px; background:var(--surface-1); border:1px solid var(--b1); border-radius:var(--r1); color:var(--t1); font-family:var(--f-head); font-size:.85rem; font-weight:600; cursor:pointer; transition:background .15s,border-color .15s; }
+.google-btn:hover { background:var(--surface-2); border-color:var(--b3); }
+
 .del-icon { width:48px; height:48px; background:rgba(214,79,79,.07); border:1px solid rgba(214,79,79,.14); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto; }
 .success-icon { width:52px; height:52px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.11); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto; }
 .receipt-box { background:var(--surface-1); border:1px solid var(--b1); border-radius:var(--r1); padding:12px; font-family:var(--f-mono); font-size:.68rem; color:var(--t2); max-height:200px; overflow-y:auto; margin-bottom:12px; }
