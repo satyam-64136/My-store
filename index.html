@@ -59,6 +59,9 @@
   <video id="gate-video" autoplay muted loop playsinline preload="auto">
     <source src="login-bg.mp4" type="video/mp4">
   </video>
+  <audio id="gate-audio" loop preload="auto">
+    <source src="login-bg.mp3" type="audio/mpeg">
+  </audio>
   <div class="gate-overlay"></div>
   <div class="gate-content">
     <button id="gate-g-btn" class="gate-g-btn" onclick="startGoogleLogin()" aria-label="Sign in with Google">G</button>
@@ -394,6 +397,7 @@ async function initAuthGate() {
   }
 
   if (result.status === 'approved') {
+    _stopGateMedia();
     gate.classList.add('hidden');
     startApp();
     return;
@@ -401,6 +405,7 @@ async function initAuthGate() {
 
   hideLoader();
   gate.classList.remove('hidden');
+  _playGateMedia();
 
   const btn     = document.getElementById('gate-g-btn');
   const text    = document.getElementById('gate-status-text');
@@ -421,6 +426,32 @@ async function initAuthGate() {
     text.classList.add('hidden');
     signout.classList.add('hidden');
   }
+}
+
+// The video autoplays fine (it's muted, which browsers always allow),
+// but audio with sound needs a user gesture first in most browsers.
+// Try right away — some contexts allow it — and if that's blocked,
+// retry on the first tap/click/key anywhere on the gate.
+function _playGateMedia() {
+  const audio = document.getElementById('gate-audio');
+  const video = document.getElementById('gate-video');
+  if (video && video.paused) video.play().catch(() => {});
+  if (!audio) return;
+  const tryPlay = () => audio.play().catch(() => {});
+  tryPlay();
+  if (audio.paused) {
+    const retry = () => { tryPlay(); };
+    ['pointerdown', 'keydown'].forEach(evt =>
+      window.addEventListener(evt, retry, { once: true, passive: true })
+    );
+  }
+}
+
+function _stopGateMedia() {
+  const audio = document.getElementById('gate-audio');
+  const video = document.getElementById('gate-video');
+  if (audio) { audio.pause(); audio.currentTime = 0; }
+  if (video) { video.pause(); }
 }
 
 function startApp() {
