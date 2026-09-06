@@ -322,16 +322,17 @@ async function _gateRefreshSession(refresh_token) {
 }
 
 // Returns one of:
-//   { status: 'approved',   email }   — signed in AND on the allowed list
-//   { status: 'unapproved', email }   — signed in but NOT approved yet
-//   { status: 'signed_out' }          — no valid session
+//   { status: 'approved', email }  — signed in AND approved
+//   { status: 'pending',  email }  — signed in, request filed, awaiting a decision
+//   { status: 'banned',   email }  — signed in, but blocked
+//   { status: 'signed_out' }       — no valid session
 async function getGateStatus() {
   _captureGateRedirect();
 
   // The gate only ever writes to localStorage, but read via
   // _readSbSession so an admin's sessionStorage password-session on
   // this same tab isn't mistaken for a customer session (it will
-  // simply fail the allowed_emails check below and land on unapproved).
+  // simply fail the allowed_emails check below and land on pending).
   const raw = _readSbSession();
   if (!raw) return { status: 'signed_out' };
 
@@ -355,17 +356,25 @@ async function getGateStatus() {
   }
 
   // The admin account always gets through the store gate, same as the
-  // SQL policies' bypass — no need to also add it to allowed_emails.
+  // SQL policies' bypass — no need for it to go through the request list.
   if (user.email === 'satyam64136@gmail.com') return { status: 'approved', email: user.email };
 
-  // RLS only lets a signed-in user read their OWN row in allowed_emails,
-  // so a non-empty result here means the server itself confirms approval.
+  // RLS only lets a signed-in user read their OWN row, so this reflects
+  // the server's actual decision, not anything the client could fake.
   try {
-    const rows = await sbGet('allowed_emails?email=eq.' + encodeURIComponent(user.email) + '&select=email');
-    if (Array.isArray(rows) && rows.length > 0) return { status: 'approved', email: user.email };
-  } catch { /* treated as unapproved below */ }
+    const rows = await sbGet('allowed_emails?email=eq.' + encodeURIComponent(user.email) + '&select=status');
+    if (Array.isArray(rows) && rows.length > 0) {
+      const s = rows[0].status;
+      if (s === 'approved') return { status: 'approved', email: user.email };
+      if (s === 'banned')   return { status: 'banned',   email: user.email };
+      return { status: 'pending', email: user.email };
+    }
+    // First time this email has signed in — file a pending request so
+    // it shows up in the admin's Access tab without any manual step.
+    await sbPost('allowed_emails', { email: user.email, status: 'pending' }).catch(() => {});
+  } catch { /* fall through to pending below */ }
 
-  return { status: 'unapproved', email: user.email };
+  return { status: 'pending', email: user.email };
 }
 
 async function signOutGate() {
