@@ -679,19 +679,21 @@ body {
   position: relative; z-index: 1;
   display: flex; flex-direction: column; align-items: center; gap: 16px;
 }
-.gate-g-btn {
-  width: 58px; height: 58px; border-radius: 50%;
-  background: rgba(255,255,255,.06);
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,.4);
-  color: #fff; font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.35rem; font-weight: 600;
-  display: flex; align-items: center; justify-content: center;
+.gate-google-btn {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 11px 18px;
+  background: #fff;
+  border: none; border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 1px 3px 1px rgba(0,0,0,.15);
+  color: #3c4043;
+  font-family: 'Roboto', Arial, sans-serif;
+  font-size: .875rem; font-weight: 500;
   cursor: pointer;
-  transition: background .2s ease, transform .2s ease, border-color .2s ease;
+  transition: box-shadow .15s ease, background .15s ease;
 }
-.gate-g-btn:hover { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.65); transform: scale(1.06); }
-.gate-g-btn.hidden { display: none; }
+.gate-google-btn:hover { background: #f8f8f8; box-shadow: 0 1px 3px rgba(0,0,0,.35), 0 4px 8px 3px rgba(0,0,0,.15); }
+.gate-google-btn:active { background: #f1f1f1; }
+.gate-google-btn.hidden { display: none; }
 .gate-status-text {
   color: rgba(255,255,255,.75);
   font-family: Georgia, 'Times New Roman', serif;
