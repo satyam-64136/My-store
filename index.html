@@ -87,6 +87,9 @@
     </a>
     <div class="nav-links">
       <!-- Order button removed — already on the store page -->
+      <button class="nav-link-icon" id="notify-bell-btn" onclick="toggleCustomerNotify()" title="Get notified">
+        <i data-lucide="bell" id="notify-bell-icon" style="width:14px;height:14px"></i>
+      </button>
       <!-- Icon only for admin, no label -->
       <a class="nav-link-icon" href="admin.html" title="Admin">
         <i data-lucide="settings" style="width:14px;height:14px"></i>
@@ -255,6 +258,22 @@
 
 <!-- ════ MODALS ════ -->
 <div id="toast" class="toast hidden"></div>
+
+<div id="notify-prompt-overlay" class="overlay hidden">
+  <div class="modal" style="max-width:340px;text-align:center">
+    <div class="success-icon" style="margin-bottom:12px">
+      <i data-lucide="bell-ring" style="width:22px;height:22px;color:var(--accent)"></i>
+    </div>
+    <div class="modal-title">Stay in the loop</div>
+    <p class="modal-sub" style="margin:6px 0 18px;line-height:1.6">Get notified the moment the store opens, closes, or has an update — nothing else, no spam.</p>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="_acceptNotifyPrompt()">
+        <i data-lucide="bell" style="width:12px;height:12px"></i> Turn on notifications
+      </button>
+      <button class="btn-ghost" onclick="_dismissNotifyPrompt()">Maybe later</button>
+    </div>
+  </div>
+</div>
 
 <div id="success-overlay" class="overlay hidden">
   <div class="modal" style="max-width:320px;text-align:center">
@@ -426,6 +445,14 @@ function startApp() {
     loadProducts({ background: false });
   }
 
+  // Keep stock live while someone's browsing — without this, an item can
+  // sell out (via admin approving someone else's order) and still show as
+  // available here until the page happens to reload. Background mode
+  // always fetches fresh and only re-renders if something actually
+  // changed, so this doesn't cause flicker or interrupt anyone mid-tap.
+  setInterval(() => loadProducts({ background: true }), 15000);
+  window.addEventListener('focus', () => loadProducts({ background: true }));
+
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -441,6 +468,7 @@ async function loadProducts({ background = false } = {}) {
       const newStr = JSON.stringify(fresh.map(p => ({ id: p.id, stock: p.stock, price: p.price, hidden: p.hidden })));
       if (oldStr !== newStr) {
         allProducts = fresh;
+        _clampCartToStock();
         _renderFiltered();
         updateCartBar();
       }
@@ -459,6 +487,29 @@ async function loadProducts({ background = false } = {}) {
     // Always hide loader — whether success, empty, or error
     if (!background) hideLoader();
   }
+}
+
+// If a background stock refresh finds less stock than someone already has
+// in their cart (someone else's order just got approved on that item, for
+// example), trim their cart down to what's actually left instead of
+// letting them proceed to pay for more than exists.
+function _clampCartToStock() {
+  let changed = false;
+  for (const id of Object.keys(cart)) {
+    const p = allProducts.find(x => x.id === id);
+    const available = p ? p.stock : 0;
+    if (cart[id] > available) {
+      changed = true;
+      if (available <= 0) {
+        toast(`${p ? p.name : 'An item'} just sold out — removed from your cart`);
+        delete cart[id];
+      } else {
+        toast(`Only ${available} left of ${p.name} — updated your cart`);
+        cart[id] = available;
+      }
+    }
+  }
+  if (changed) sessionStorage.setItem('ss_cart', JSON.stringify(cart));
 }
 
 function _renderFiltered() {
@@ -824,6 +875,7 @@ async function confirmPayment() {
   }
 
   clearTimeout(_safetyTimer);
+  _resetBtn(); // success path never reset it otherwise — next order attempt would find the button permanently stuck disabled
 
   // Webhook sync — fire and forget
   if (insertedOrder && ORDERS_WEBHOOK) {
@@ -913,6 +965,124 @@ function _haptic(ms = 10) {
     if (dx > THRESHOLD && dy < MAX_VERTICAL) switchView('store');
   }, { passive: true });
 })();
+
+/* ── Customer "notify me" push subscription ────────────
+   Opt-in only — never auto-prompts. Tapping the bell asks for
+   notification permission with real context (they just chose to), which
+   both respects the user and gets a far higher accept rate than a
+   surprise permission popup on page load. */
+const _VAPID_PUBLIC_KEY = 'BHH1a5bC0RxhrOrgW6xP5wSsAvZw3CCn8wKdnizQ276iSQmw_gqvQx4gOX-gsSQwK5bIQ7bfmgxmmQBGQrXxSNg';
+
+function _urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+function _setBellState(subscribed) {
+  const icon = document.getElementById('notify-bell-icon');
+  const btn  = document.getElementById('notify-bell-btn');
+  if (!icon || !btn) return;
+  icon.setAttribute('data-lucide', subscribed ? 'bell-ring' : 'bell');
+  btn.title = subscribed ? "You'll get store updates" : 'Get notified';
+  btn.style.color = subscribed ? 'var(--accent)' : '';
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function _checkCustomerNotifyState() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    _setBellState(!!sub);
+  } catch (_) {}
+}
+
+async function toggleCustomerNotify() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    toast('Notifications are not supported on this browser');
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.register('sw.js');
+    let sub = await reg.pushManager.getSubscription();
+
+    if (sub) {
+      // Already subscribed — tapping again unsubscribes
+      const endpoint = sub.endpoint;
+      await sub.unsubscribe().catch(() => {});
+      await sbDelete(`customer_push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`).catch(() => {});
+      _setBellState(false);
+      toast("You won't get store notifications anymore");
+      return;
+    }
+
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+      toast('Notifications permission was not granted');
+      return;
+    }
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: _urlBase64ToUint8Array(_VAPID_PUBLIC_KEY),
+    });
+    const raw = sub.toJSON();
+    await sbPost('customer_push_subscriptions', {
+      endpoint: raw.endpoint,
+      p256dh: raw.keys.p256dh,
+      auth: raw.keys.auth,
+    }).catch(() => {});
+    _setBellState(true);
+    toast("You'll now get store updates");
+  } catch (_) {
+    toast('Could not enable notifications');
+  }
+}
+
+/* ── Automatic notification prompt ──────────────────────
+   Shown prominently and automatically (not buried as a small icon
+   someone has to notice) — but it's dismissible and never blocks
+   browsing or ordering. It only shows once: after the person answers
+   either way, it doesn't nag them again on future visits. */
+const _NOTIFY_PROMPT_DISMISS_KEY = 'ss_notify_prompt_dismissed';
+
+function _shouldShowNotifyPrompt() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  if (Notification.permission !== 'default') return false; // already answered, one way or the other
+  if (localStorage.getItem(_NOTIFY_PROMPT_DISMISS_KEY)) return false;
+  return true;
+}
+
+function _showNotifyPromptIfNeeded() {
+  if (!_shouldShowNotifyPrompt()) return;
+  const overlay = document.getElementById('notify-prompt-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('hidden');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function _hideNotifyPrompt() {
+  const overlay = document.getElementById('notify-prompt-overlay');
+  if (overlay) overlay.classList.add('hidden');
+}
+
+function _dismissNotifyPrompt() {
+  localStorage.setItem(_NOTIFY_PROMPT_DISMISS_KEY, '1');
+  _hideNotifyPrompt();
+}
+
+async function _acceptNotifyPrompt() {
+  _hideNotifyPrompt();
+  localStorage.setItem(_NOTIFY_PROMPT_DISMISS_KEY, '1'); // don't ask again either way
+  await toggleCustomerNotify();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  _checkCustomerNotifyState();
+  // Small delay so this doesn't compete with the page's own load animation
+  setTimeout(_showNotifyPromptIfNeeded, 1400);
+});
 
 /* ── GSAP page-enter animations ─────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {

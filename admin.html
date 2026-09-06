@@ -7,6 +7,10 @@
   <meta http-equiv="Pragma" content="no-cache"/>
   <meta http-equiv="Expires" content="0"/>
   <meta name="theme-color" content="#0c0c0d"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icon-192.png"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <title>Satyam's Store</title>
   <meta name="robots" content="noindex, nofollow"/>
   <link rel="stylesheet" href="style.css"/>
@@ -180,6 +184,18 @@
   }
   .tbl-hide:hover { background: rgba(200,144,42,.1); border-color: rgba(200,144,42,.25); color: var(--amber); }
   @media (max-width:600px) { .tbl-hide { width:28px; height:28px; border-radius:7px; } }
+
+  /* Google sign-in button on the login screen */
+  .google-login-btn {
+    width: 100%; display: flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 10px; margin-top: 2px;
+    background: #fff; border: 1px solid rgba(0,0,0,.08); border-radius: var(--r1);
+    font-family: var(--f-body); font-size: .86rem; font-weight: 600; color: #3c4043;
+    cursor: pointer; transition: background .15s, box-shadow .15s;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  .google-login-btn:hover { background: #f8f8f8; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+  .google-login-hint { font-size: .64rem; color: var(--t3); text-align: center; margin-top: 10px; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -217,6 +233,17 @@
       <div class="login-error" id="login-err"></div>
       <button type="submit" class="login-btn">Login</button>
     </form>
+    <div class="divider-or">or</div>
+    <button type="button" class="google-login-btn" onclick="loginWithGoogle()">
+      <svg width="16" height="16" viewBox="0 0 48 48">
+        <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+        <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+        <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+        <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+      </svg>
+      <span>Continue with Google</span>
+    </button>
+    <p class="google-login-hint">Google sign-in stays logged in — password login logs out when you close the app.</p>
     <a href="index.html" class="login-back">
       <i data-lucide="arrow-left" style="width:11px;height:11px"></i> Back to store
     </a>
@@ -318,6 +345,41 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Broadcast to Customers -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title-row">
+          <span style="display:flex;align-items:center;gap:7px;font-size:.82rem;font-weight:600;color:var(--t1)">
+            <i data-lucide="megaphone" style="width:13px;height:13px;color:var(--sky)"></i>
+            Broadcast to Customers
+          </span>
+          <span id="broadcast-subscriber-count" style="font-family:var(--f-mono);font-size:.66rem;color:var(--t3)">—</span>
+        </div>
+        <p style="font-size:.68rem;color:var(--t3);margin-bottom:11px;line-height:1.5">
+          Sends a push notification to everyone who tapped "Notify me" on the storefront.
+        </p>
+        <div style="display:flex;gap:6px;margin-bottom:11px">
+          <button class="btn-sm" style="flex:1;justify-content:center" onclick="sendQuickBroadcast('open')">
+            <i data-lucide="store" style="width:10px;height:10px"></i> Store Opened
+          </button>
+          <button class="btn-sm" style="flex:1;justify-content:center" onclick="sendQuickBroadcast('closed')">
+            <i data-lucide="store" style="width:10px;height:10px"></i> Store Closed
+          </button>
+        </div>
+        <div class="field" style="margin-bottom:8px">
+          <label>Title (optional)</label>
+          <input id="broadcast-title" type="text" placeholder="Store update" maxlength="60"/>
+        </div>
+        <div class="field" style="margin-bottom:10px">
+          <label>Message <span class="req">*</span></label>
+          <input id="broadcast-message" type="text" placeholder="e.g. Fresh stock just arrived!" maxlength="180"
+            onkeydown="if(event.key==='Enter')sendCustomBroadcast()">
+        </div>
+        <button class="btn-primary" style="width:100%" onclick="sendCustomBroadcast()" id="broadcast-send-btn">
+          <i data-lucide="send" style="width:12px;height:12px"></i>
+          <span id="broadcast-send-lbl">Send to All</span>
+        </button>
       </div>
 
       <!-- Pending Orders -->
@@ -600,23 +662,43 @@ async function _sbAuthPost(path, body) {
   return { ok: res.ok, data: await res.json() };
 }
 
+// Session storage: localStorage for a persistent (Google) login,
+// sessionStorage for a password login that should clear when the tab/app
+// closes. These helpers pick the right one automatically.
+function _getStoredSessionRaw() {
+  return localStorage.getItem('sb_session') || sessionStorage.getItem('sb_session');
+}
+function _isPersistentSession() {
+  return localStorage.getItem('sb_session') !== null;
+}
+function _setStoredSession(session, persistent) {
+  localStorage.removeItem('sb_session');
+  sessionStorage.removeItem('sb_session');
+  (persistent ? localStorage : sessionStorage).setItem('sb_session', JSON.stringify(session));
+}
+function _clearStoredSession() {
+  localStorage.removeItem('sb_session');
+  sessionStorage.removeItem('sb_session');
+}
+
 async function _getSession() {
-  const raw = sessionStorage.getItem('sb_session');
+  const raw = _getStoredSessionRaw();
   if (!raw) return null;
+  const persistent = _isPersistentSession();
   try {
     const s = JSON.parse(raw);
-    if (!s.access_token) { sessionStorage.removeItem('sb_session'); return null; }
+    if (!s.access_token) { _clearStoredSession(); return null; }
     if (s.expires_at && Date.now() / 1000 > s.expires_at - 60) {
       const { ok, data } = await _sbAuthPost('/token?grant_type=refresh_token', { refresh_token: s.refresh_token });
       if (ok && data.access_token) {
-        sessionStorage.setItem('sb_session', JSON.stringify(data));
+        _setStoredSession(data, persistent);
         return data;
       }
-      sessionStorage.removeItem('sb_session');
+      _clearStoredSession();
       return null;
     }
     return s;
-  } catch { sessionStorage.removeItem('sb_session'); return null; }
+  } catch { _clearStoredSession(); return null; }
 }
 
 // Validates session by pinging Supabase server — cannot be spoofed locally
@@ -629,21 +711,66 @@ async function _validateSession() {
     });
     if (!res.ok) {
       // Token rejected by server — wipe it
-      sessionStorage.removeItem('sb_session');
+      _clearStoredSession();
       return null;
     }
     const user = await res.json();
     // Extra check: must be our specific admin email
     if (user.email !== _ADMIN_EMAIL) {
-      sessionStorage.removeItem('sb_session');
+      _clearStoredSession();
       return null;
     }
     return s;
   } catch {
     // Network error — fail closed (no access)
-    sessionStorage.removeItem('sb_session');
+    _clearStoredSession();
     return null;
   }
+}
+
+// Handles the redirect back from Google — Supabase appends the session as
+// a URL fragment (#access_token=...&refresh_token=...&expires_in=...).
+// Stores it as a PERSISTENT session only if the email matches exactly;
+// otherwise signs it out immediately and refuses it.
+async function _handleGoogleOAuthCallback() {
+  if (!location.hash.includes('access_token=')) return;
+  const params = new URLSearchParams(location.hash.slice(1));
+  const access_token  = params.get('access_token');
+  const refresh_token = params.get('refresh_token');
+  const expires_in    = parseInt(params.get('expires_in'), 10) || 3600;
+  const token_type    = params.get('token_type') || 'bearer';
+
+  // Strip the tokens out of the address bar immediately regardless of outcome
+  history.replaceState({}, '', location.pathname + location.search);
+  if (!access_token) return;
+
+  let email = null;
+  try {
+    const res = await fetch(`${_SUPA_AUTH}/user`, {
+      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + access_token }
+    });
+    if (res.ok) email = (await res.json()).email;
+  } catch (_) {}
+
+  if (email !== _ADMIN_EMAIL) {
+    fetch(`${_SUPA_AUTH}/logout`, {
+      method: 'POST',
+      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + access_token },
+    }).catch(() => {});
+    const err = document.getElementById('login-err');
+    if (err) err.textContent = 'That Google account is not authorized for admin access.';
+    return;
+  }
+
+  _setStoredSession({
+    access_token, refresh_token, token_type, expires_in,
+    expires_at: Math.floor(Date.now() / 1000) + expires_in,
+  }, true); // persistent — Google login never auto-logs-out
+}
+
+function loginWithGoogle() {
+  const redirectTo = location.origin + location.pathname;
+  location.href = `${_SUPA_AUTH}/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
 }
 
 let allProducts       = [];
@@ -680,6 +807,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     sessionStorage.removeItem(k);
     try { localStorage.removeItem(k); } catch {}
   });
+
+  // ── Handle a redirect back from Google, if that's how we got here ──
+  await _handleGoogleOAuthCallback();
 
   // ── Validate Supabase session server-side, not just locally ──
   const session = await _validateSession();
@@ -723,7 +853,7 @@ async function doLogin(e) {
 
     if (ok && data.access_token) {
       _loginAttempts = 0;
-      sessionStorage.setItem('sb_session', JSON.stringify(data));
+      _setStoredSession(data, false); // non-persistent — clears on tab/app close
       showAdmin();
     } else {
       // Show actual Supabase error to help diagnose
@@ -765,7 +895,7 @@ function togglePw() {
 }
 
 async function logout() {
-  const s = JSON.parse(sessionStorage.getItem('sb_session') || '{}');
+  const s = JSON.parse(_getStoredSessionRaw() || '{}');
   if (s.access_token) {
     // Sign out from Supabase server too
     fetch(`${_SUPA_AUTH}/logout`, {
@@ -773,7 +903,7 @@ async function logout() {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + s.access_token },
     }).catch(() => {});
   }
-  sessionStorage.removeItem('sb_session');
+  _clearStoredSession();
   location.href = 'index.html';
 }
 
@@ -786,7 +916,99 @@ async function showAdmin() {
   const ac = document.getElementById('admin-content');
   if (ac) { ac.removeAttribute('hidden'); ac.style.display = 'block'; }
   requestAnimationFrame(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
-  await Promise.all([loadProducts(), loadPendingOrders(), loadStoreControls(), loadAllowedEmails()]);
+  await Promise.all([loadProducts(), loadPendingOrders(), loadStoreControls(), loadBroadcastSubscriberCount(), loadAllowedEmails()]);
+
+  // Keep pending orders fresh automatically — no need to tap Refresh
+  // to see a new order that just came in.
+  setInterval(() => loadPendingOrders({ background: true }), 20000);
+
+  // Push notifications are opt-in and non-blocking — the admin panel works
+  // fine even if this fails or is denied, so failures here are swallowed.
+  _initPushNotifications();
+
+  // Deep link from a tapped notification: admin.html?order=<id>
+  const urlOrderId = new URLSearchParams(location.search).get('order');
+  if (urlOrderId) {
+    switchTab('admin');
+    requestAnimationFrame(() => askApprove(urlOrderId));
+    history.replaceState({}, '', 'admin.html');
+  }
+}
+
+/* ── Push notifications ────────────────────────────────
+   Public VAPID key — safe to embed client-side, this is how push
+   services verify the notification came from your server. The
+   matching PRIVATE key lives only in the Supabase Edge Function's
+   environment secrets, never in this file. */
+const _VAPID_PUBLIC_KEY = 'BHH1a5bC0RxhrOrgW6xP5wSsAvZw3CCn8wKdnizQ276iSQmw_gqvQx4gOX-gsSQwK5bIQ7bfmgxmmQBGQrXxSNg';
+
+function _urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function _initPushNotifications() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  // Only an installed, home-screen-launched instance should ever receive
+  // push — logging into admin.html from an ordinary browser tab (e.g. to
+  // quickly check something from a laptop) should never turn that device
+  // into a notification target. `display-mode: standalone` is true only
+  // when launched from the installed icon; `navigator.standalone` is the
+  // older iOS equivalent.
+  const isInstalledApp = window.matchMedia('(display-mode: standalone)').matches
+                       || window.navigator.standalone === true;
+
+  if (!isInstalledApp) {
+    await _unsubscribeThisBrowser();
+    return;
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.register('sw.js');
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return;
+
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: _urlBase64ToUint8Array(_VAPID_PUBLIC_KEY),
+      });
+    }
+    const raw = sub.toJSON();
+    // If this endpoint is already stored (e.g. re-opening the app), the
+    // unique constraint on `endpoint` rejects the duplicate — that's fine,
+    // it just means we're already subscribed from this device.
+    await sbPost('push_subscriptions', {
+      endpoint: raw.endpoint,
+      p256dh: raw.keys.p256dh,
+      auth: raw.keys.auth,
+    }).catch(() => {});
+  } catch (_) {
+    // Notification permission blocked, unsupported browser, etc. —
+    // the rest of the admin panel doesn't depend on this.
+  }
+}
+
+// Cleans up a subscription that may have been created before the
+// installed-app-only restriction existed (e.g. an earlier ordinary
+// browser-tab login) — so old non-installed sessions stop getting
+// notified too, not just future ones.
+async function _unsubscribeThisBrowser() {
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    const endpoint = sub.endpoint;
+    await sub.unsubscribe().catch(() => {});
+    await sbDelete(`push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`).catch(() => {});
+  } catch (_) {
+    // Nothing to clean up, or no permission to — either way, harmless.
+  }
 }
 
 /* ── Store controls ────────────────── */
@@ -975,6 +1197,68 @@ async function saveClosedMessage() {
     toast('Failed to save message');
   } finally {
     btn.disabled = false;
+  }
+}
+
+/* ── Broadcast to customers ────────────────────────────── */
+async function loadBroadcastSubscriberCount() {
+  const el = document.getElementById('broadcast-subscriber-count');
+  if (!el) return;
+  try {
+    const rows = await sbGet('customer_push_subscriptions?select=id');
+    el.textContent = `${rows.length} subscriber${rows.length === 1 ? '' : 's'}`;
+  } catch {
+    el.textContent = '—';
+  }
+}
+
+async function _sendBroadcast(title, message) {
+  const btn = document.getElementById('broadcast-send-btn');
+  const lbl = document.getElementById('broadcast-send-lbl');
+  if (!message || !message.trim()) { toast('Enter a message first'); return; }
+
+  const session = await _getSession();
+  if (!session) { toast('Session expired — log in again'); return; }
+
+  if (btn) btn.disabled = true;
+  if (lbl) lbl.textContent = 'Sending…';
+  try {
+    const res = await fetch(`${SB_URL}/functions/v1/broadcast-notification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + session.access_token,
+        'apikey': SB_KEY,
+      },
+      body: JSON.stringify({ title, message }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Broadcast failed');
+    toast(`Sent to ${data.sent} of ${data.total} subscriber${data.total === 1 ? '' : 's'}`);
+    const msgInput = document.getElementById('broadcast-message');
+    const titleInput = document.getElementById('broadcast-title');
+    if (msgInput) msgInput.value = '';
+    if (titleInput) titleInput.value = '';
+    loadBroadcastSubscriberCount();
+  } catch (e) {
+    toast(e.message || 'Broadcast failed');
+  } finally {
+    if (btn) btn.disabled = false;
+    if (lbl) lbl.textContent = 'Send to All';
+  }
+}
+
+function sendCustomBroadcast() {
+  const title = document.getElementById('broadcast-title').value.trim();
+  const message = document.getElementById('broadcast-message').value.trim();
+  _sendBroadcast(title, message);
+}
+
+function sendQuickBroadcast(kind) {
+  if (kind === 'open') {
+    _sendBroadcast('Store Opened', "We're open now — come place your order!");
+  } else if (kind === 'closed') {
+    _sendBroadcast('Store Closed', "We've closed up for now. Check back soon!");
   }
 }
 
@@ -1233,10 +1517,12 @@ async function confirmDelete() {
 }
 
 /* ── Pending Orders ───────────────────────────────────── */
-async function loadPendingOrders() {
+async function loadPendingOrders({ background = false } = {}) {
   const icon = document.getElementById('pending-refresh');
-  if (icon) icon.style.animation = 'spin .7s linear infinite';
-  setPendingState('loading');
+  if (!background) {
+    if (icon) icon.style.animation = 'spin .7s linear infinite';
+    setPendingState('loading');
+  }
   try {
     const rows = await sbGet('orders?status=eq.pending&order=created_at.desc&select=id,items,total,status,created_at');
     pendingOrdersMap.clear();
@@ -1259,6 +1545,7 @@ async function loadPendingOrders() {
     });
     renderPendingOrders();
   } catch(e) {
+    if (background) return; // silent — keep showing the last good data
     const msg = (e && e.message)
       ? e.message
       : 'Could not load pending orders. Check your connection and try again.';
@@ -1267,7 +1554,7 @@ async function loadPendingOrders() {
     setPendingState('error');
     toast('Could not load pending orders');
   } finally {
-    if (icon) icon.style.animation = 'none';
+    if (!background && icon) icon.style.animation = 'none';
   }
 }
 
@@ -1760,6 +2047,8 @@ window.loadSalesByCustomDate = loadSalesByCustomDate;
 window.logout = logout;
 window.rejectOrder = rejectOrder;
 window.saveClosedMessage = saveClosedMessage;
+window.sendQuickBroadcast = sendQuickBroadcast;
+window.sendCustomBroadcast = sendCustomBroadcast;
 window.saveSaleQR = saveSaleQR;
 window.showProfitBreakdown = showProfitBreakdown;
 window.switchTab = switchTab;
@@ -1767,6 +2056,7 @@ window.toggleHide = toggleHide;
 window.togglePw = togglePw;
 window.toggleStoreStatusManual = toggleStoreStatusManual;
 window.doLogin = doLogin;
+window.loginWithGoogle = loginWithGoogle;
 window.submitAdd = submitAdd;
 window.changeAutoCloseTime = changeAutoCloseTime;
 window.toggleAutoClose = toggleAutoClose;
@@ -1866,6 +2156,7 @@ window.removeAllowedEmail = removeAllowedEmail;
     el.setAttribute('hidden', '');
     el.style.display = 'none';
     sessionStorage.removeItem('sb_session');
+    localStorage.removeItem('sb_session');
     const ls = document.getElementById('login-screen');
     if (ls) ls.classList.remove('hidden');
   };

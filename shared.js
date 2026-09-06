@@ -8,11 +8,18 @@ const SB_KEY = 'sb_publishable_E3W5FNr_zAmej5fLElsvCA_OeDkde6L';
 
 /* ── Supabase REST helpers ─────────────────────────────── */
 
+// Session lives in localStorage for a persistent (Google) login, or
+// sessionStorage for a password login that should clear when the tab/app
+// closes. Check both so either login method's session gets picked up.
+function _readSbSession() {
+  return localStorage.getItem('sb_session') || sessionStorage.getItem('sb_session');
+}
+
 function _sbHeaders(extras = {}) {
   // Use authenticated JWT if available (admin), fall back to anon key (store)
   let token = SB_KEY;
   try {
-    const raw = sessionStorage.getItem('sb_session');
+    const raw = _readSbSession();
     if (raw) {
       const s = JSON.parse(raw);
       if (s.access_token) token = s.access_token;
@@ -31,7 +38,7 @@ function _sbHeaders(extras = {}) {
 async function sbGet(tableAndQuery) {
   let token = SB_KEY;
   try {
-    const raw = sessionStorage.getItem('sb_session');
+    const raw = _readSbSession();
     if (raw) { const s = JSON.parse(raw); if (s.access_token) token = s.access_token; }
   } catch {}
   const res = await fetch(
@@ -262,8 +269,10 @@ function placeholderSVG() {
 }
 
 /* ── Customer Google-login gate (index.html) ─────────────
-   Separate from admin.html's own password-based auth block —
-   this is the "only approved emails can view the store" gate. ── */
+   Separate from admin.html's own Google/password auth block —
+   this is the "only approved emails can view the store" gate.
+   Uses localStorage (persistent), matching _readSbSession's
+   convention that a Google session should survive tab/app close. ── */
 
 const _GATE_AUTH_URL = SB_URL + '/auth/v1';
 
@@ -276,14 +285,14 @@ function startGoogleLogin() {
 
 // After Supabase/Google redirect back, the tokens arrive in the URL
 // hash (#access_token=...&refresh_token=...). Pull them out, save
-// them, and clean the URL so they don't linger in the address bar.
+// them persistently, and clean the URL so they don't linger.
 function _captureGateRedirect() {
   if (!window.location.hash) return false;
   const params = new URLSearchParams(window.location.hash.slice(1));
   const access_token  = params.get('access_token');
   const refresh_token = params.get('refresh_token');
   if (access_token && refresh_token) {
-    sessionStorage.setItem('sb_session', JSON.stringify({ access_token, refresh_token }));
+    localStorage.setItem('sb_session', JSON.stringify({ access_token, refresh_token }));
     history.replaceState(null, '', window.location.pathname + window.location.search);
     return true;
   }
@@ -319,12 +328,16 @@ async function _gateRefreshSession(refresh_token) {
 async function getGateStatus() {
   _captureGateRedirect();
 
-  const raw = sessionStorage.getItem('sb_session');
+  // The gate only ever writes to localStorage, but read via
+  // _readSbSession so an admin's sessionStorage password-session on
+  // this same tab isn't mistaken for a customer session (it will
+  // simply fail the allowed_emails check below and land on unapproved).
+  const raw = _readSbSession();
   if (!raw) return { status: 'signed_out' };
 
   let session;
-  try { session = JSON.parse(raw); } catch { sessionStorage.removeItem('sb_session'); return { status: 'signed_out' }; }
-  if (!session.access_token) { sessionStorage.removeItem('sb_session'); return { status: 'signed_out' }; }
+  try { session = JSON.parse(raw); } catch { localStorage.removeItem('sb_session'); return { status: 'signed_out' }; }
+  if (!session.access_token) { localStorage.removeItem('sb_session'); return { status: 'signed_out' }; }
 
   // Validate against Supabase's server — cannot be spoofed locally.
   let user = await _gateFetchUser(session.access_token);
@@ -332,14 +345,18 @@ async function getGateStatus() {
     const refreshed = await _gateRefreshSession(session.refresh_token);
     if (refreshed && refreshed.access_token) {
       session = refreshed;
-      sessionStorage.setItem('sb_session', JSON.stringify(session));
+      localStorage.setItem('sb_session', JSON.stringify(session));
       user = await _gateFetchUser(session.access_token);
     }
   }
   if (!user || !user.email) {
-    sessionStorage.removeItem('sb_session');
+    localStorage.removeItem('sb_session');
     return { status: 'signed_out' };
   }
+
+  // The admin account always gets through the store gate, same as the
+  // SQL policies' bypass — no need to also add it to allowed_emails.
+  if (user.email === 'satyam64136@gmail.com') return { status: 'approved', email: user.email };
 
   // RLS only lets a signed-in user read their OWN row in allowed_emails,
   // so a non-empty result here means the server itself confirms approval.
@@ -352,7 +369,7 @@ async function getGateStatus() {
 }
 
 async function signOutGate() {
-  const raw = sessionStorage.getItem('sb_session');
+  const raw = _readSbSession();
   if (raw) {
     try {
       const s = JSON.parse(raw);
@@ -364,6 +381,6 @@ async function signOutGate() {
       }
     } catch {}
   }
-  sessionStorage.removeItem('sb_session');
+  localStorage.removeItem('sb_session');
   window.location.reload();
 }
