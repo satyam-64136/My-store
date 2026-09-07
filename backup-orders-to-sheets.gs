@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  Satyam's Store — Orders Backup & Automation
+//  Your's Store — Orders Backup & Automation
 //  Supabase → Google Sheets & Daily Auto-Close
 // ═══════════════════════════════════════════════════════════
 

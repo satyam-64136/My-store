@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════
---  Satyam's Store — Complete Supabase SQL Setup
+--  Your's Store — Complete Supabase SQL Setup
 --  Run this entire file in Supabase → SQL Editor
 --  This is the FULL setup from scratch — tables + RLS policies
 -- ════════════════════════════════════════════════════════════════

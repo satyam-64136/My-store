@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════
-//  Satyam's Store — Google Apps Script Backend
+//  Your's Store — Google Apps Script Backend
 //  Paste into Code.gs → Run setupSheets() → Deploy as Web App
 // ═══════════════════════════════════════════════════════
 

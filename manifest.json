@@ -1,7 +1,7 @@
 {
-  "name": "Satyam's Store Admin",
+  "name": "Your's Store Admin",
   "short_name": "Store Admin",
-  "description": "Manage orders, stock, and sales for Satyam's Store",
+  "description": "Manage orders, stock, and sales for Your's Store",
   "start_url": "admin.html",
   "scope": "./",
   "display": "standalone",

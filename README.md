@@ -1,9 +1,9 @@
-# Satyam's Store — POS Web App
+# Your's Store — POS Web App
 
 A lightweight, mobile-first point-of-sale web app for a small store. Built with vanilla HTML, CSS, and JavaScript. Uses Google Sheets as the database and Google Apps Script as the backend API. No frameworks, no build tools, no server required.
 
 ---
-LINK: https://satyam-64136.github.io/My-store/
+LINK: (your GitHub Pages URL — see note in the chat about this exposing your GitHub username)
 ---
 
 ## Project Overview

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   Satyam's Store — Service Worker
+   Your's Store — Service Worker
    Shared by both the storefront (index.html) and admin panel
    (admin.html) — handles PWA installability and push notifications
    for two separate audiences: order alerts (admin only) and store

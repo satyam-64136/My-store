@@ -1,10 +1,36 @@
 /* ═══════════════════════════════════════════════════════
-   Satyam's Store — Premium UI System
+   Your's Store — Premium UI System
    Fonts: Outfit (headings) + DM Sans (body) + JetBrains Mono
    Palette: Deep charcoal + slate greys + warm accent
    ═══════════════════════════════════════════════════════ */
 
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* Capture deterrents — raises friction for casual copy/save; cannot
+   block OS-level screenshots or screen recording (nothing on the web
+   can). Inputs stay selectable so people can still type/select text
+   they type or paste. */
+body {
+  -webkit-user-select: none; -moz-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+}
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text; -moz-user-select: text; user-select: text;
+}
+img { -webkit-user-drag: none; user-drag: none; }
+
+/* Ambient edge glow — soft, decorative, sits above content but below
+   the nav/bottom bars and the auth gate. pointer-events:none so it
+   never blocks a click. */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 9990;
+  box-shadow:
+    inset 0 0 70px rgba(232,224,212,.07),
+    inset 0 0 160px rgba(232,224,212,.05);
+}
 
 :root {
   --bg:        #0c0c0d;

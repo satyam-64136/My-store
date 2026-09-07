@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="icon-192.png"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <title>Satyam's Store</title>
+  <title>Your's Store</title>
   <meta name="robots" content="noindex, nofollow"/>
   <link rel="stylesheet" href="style.css"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -257,7 +257,7 @@
     <div class="nav-inner">
       <a class="nav-brand" href="index.html">
         <div class="nav-brand-icon"><i data-lucide="zap" style="width:13px;height:13px"></i></div>
-        <span class="nav-brand-name">Satyam's Store</span>
+        <span class="nav-brand-name">Your's Store</span>
       </a>
       <div class="nav-links">
         <a class="nav-link" href="index.html"><i data-lucide="shopping-bag" style="width:12px;height:12px"></i> Store</a>
@@ -504,6 +504,16 @@
         </div>
         <div id="access-empty" class="hidden" style="text-align:center;padding:20px;color:var(--t3);font-size:.76rem">No requests yet.</div>
         <div id="access-list" class="hidden"></div>
+      </div>
+
+      <div class="card" style="border-color:rgba(214,79,79,.2);margin-top:14px">
+        <div class="card-title" style="color:var(--red)"><i data-lucide="log-out" style="width:12px;height:12px"></i> Force Logout Everyone</div>
+        <p style="font-size:.72rem;color:var(--t3);margin-bottom:10px;line-height:1.5">
+          Instantly signs every customer out of the store — including anyone browsing right now — and they'll have to sign in again. Use this right after banning someone, or anytime you're worried a session leaked.
+        </p>
+        <button class="btn-sm reject" id="force-logout-btn" onclick="forceLogoutEveryone()" style="width:100%;justify-content:center;padding:9px">
+          <i data-lucide="log-out" style="width:12px;height:12px"></i> Log everyone out
+        </button>
       </div>
     </div>
 
@@ -796,6 +806,7 @@ function switchTab(name) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  enableCaptureDeterrents();
   hideLoader();
 
   // ── Nuclear flush: wipe every known old session key ──────────
@@ -1149,6 +1160,25 @@ async function removeAllowedEmail(email) {
     await loadAllowedEmails();
   } catch {
     toast('Failed to remove', 4000);
+  }
+}
+
+// Every customer session on the store carries a login_at timestamp.
+// Bumping forceLogoutAt past all of them means the next time each tab
+// checks in (within ~20s, or on refocus), it finds itself stale and
+// gets signed out automatically — no server-side token revocation
+// needed, since this is a static site talking to Supabase directly.
+async function forceLogoutEveryone() {
+  if (!confirm('Sign out every customer currently on the store? They\'ll need to sign in again.')) return;
+  const btn = document.getElementById('force-logout-btn');
+  btn.disabled = true;
+  try {
+    await setStoreConfig({ forceLogoutAt: Date.now() });
+    toast('Everyone will be signed out within ~20 seconds');
+  } catch {
+    toast('Failed — try again', 4000);
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -1940,7 +1970,7 @@ async function confirmDeleteSale() {
 
 /* ── Sale QR modal ─────────────────────────────────────── */
 const SALE_UPI_ID = '9162591726@yesfam';
-const SALE_STORE  = "Satyam's Store";
+const SALE_STORE  = "Your's Store";
 let _saleQRUrl = '';
 let _saleQRCopyTimeout = null;
 let _salesCache = {};
@@ -1955,7 +1985,7 @@ function showSaleQR(id) {
 
   document.getElementById('sale-qr-items').textContent  = items || '';
   document.getElementById('sale-qr-total').textContent  = '₹' + parseFloat(total).toFixed(2);
-  document.getElementById('sale-qr-upi-id').textContent = SALE_UPI_ID;
+  document.getElementById('sale-qr-upi-id').textContent = maskUPI(SALE_UPI_ID);
 
   const img     = document.getElementById('sale-qr-img');
   const spinner = document.getElementById('sale-qr-spinner');
@@ -2123,6 +2153,7 @@ window.submitAddEmail = submitAddEmail;
 window.approveRequest = approveRequest;
 window.banRequest = banRequest;
 window.removeAllowedEmail = removeAllowedEmail;
+window.forceLogoutEveryone = forceLogoutEveryone;
 
 })();
 </script>
@@ -2141,7 +2172,7 @@ window.removeAllowedEmail = removeAllowedEmail;
     <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface-2);border:1px solid var(--b1);border-radius:var(--r1);padding:9px 12px;margin-bottom:12px">
       <div style="text-align:left">
         <div style="font-size:.62rem;color:var(--t3);font-family:var(--f-head);font-weight:500">UPI ID</div>
-        <div style="font-family:var(--f-mono);font-size:.82rem;font-weight:600;color:var(--t1)" id="sale-qr-upi-id">satyamm@fam</div>
+        <div style="font-family:var(--f-mono);font-size:.82rem;font-weight:600;color:var(--t1)" id="sale-qr-upi-id">••••••••••@••••</div>
       </div>
       <button class="copy-btn" onclick="copySaleUPI()" id="sale-qr-copy-btn">
         <i data-lucide="copy" style="width:10px;height:10px"></i> <span id="sale-qr-copy-lbl">Copy</span>

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   Satyam's Store — shared.js
+   Your's Store — shared.js
    Backend: Supabase REST API (direct, no SDK)
    ═══════════════════════════════════════════ */
 
@@ -107,7 +107,7 @@ async function sbDelete(tableAndFilter) {
 
 /* ── Store config (settings table) ────────────────────── */
 
-const _DEFAULT_CONFIG = { storeStatus: 'open', autoCloseEnabled: false, autoCloseTime: '03:00', lastAutoCloseDate: '' };
+const _DEFAULT_CONFIG = { storeStatus: 'open', autoCloseEnabled: false, autoCloseTime: '03:00', lastAutoCloseDate: '', forceLogoutAt: 0 };
 
 async function getStoreConfig() {
   try {
@@ -192,7 +192,65 @@ function esc(str) {
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Masks a UPI VPA for on-screen display — e.g. "9162591726@yesfam"
+// becomes "••••••••26@yesfam". The real value is still used underneath
+// for the QR code and the Copy button; this only hides it from view.
+function maskUPI(id) {
+  const s = String(id || '');
+  const at = s.indexOf('@');
+  if (at < 3) return s;
+  const local  = s.slice(0, at);
+  const domain = s.slice(at);
+  const tail   = local.slice(-2);
+  return '•'.repeat(Math.max(local.length - 2, 4)) + tail + domain;
+}
+
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* ── Capture deterrents ────────────────────────────────
+   Being upfront about what this actually does: no website can block
+   an OS-level screenshot or screen recording — Print Screen, a phone's
+   screenshot gesture, or any capture app all happen outside the
+   browser's control. This only raises friction for the casual
+   right-click-save / copy-paste case. watermarkPage() below is the
+   part that actually matters: it can't stop a capture, but it makes
+   one traceable back to whoever's account took it. ── */
+
+function enableCaptureDeterrents() {
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('dragstart', e => e.preventDefault());
+  document.addEventListener('keydown', e => {
+    const k = e.key;
+    const blocked =
+      k === 'PrintScreen' ||
+      (e.ctrlKey && ['p','s','u'].includes(k.toLowerCase())) ||
+      (e.ctrlKey && e.shiftKey && ['i','c','j'].includes(k.toLowerCase())) ||
+      k === 'F12';
+    if (blocked) e.preventDefault();
+  });
+}
+
+// Tiles an extremely faint, full-bleed, repeating watermark of `label`
+// (e.g. the signed-in user's email) across the page. Doesn't stop a
+// screenshot — the point is that it can't be seen well enough to crop
+// or paint over, since it covers 100% of the viewport at a barely-there
+// opacity, but it's still there in the pixels: pushing brightness/
+// contrast up on a captured image reveals it and identifies whose
+// account it came from.
+function watermarkPage(label) {
+  if (!label || document.getElementById('_wm_overlay')) return;
+  const el = document.createElement('div');
+  el.id = '_wm_overlay';
+  el.style.cssText = 'position:fixed;inset:0;z-index:8000;pointer-events:none;overflow:hidden;opacity:.018;mix-blend-mode:difference;';
+  const text = esc(label) + '  •  ' + new Date().toLocaleDateString();
+  const tile = '<span style="width:160px;display:inline-block;text-align:center">' + text + '</span>';
+  el.innerHTML =
+    '<div style="position:absolute;top:-20%;left:-20%;width:140%;height:140%;' +
+    'display:flex;flex-wrap:wrap;align-content:space-around;transform:rotate(-28deg);' +
+    'font-family:sans-serif;font-size:10px;font-weight:600;color:#fff;">' +
+    tile.repeat(160) + '</div>';
+  document.body.appendChild(el);
+}
 
 let _tt;
 function toast(msg, dur = 3000) {
@@ -292,7 +350,7 @@ function _captureGateRedirect() {
   const access_token  = params.get('access_token');
   const refresh_token = params.get('refresh_token');
   if (access_token && refresh_token) {
-    localStorage.setItem('sb_session', JSON.stringify({ access_token, refresh_token }));
+    localStorage.setItem('sb_session', JSON.stringify({ access_token, refresh_token, login_at: Date.now() }));
     history.replaceState(null, '', window.location.pathname + window.location.search);
     return true;
   }
@@ -322,10 +380,10 @@ async function _gateRefreshSession(refresh_token) {
 }
 
 // Returns one of:
-//   { status: 'approved', email }  — signed in AND approved
-//   { status: 'pending',  email }  — signed in, request filed, awaiting a decision
-//   { status: 'banned',   email }  — signed in, but blocked
-//   { status: 'signed_out' }       — no valid session
+//   { status: 'approved', email, login_at }  — signed in AND approved
+//   { status: 'pending',  email }            — signed in, request filed, awaiting a decision
+//   { status: 'banned',   email }            — signed in, but blocked
+//   { status: 'signed_out' }                 — no valid session
 async function getGateStatus() {
   _captureGateRedirect();
 
@@ -339,13 +397,14 @@ async function getGateStatus() {
   let session;
   try { session = JSON.parse(raw); } catch { localStorage.removeItem('sb_session'); return { status: 'signed_out' }; }
   if (!session.access_token) { localStorage.removeItem('sb_session'); return { status: 'signed_out' }; }
+  const loginAt = session.login_at || 0;
 
   // Validate against Supabase's server — cannot be spoofed locally.
   let user = await _gateFetchUser(session.access_token);
   if (!user && session.refresh_token) {
     const refreshed = await _gateRefreshSession(session.refresh_token);
     if (refreshed && refreshed.access_token) {
-      session = refreshed;
+      session = { ...refreshed, login_at: loginAt }; // a token refresh isn't a new login
       localStorage.setItem('sb_session', JSON.stringify(session));
       user = await _gateFetchUser(session.access_token);
     }
@@ -355,9 +414,20 @@ async function getGateStatus() {
     return { status: 'signed_out' };
   }
 
+  // A store-wide "log everyone out" resets forceLogoutAt to now() — any
+  // session that started before that point is stale, even if the token
+  // itself is still technically valid.
+  try {
+    const cfg = await getStoreConfig();
+    if (cfg.forceLogoutAt && cfg.forceLogoutAt > loginAt) {
+      localStorage.removeItem('sb_session');
+      return { status: 'signed_out' };
+    }
+  } catch { /* if we can't check, don't punish the user for a network hiccup */ }
+
   // The admin account always gets through the store gate, same as the
   // SQL policies' bypass — no need for it to go through the request list.
-  if (user.email === 'satyam64136@gmail.com') return { status: 'approved', email: user.email };
+  if (user.email === 'satyam64136@gmail.com') return { status: 'approved', email: user.email, login_at: loginAt };
 
   // RLS only lets a signed-in user read their OWN row, so this reflects
   // the server's actual decision, not anything the client could fake.
@@ -365,7 +435,7 @@ async function getGateStatus() {
     const rows = await sbGet('allowed_emails?email=eq.' + encodeURIComponent(user.email) + '&select=status');
     if (Array.isArray(rows) && rows.length > 0) {
       const s = rows[0].status;
-      if (s === 'approved') return { status: 'approved', email: user.email };
+      if (s === 'approved') return { status: 'approved', email: user.email, login_at: loginAt };
       if (s === 'banned')   return { status: 'banned',   email: user.email };
       return { status: 'pending', email: user.email };
     }

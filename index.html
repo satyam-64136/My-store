@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <title>Satyam's Store</title>
+  <title>Your's Store</title>
   <link rel="stylesheet" href="style.css"/>
   <!-- Preconnect to font origin so the TCP handshake is done before CSS requests it -->
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -46,7 +46,7 @@
       <div class="loader-icon">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
       </div>
-      <span class="loader-name">Satyam's Store</span>
+      <span class="loader-name">Your's Store</span>
     </div>
     <div class="loader-bar-wrap">
       <div class="loader-bar"></div>
@@ -201,7 +201,7 @@
       <div class="upi-display">
         <div class="upi-display-info">
           <span class="upi-display-name">Your's Store</span>
-          <span class="upi-display-id">satyamm@fam</span>
+          <span class="upi-display-id" id="upi-display-id">••••••••••@••••</span>
         </div>
         <button class="copy-btn" onclick="copyUPI()">
           <i data-lucide="copy" style="width:10px;height:10px"></i>
@@ -347,6 +347,7 @@ function switchView(name) {
    ═══════════════════════════════ */
 const UPI_ID = '9162591726@yesfam';
 const STORE  = "Your's Store";
+document.getElementById('upi-display-id').textContent = maskUPI(UPI_ID);
 // Paste your deployed Apps Script Web App URL here after deploying sync-orders-to-sheets.gs
 const ORDERS_WEBHOOK = '';  // e.g. 'https://script.google.com/macros/s/.../exec'
 let allProducts = [], cart = {}, _activeFilter = 'all';
@@ -388,6 +389,7 @@ async function checkStoreStatus() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  enableCaptureDeterrents();
   if (typeof lucide !== 'undefined') lucide.createIcons();
   else window.addEventListener('lucide-ready', () => lucide.createIcons());
   initAuthGate();
@@ -407,7 +409,7 @@ async function initAuthGate() {
   if (result.status === 'approved') {
     _stopGateMedia();
     gate.classList.add('hidden');
-    startApp();
+    startApp(result.email);
     return;
   }
 
@@ -462,12 +464,21 @@ function _stopGateMedia() {
   if (video) { video.pause(); }
 }
 
-function startApp() {
+function startApp(approvedEmail) {
+  if (approvedEmail) watermarkPage(approvedEmail);
   const saved = sessionStorage.getItem('ss_cart');
   if (saved) { try { cart = JSON.parse(saved); } catch(e){} }
   checkStoreStatus();
   window.addEventListener('focus', checkStoreStatus);
   setInterval(checkStoreStatus, 30000);
+
+  // Re-verify access is still valid — catches a ban or a "log everyone
+  // out" that happened after this tab already loaded. If it comes back
+  // anything other than approved, signOutGate() clears the session and
+  // reloads straight back to the login gate, mid-browse if need be.
+  checkAccessStillValid();
+  window.addEventListener('focus', checkAccessStillValid);
+  setInterval(checkAccessStillValid, 20000);
 
   // Show cached products instantly — zero-wait first paint
   const cached = _cacheGet(_cacheKey('products'));
@@ -491,6 +502,16 @@ function startApp() {
   window.addEventListener('focus', () => loadProducts({ background: true }));
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function checkAccessStillValid() {
+  let result;
+  try {
+    result = await getGateStatus();
+  } catch {
+    return; // network hiccup — don't kick someone out over that
+  }
+  if (result.status !== 'approved') signOutGate();
 }
 
 async function loadProducts({ background = false } = {}) {
