@@ -46,7 +46,7 @@ There is no server to host. Pages run on GitHub Pages, data and auth live in Sup
 - Google sign-in gate: anyone can request access, the admin **approves or bans** from the Access tab
 - Login that stays saved: survives flaky connections, refreshes tokens quietly, and signs a returning user back in silently if the browser lost the session
 - One-tap **Log out** in the top bar
-- Store-wide “log everyone out” and open/closed switch, with an automatic daily close time
+- Store-wide “log everyone out” and open/closed switch; an optional script can close the store automatically each day
 
 **Payments**
 - **Exact-amount QR**: every open order gets a unique amount (₹0.01 steps), so one bank email always matches one order
@@ -66,10 +66,10 @@ There is no server to host. Pages run on GitHub Pages, data and auth live in Sup
 flowchart LR
   A["index.html<br/>storefront"] --> D[("Supabase<br/>Postgres, RLS, Auth")]
   B["admin.html<br/>admin panel"] --> D
-  S["stats.html"] --> D
-  G["Gmail alert reader<br/>Apps Script"] --> D
-  D --> E["Edge function<br/>push alerts"]
-  E --> P["Web Push<br/>admin and customers"]
+  S["stats.html<br/>admin only"] --> D
+  G["Apps Script<br/>reads Gmail alerts"] -- "marks orders paid" --> D
+  D -- "webhook on new order" --> E["Edge function<br/>send-order-push"]
+  E --> P["Web Push<br/>order alerts to admin"]
 ```
 
 ## Payment flow
@@ -98,9 +98,10 @@ sequenceDiagram
       DB-->>S: not yet
     end
   and Detector watches
-    loop Every few seconds while the order is fresh
+    loop Every few seconds while the order is under 10 minutes old
       G->>G: Read new credit alerts in Gmail
     end
+    Note over G: After 10 minutes it checks once a minute, until 30 minutes
   end
   G->>DB: Match the amount and mark the order paid with UTR
   S->>DB: is_order_paid
@@ -114,7 +115,7 @@ sequenceDiagram
 flowchart TD
   O["Open the app"] --> S{"Saved login?"}
   S -- yes --> V{"Server check"}
-  S -- no --> R{"Returning user?"}
+  S -- no --> R{"Returning user?<br/>not after a logout"}
   V -- approved --> ST["Store opens"]
   V -- "no connection" --> W["Login kept, retry in 4 s"] --> V
   V -- "rejected or expired" --> R
@@ -123,7 +124,8 @@ flowchart TD
   R -- yes --> A["Silent Google sign-in, tried once"]
   R -- no --> L["Login screen"]
   L -- "Continue with Google" --> A
-  A --> V
+  A -- "signed in" --> V
+  A -- "failed or cancelled" --> L
 ```
 
 ## Order lifecycle
@@ -131,6 +133,7 @@ flowchart TD
 ```mermaid
 stateDiagram-v2
   [*] --> Unpaid: Customer taps Pay by UPI
+  Unpaid --> Unpaid: Customer leaves, order waits here
   Unpaid --> Paid: Bank alert matched
   Unpaid --> Approved: Admin approves by hand
   Paid --> Approved: Admin approves and stock is deducted
@@ -138,6 +141,29 @@ stateDiagram-v2
   Paid --> Rejected: Admin rejects
   Approved --> [*]
   Rejected --> [*]
+  note right of Paid
+    The status stays pending.
+    Only the paid flag is set.
+  end note
+```
+
+## How the payment detector decides
+
+```mermaid
+flowchart TD
+  T["Trigger: every minute"] --> A["Read credit alerts in Gmail"]
+  A --> B{"Alert already processed?"}
+  B -- yes --> N["Skip it"]
+  B -- no --> C["Read amount, RRN and payer name"]
+  C --> D{"Exactly one unpaid order with<br/>this amount in the last 30 min?"}
+  D -- yes --> E["Mark it paid with UTR and payer"]
+  D -- "none or several" --> F["Log it, change nothing,<br/>do not retry this alert"]
+  E --> G{"Any unpaid order<br/>under 10 min old?"}
+  F --> G
+  N --> G
+  G -- yes --> H["Wait 4 s, read Gmail again<br/>until the minute ends"]
+  H --> A
+  G -- no --> Z["Stop until the next minute"]
 ```
 
 ## Project structure
@@ -161,6 +187,7 @@ sql/                       Run in the Supabase SQL Editor, in this order:
   push_subscriptions.sql     push subscription storage
   upi_autopay.sql            paid fields, create_upi_order, is_order_paid
   store_products_rpc.sql     hides purchase price from customers
+  store_config_fix.sql       lets customers read the open/closed setting
 
 supabase/functions/
   send-order-push/           Web Push on every new order
@@ -170,18 +197,20 @@ supabase/functions/
 
 ```mermaid
 flowchart LR
-  C["Approved customer"] -- calls --> F1["get_store_products"]
-  C -- calls --> F2["create_upi_order"]
-  C -- calls --> F3["is_order_paid"]
+  C["Approved customer"] -- "calls" --> F1["get_store_products"]
+  C -- "calls" --> F2["create_upi_order"]
+  C -- "calls" --> F3["is_order_paid"]
+  C -- "own row only" --> T3[("allowed_emails")]
+  C -- "read only" --> T4[("settings:<br/>store_config")]
   F1 --> T1[("products")]
   F2 --> T2[("orders")]
   F3 --> T2
   AD["Admin account"] -- "full access by policy" --> T1
   AD --> T2
-  AD --> T3[("allowed_emails")]
+  AD --> T3
+  AD --> T4
   GS["Apps Script<br/>service key"] -- "marks paid" --> T2
 ```
-
 
 - **Row Level Security everywhere.** Customers can’t read or change orders directly; they only call two functions: `create_upi_order` and `is_order_paid`.
 - **Prices are trusted server-side.** The order total is recomputed from the products table, never from the browser.
@@ -199,7 +228,7 @@ flowchart LR
    - Add the script property `SB_SERVICE_KEY` (Supabase service-role key).
    - Run `install()` once and accept the permissions.
    - If your bank isn’t Kotak, change `GMAIL_QUERY` to its sender and subject.
-5. **Push alerts (optional).** Deploy `send-order-push`, set the VAPID secrets, and add a Database Webhook on `orders` INSERT.
+5. **Push alerts (optional).** Deploy `send-order-push`, set the VAPID secrets, and add a Database Webhook on `orders` INSERT. Broadcasts to customers (the bell) also need a `customer_push_subscriptions` table and a broadcast function, which are not included in `sql/`.
 
 ## Good to know
 
