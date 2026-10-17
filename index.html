@@ -7,7 +7,8 @@
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <title>Your's Store</title>
+  <title>Your’s Store</title>
+  <meta name="description" content="Fresh stock every day. Browse the store and pay with UPI."/>
   <link rel="stylesheet" href="style.css"/>
   <!-- Preconnect to font origin so the TCP handshake is done before CSS requests it -->
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -302,6 +303,7 @@ function switchView(name) {
   const outgoing = document.querySelector('.view.active');
   const bar      = document.getElementById('bottom-bar');
   if (!incoming || incoming === outgoing) return;
+  if (name === 'store') localStorage.removeItem('pay_active');
 
   // Native-app-style directional push: payment slides in from the right,
   // going back to the store slides in from the left. Most visitors are on
@@ -481,6 +483,7 @@ function startApp(approvedEmail) {
   checkAccessStillValid();
   window.addEventListener('focus', checkAccessStillValid);
   setInterval(checkAccessStillValid, 20000);
+  resumePayment();
 
   // Show cached products instantly — zero-wait first paint
   const cached = _cacheGet(_cacheKey('products'));
@@ -522,7 +525,7 @@ async function checkAccessStillValid() {
 async function loadProducts({ background = false } = {}) {
   if (!background) showState('loading');
   try {
-    const rows = await sbGet('products?select=id,name,price,stock,image,purchase_price,hidden,category&order=name.asc');
+    const rows = await sbRpc('get_store_products', {});
     const fresh = parseProducts(rows);
     _cacheSet(_cacheKey('products'), rows);
 
@@ -815,14 +818,11 @@ function _animateNumber(el, from, to, { decimals = 0, prefix = '', duration = .5
    ═══════════════════════════════ */
 function renderOrder() {
   cartTotal = 0;
-  let cartProfit = 0;
   const rows = [];
   for (const [id, qty] of Object.entries(cartData)) {
     const p = productsData.find(x => x.id === id); if (!p) continue;
     const sub = +(qty * p.price).toFixed(2);
     cartTotal += sub;
-    const purchasePrice = p.purchase_price || 0;
-    cartProfit += (p.price - purchasePrice) * qty;
     rows.push(`<div class="pay-row">
       <div style="display:flex;flex-direction:column;min-width:0;flex:1;gap:1px">
         <span style="font-size:.84rem;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>
@@ -832,11 +832,8 @@ function renderOrder() {
     </div>`);
   }
   cartTotal = +cartTotal.toFixed(2);
-  cartProfit = +cartProfit.toFixed(2);
   document.getElementById('order-items').innerHTML = rows.join('') || `<p style="color:var(--t3);font-size:.78rem">No items</p>`;
   document.getElementById('total-display').textContent = `₹${cartTotal.toFixed(2)}`;
-  const profitEl = document.getElementById('profit-display');
-  if (profitEl) profitEl.textContent = `₹${cartProfit.toFixed(2)}`;
 }
 
 async function sbRpc(fn, args) {
@@ -846,6 +843,7 @@ async function sbRpc(fn, args) {
   return r.json();
 }
 
+const PAY_WINDOW_MS = 30 * 60 * 1000;   // matches the 30-minute match window in upi_autopay.sql
 let _poll = null, _pollFn = null, _pollEnds = 0;
 document.addEventListener('visibilitychange', () => { if (!document.hidden && _poll && _pollFn) _pollFn(); });
 function _stopPoll() { clearInterval(_poll); _poll = null; }
@@ -915,7 +913,14 @@ async function startPayment() {
     return;
   }
 
+  // Remember this payment on the phone: if the app closes or the page reloads
+  // while the customer is in their UPI app, it resumes on reopen.
+  localStorage.setItem('pay_active', JSON.stringify({ ref, amount, items, t: Date.now() }));
   _haptic(12);
+  _beginLive(amount, ref, Date.now() + PAY_WINDOW_MS);
+}
+
+function _beginLive(amount, ref, endsAt) {
   document.getElementById('pay-exact-amt').textContent = '₹' + amount.toFixed(2);
   document.getElementById('pay-start').classList.add('hidden');
   document.getElementById('pay-live').classList.remove('hidden');
@@ -923,13 +928,14 @@ async function startPayment() {
   _drawQR(amount, ref);
   if (typeof lucide !== 'undefined') lucide.createIcons();
 
-  _pollEnds = Date.now() + 10 * 60 * 1000;
+  _pollEnds = endsAt;
   _stopPoll();
   _pollFn = async () => {
     if (!document.getElementById('view-payment').classList.contains('active')) { _stopPoll(); return; }
     if (Date.now() > _pollEnds) {
       _stopPoll();
       _setStatus('Not detected yet. Show this screen at the store and we will confirm it.', 'warn');
+      localStorage.removeItem('pay_active');
       return;
     }
     try {
@@ -941,6 +947,23 @@ async function startPayment() {
     } catch (_) { /* keep polling */ }
   };
   _poll = setInterval(_pollFn, 2000);
+}
+
+async function resumePayment() {
+  let p = null;
+  try { p = JSON.parse(localStorage.getItem('pay_active') || 'null'); } catch (_) {}
+  if (!p || !p.ref) return;
+  if (Date.now() - p.t > PAY_WINDOW_MS) { localStorage.removeItem('pay_active'); return; }
+
+  let paid;
+  try { paid = await sbRpc('is_order_paid', { p_ref: p.ref }); } catch (_) { return; }
+
+  cartData = {}; productsData = [];
+  (p.items || []).forEach(i => { cartData[i.id] = i.qty; productsData.push({ id: i.id, name: i.name, price: i.sub / i.qty }); });
+  renderOrder();
+  switchView('payment');
+  if (paid === true) { _showOrderSuccess(true); return; }
+  _beginLive(p.amount, p.ref, p.t + PAY_WINDOW_MS);
 }
 
 async function saveQR() {
@@ -972,6 +995,7 @@ function _drawSuccessCheck() {
 }
 
 function _showOrderSuccess(paid) {
+  localStorage.removeItem('pay_active');
   sessionStorage.removeItem('ss_cart');
   sessionStorage.removeItem('ss_products');
   cart = {};
