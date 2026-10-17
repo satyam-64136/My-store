@@ -74,25 +74,70 @@ flowchart LR
 
 ## Payment flow
 
+The customer’s screen and the Gmail reader both start watching as soon as the QR appears, so they run side by side with the payment itself.
+
 ```mermaid
 sequenceDiagram
   autonumber
   participant C as Customer
   participant S as Store page
   participant DB as Supabase
-  participant B as Bank
-  participant G as Gmail + Apps Script
-  C->>S: Pay by UPI
+  participant U as UPI app and bank
+  participant G as Gmail and Apps Script
+  C->>S: Tap Pay by UPI
   S->>DB: create_upi_order
-  DB-->>S: exact amount to pay
-  S-->>C: QR and UPI app buttons
-  C->>B: Pays the exact amount
-  B->>G: UPI credit alert email
-  G->>DB: Mark order paid with UTR and payer name
-  S->>DB: is_order_paid every 2 seconds
+  Note right of DB: Checks access, recomputes the total,<br/>picks a unique amount, saves a pending order
+  DB-->>S: Exact amount to pay
+  S-->>C: Show QR and UPI app buttons
+  par Customer pays
+    C->>U: Pay the exact amount
+    U-->>G: Bank emails a credit alert to Gmail
+  and Store page watches
+    loop Every 2 seconds
+      S->>DB: is_order_paid
+      DB-->>S: not yet
+    end
+  and Detector watches
+    loop Every few seconds while the order is fresh
+      G->>G: Read new credit alerts in Gmail
+    end
+  end
+  G->>DB: Match the amount and mark the order paid with UTR
+  S->>DB: is_order_paid
   DB-->>S: paid
   S-->>C: Payment received
-  Note over DB: Admin approves the order,<br/>which deducts stock
+```
+
+## Sign-in flow
+
+```mermaid
+flowchart TD
+  O["Open the app"] --> S{"Saved login?"}
+  S -- yes --> V{"Server check"}
+  S -- no --> R{"Returning user?"}
+  V -- approved --> ST["Store opens"]
+  V -- "no connection" --> W["Login kept, retry in 4 s"] --> V
+  V -- "rejected or expired" --> R
+  V -- pending --> P["Waiting for approval"]
+  V -- banned --> X["Access denied"]
+  R -- yes --> A["Silent Google sign-in, tried once"]
+  R -- no --> L["Login screen"]
+  L -- "Continue with Google" --> A
+  A --> V
+```
+
+## Order lifecycle
+
+```mermaid
+stateDiagram-v2
+  [*] --> Unpaid: Customer taps Pay by UPI
+  Unpaid --> Paid: Bank alert matched
+  Unpaid --> Approved: Admin approves by hand
+  Paid --> Approved: Admin approves and stock is deducted
+  Unpaid --> Rejected: Admin rejects
+  Paid --> Rejected: Admin rejects
+  Approved --> [*]
+  Rejected --> [*]
 ```
 
 ## Project structure
@@ -122,6 +167,21 @@ supabase/functions/
 ```
 
 ## Security
+
+```mermaid
+flowchart LR
+  C["Approved customer"] -- calls --> F1["get_store_products"]
+  C -- calls --> F2["create_upi_order"]
+  C -- calls --> F3["is_order_paid"]
+  F1 --> T1[("products")]
+  F2 --> T2[("orders")]
+  F3 --> T2
+  AD["Admin account"] -- "full access by policy" --> T1
+  AD --> T2
+  AD --> T3[("allowed_emails")]
+  GS["Apps Script<br/>service key"] -- "marks paid" --> T2
+```
+
 
 - **Row Level Security everywhere.** Customers can’t read or change orders directly; they only call two functions: `create_upi_order` and `is_order_paid`.
 - **Prices are trusted server-side.** The order total is recomputed from the products table, never from the browser.
