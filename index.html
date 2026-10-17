@@ -190,13 +190,23 @@
       </div>
       <div id="order-items"></div>
       <div class="pay-total-row">
-        <span class="pay-total-lbl">Total</span>
+        <span class="pay-total-lbl">Amount to pay</span>
         <span class="pay-total-amt" id="total-display">₹0.00</span>
       </div>
     </div>
 
     <!-- UPI section -->
     <div class="pay-card">
+      <div id="youpi-section" class="hidden">
+        <button class="confirm-btn" id="youpi-btn" onclick="payWithYoupi()">
+          <i data-lucide="zap" style="width:15px;height:15px"></i>
+          Pay securely &amp; get instant confirmation
+        </button>
+        <p class="pay-confirm-hint" style="margin:9px 0 0">Verified automatically. No need to confirm manually.</p>
+      </div>
+
+      <details id="manual-pay" open>
+        <summary id="manual-toggle">Pay with QR instead</summary>
       <!-- UPI display (title removed per spec) -->
       <div class="upi-display">
         <div class="upi-display-info">
@@ -209,7 +219,7 @@
         </button>
       </div>
 
-      <div class="divider-or">Scan QR to pay</div>
+      <div class="divider-or" id="manual-divider">Scan QR to pay</div>
 
       <div class="qr-wrap">
         <div class="qr-box">
@@ -232,6 +242,7 @@
           Confirm Order
         </button>
       </div>
+      </details>
     </div>
 
   </div>
@@ -348,8 +359,9 @@ function switchView(name) {
 const UPI_ID = '9162591726@yesfam';
 const STORE  = "Your's Store";
 document.getElementById('upi-display-id').textContent = maskUPI(UPI_ID);
-// Paste your deployed Apps Script Web App URL here after deploying sync-orders-to-sheets.gs
-const ORDERS_WEBHOOK = '';  // e.g. 'https://script.google.com/macros/s/.../exec'
+// YouPI PG (free self-hosted UPI gateway). Leave YOUPI_URL empty to keep the manual QR flow only.
+const YOUPI_URL = '';  // your deployed gateway, e.g. 'https://pay.yourdomain.com'
+const YOUPI_KEY = '';  // merchant public key from the YouPI admin panel
 let allProducts = [], cart = {}, _activeFilter = 'all';
 let cartData = {}, productsData = [], cartTotal = 0;
 let _storeClosed = false;
@@ -891,6 +903,66 @@ function _drawSuccessCheck() {
     .to(path,   { strokeDashoffset: 0, duration: .35, ease: 'power2.out' }, '-=.1');
 }
 
+/* ═══════════════════════════════
+   YouPI PG — auto-verified UPI payment
+   Browser callback is UX only. The signed webhook (youpi-webhook edge
+   function) is what marks the order paid in Supabase.
+   ═══════════════════════════════ */
+if (YOUPI_URL && YOUPI_KEY) {
+  document.getElementById('youpi-section').classList.remove('hidden');
+  document.getElementById('manual-pay').removeAttribute('open');
+  document.getElementById('manual-pay').classList.add('has-youpi');
+}
+
+function _loadYoupi() {
+  if (window.Youpi) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const el = document.createElement('script');
+    el.src = YOUPI_URL.replace(/\/$/, '') + '/youpi.js';
+    el.setAttribute('data-youpi-key', YOUPI_KEY);
+    el.setAttribute('data-currency', 'INR');
+    el.onload = resolve;
+    el.onerror = () => reject(new Error('gateway unreachable'));
+    document.head.appendChild(el);
+  });
+}
+
+async function payWithYoupi() {
+  const btn = document.getElementById('youpi-btn');
+  if (btn.disabled) return;
+  const originalHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = 'Opening payment…';
+  const reset = () => { btn.disabled = false; btn.innerHTML = originalHTML; if (typeof lucide !== 'undefined') lucide.createIcons(); };
+
+  const saleItems = [];
+  for (const [id, qty] of Object.entries(cartData)) {
+    const p = productsData.find(x => x.id === id); if (!p) continue;
+    saleItems.push({ id, name: p.name, qty, sub: +(qty * p.price).toFixed(2) });
+  }
+  const total = +saleItems.reduce((s, i) => s + i.sub, 0).toFixed(2);
+  const orderRef = 'YP-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+
+  try {
+    await _loadYoupi();
+    await sbPost('orders', { items: saleItems, total, status: 'pending', order_ref: orderRef, created_at: new Date().toISOString() });
+  } catch (e) {
+    reset();
+    toast('Could not start payment. Use the QR below.');
+    return;
+  }
+
+  window.Youpi.pay({
+    order_id: orderRef,
+    amount: total,
+    currency: 'INR',
+    name: STORE,
+    description: 'Store order',
+    handler: () => { reset(); _showOrderSuccess(true); },
+    onClose: () => { reset(); }
+  });
+}
+
 async function confirmPayment() {
   const btn = document.getElementById('confirm-btn');
   if (btn.disabled) return; // prevent double-tap
@@ -935,19 +1007,17 @@ async function confirmPayment() {
   clearTimeout(_safetyTimer);
   _resetBtn(); // success path never reset it otherwise — next order attempt would find the button permanently stuck disabled
 
-  // Webhook sync — fire and forget
-  if (insertedOrder && ORDERS_WEBHOOK) {
-    fetch(ORDERS_WEBHOOK, {
-      method: 'POST', mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(insertedOrder),
-    }).catch(() => {});
-  }
+  _showOrderSuccess();
+}
 
+function _showOrderSuccess(paid) {
   sessionStorage.removeItem('ss_cart');
   sessionStorage.removeItem('ss_products');
   cart = {};
   _haptic(16);
+
+  const sub = document.querySelector('#success-overlay .modal-sub');
+  if (sub) sub.textContent = paid ? 'Payment received. Pending admin approval.' : 'Pending admin approval.';
 
   const overlay = document.getElementById('success-overlay');
   overlay.classList.remove('hidden');

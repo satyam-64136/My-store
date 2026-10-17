@@ -1158,3 +1158,39 @@ body {
     animation: none !important;
   }
 }
+
+/* ═══ Payment screen polish ═══ */
+.pay-card { padding:18px !important; }
+.pay-card-title { text-transform:none; letter-spacing:0; font-size:.78rem; color:var(--t2); }
+.pay-total-row { align-items:flex-end; padding-top:16px; }
+.pay-total-lbl { font-size:.78rem; color:var(--t2); }
+.pay-total-amt { font-size:2.1rem; font-variant-numeric:tabular-nums; line-height:1; }
+.pay-confirm-hint, .qr-hint, .upi-display-name { color:var(--t2); }
+
+/* YouPI: the primary action */
+#youpi-btn { background:linear-gradient(180deg,#f4efe6,#e2d9c9); box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 10px 28px rgba(0,0,0,.45); padding:15px; font-size:.95rem; }
+#youpi-btn:hover { background:linear-gradient(180deg,#fff,#ebe3d4); }
+#youpi-section .pay-confirm-hint { display:flex; align-items:center; justify-content:center; gap:7px; }
+#youpi-section .pay-confirm-hint::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px rgba(111,176,138,.18); }
+
+/* Manual QR: collapsible, quiet */
+#manual-pay > summary { list-style:none; cursor:pointer; text-align:center; font-size:.74rem; color:var(--t2); padding:12px 0 2px; }
+#manual-pay > summary::-webkit-details-marker { display:none; }
+#manual-pay:not(.has-youpi) > summary { display:none; }
+#manual-pay > summary:hover { color:var(--t1); }
+#manual-pay[open].has-youpi > summary { margin-bottom:6px; }
+#manual-pay.has-youpi { margin-top:14px; border-top:1px solid var(--b1); }
+
+/* QR: scanner viewfinder corners */
+.qr-box { position:relative; border:none; box-shadow:0 10px 36px rgba(0,0,0,.55); }
+.qr-box::before, .qr-box::after { content:''; position:absolute; inset:-9px; border-radius:16px; pointer-events:none;
+  background:
+    linear-gradient(var(--accent),var(--accent)) top left/16px 2px, linear-gradient(var(--accent),var(--accent)) top left/2px 16px,
+    linear-gradient(var(--accent),var(--accent)) top right/16px 2px, linear-gradient(var(--accent),var(--accent)) top right/2px 16px,
+    linear-gradient(var(--accent),var(--accent)) bottom left/16px 2px, linear-gradient(var(--accent),var(--accent)) bottom left/2px 16px,
+    linear-gradient(var(--accent),var(--accent)) bottom right/16px 2px, linear-gradient(var(--accent),var(--accent)) bottom right/2px 16px;
+  background-repeat:no-repeat; opacity:.7; }
+.qr-box::after { display:none; }
+.qr-wrap { gap:16px; padding:10px 0 4px; }
+
+#youpi-btn:focus-visible, #manual-pay > summary:focus-visible, .confirm-btn:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
