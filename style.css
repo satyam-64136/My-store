@@ -1167,19 +1167,16 @@ body {
 .pay-total-amt { font-size:2.1rem; font-variant-numeric:tabular-nums; line-height:1; }
 .pay-confirm-hint, .qr-hint, .upi-display-name { color:var(--t2); }
 
-/* YouPI: the primary action */
-#youpi-btn { background:linear-gradient(180deg,#f4efe6,#e2d9c9); box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 10px 28px rgba(0,0,0,.45); padding:15px; font-size:.95rem; }
-#youpi-btn:hover { background:linear-gradient(180deg,#fff,#ebe3d4); }
-#youpi-section .pay-confirm-hint { display:flex; align-items:center; justify-content:center; gap:7px; }
-#youpi-section .pay-confirm-hint::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px rgba(111,176,138,.18); }
-
-/* Manual QR: collapsible, quiet */
-#manual-pay > summary { list-style:none; cursor:pointer; text-align:center; font-size:.74rem; color:var(--t2); padding:12px 0 2px; }
-#manual-pay > summary::-webkit-details-marker { display:none; }
-#manual-pay:not(.has-youpi) > summary { display:none; }
-#manual-pay > summary:hover { color:var(--t1); }
-#manual-pay[open].has-youpi > summary { margin-bottom:6px; }
-#manual-pay.has-youpi { margin-top:14px; border-top:1px solid var(--b1); }
+/* Live payment */
+.pay-exact { text-align:center; font-size:.8rem; color:var(--t2); margin-bottom:4px; }
+.pay-exact strong { display:block; font-family:var(--f-mono); font-size:1.7rem; color:var(--t1); margin-top:2px; font-variant-numeric:tabular-nums; }
+a.qr-action-btn { text-decoration:none; }
+.pay-status { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:16px; padding-top:14px; border-top:1px solid var(--b1); font-size:.74rem; color:var(--t2); text-align:center; }
+.pay-dot { flex:none; width:7px; height:7px; border-radius:50%; background:var(--amber); animation:payPulse 1.4s ease-in-out infinite; }
+.pay-status[data-state="ok"] .pay-dot { background:var(--green); animation:none; }
+.pay-status[data-state="warn"] .pay-dot { background:var(--red); animation:none; }
+@keyframes payPulse { 50% { opacity:.3; } }
+@media (prefers-reduced-motion:reduce) { .pay-dot { animation:none; } }
 
 /* QR: scanner viewfinder corners */
 .qr-box { position:relative; border:none; box-shadow:0 10px 36px rgba(0,0,0,.55); }
@@ -1193,4 +1190,12 @@ body {
 .qr-box::after { display:none; }
 .qr-wrap { gap:16px; padding:10px 0 4px; }
 
-#youpi-btn:focus-visible, #manual-pay > summary:focus-visible, .confirm-btn:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.confirm-btn:focus-visible, .qr-action-btn:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+
+/* UPI app buttons (mobile) */
+.upi-apps { display:flex; flex-direction:column; gap:8px; margin:12px 0 2px; }
+a.confirm-btn { text-decoration:none; }
+.upi-app-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.upi-app-row a { text-align:center; padding:10px 0; border:1px solid var(--b2); border-radius:var(--r1); background:var(--surface-2); color:var(--t1); font-size:.76rem; font-weight:500; text-decoration:none; }
+.upi-app-row a:hover { background:var(--surface-3); border-color:var(--b3); }
+.upi-app-row a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }

@@ -195,54 +195,40 @@
       </div>
     </div>
 
-    <!-- UPI section -->
+    <!-- UPI payment -->
     <div class="pay-card">
-      <div id="youpi-section" class="hidden">
-        <button class="confirm-btn" id="youpi-btn" onclick="payWithYoupi()">
-          <i data-lucide="zap" style="width:15px;height:15px"></i>
-          Pay securely &amp; get instant confirmation
+      <div id="pay-start">
+        <button class="confirm-btn" id="pay-btn" onclick="startPayment()">
+          <i data-lucide="qr-code" style="width:15px;height:15px"></i>
+          Pay by UPI
         </button>
-        <p class="pay-confirm-hint" style="margin:9px 0 0">Verified automatically. No need to confirm manually.</p>
+        <p class="pay-confirm-hint" style="margin:10px 0 0">You get a QR for the exact amount. Payment is confirmed automatically.</p>
       </div>
 
-      <details id="manual-pay" open>
-        <summary id="manual-toggle">Pay with QR instead</summary>
-      <!-- UPI display (title removed per spec) -->
-      <div class="upi-display">
-        <div class="upi-display-info">
-          <span class="upi-display-name">Your's Store</span>
-          <span class="upi-display-id" id="upi-display-id">••••••••••@••••</span>
-        </div>
-        <button class="copy-btn" onclick="copyUPI()">
-          <i data-lucide="copy" style="width:10px;height:10px"></i>
-          <span id="copy-lbl">Copy</span>
-        </button>
-      </div>
-
-      <div class="divider-or" id="manual-divider">Scan QR to pay</div>
-
-      <div class="qr-wrap">
-        <div class="qr-box">
-          <div id="qr-spinner" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%">
-            <div class="spinner" style="margin:0;width:24px;height:24px"></div>
+      <div id="pay-live" class="hidden">
+        <p class="pay-exact">Pay exactly <strong id="pay-exact-amt">₹0.00</strong></p>
+        <div class="upi-apps hidden" id="upi-apps">
+          <a class="confirm-btn" id="upi-open" href="#">
+            <i data-lucide="smartphone" style="width:15px;height:15px"></i> Pay with UPI app
+          </a>
+          <div class="upi-app-row">
+            <a id="upi-gpay" href="#">GPay</a><a id="upi-phonepe" href="#">PhonePe</a><a id="upi-paytm" href="#">Paytm</a>
           </div>
-          <img id="qr-img" src="" alt="UPI QR" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:4px"/>
+          <div class="divider-or">or scan the QR</div>
         </div>
-        <div class="qr-actions">
-          <button class="qr-action-btn" onclick="saveQR()">
-            <i data-lucide="download" style="width:11px;height:11px"></i> Save QR
-          </button>
+        <div class="qr-wrap">
+          <div class="qr-box">
+            <div id="qr-spinner" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%">
+              <div class="spinner" style="margin:0;width:24px;height:24px"></div>
+            </div>
+            <img id="qr-img" src="" alt="UPI QR" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:4px"/>
+          </div>
+          <div class="qr-actions" style="display:flex;gap:8px">
+            <button class="qr-action-btn" onclick="saveQR()"><i data-lucide="download" style="width:11px;height:11px"></i> Save QR</button>
+          </div>
         </div>
-        <p class="qr-hint">PhonePe · GPay · Paytm · BHIM</p>
+        <div class="pay-status" id="pay-status"><span class="pay-dot"></span><span id="pay-status-txt">Waiting for payment…</span></div>
       </div>
-      <div class="pay-confirm-section">
-        <p class="pay-confirm-hint">Complete payment on your UPI app, then confirm below.</p>
-        <button class="confirm-btn" id="confirm-btn" onclick="confirmPayment()">
-          <i data-lucide="check-circle" style="width:15px;height:15px"></i>
-          Confirm Order
-        </button>
-      </div>
-      </details>
     </div>
 
   </div>
@@ -356,12 +342,8 @@ function switchView(name) {
 /* ═══════════════════════════════
    STORE — products
    ═══════════════════════════════ */
-const UPI_ID = '9162591726@yesfam';
+const UPI_ID = '9162591726@yesfam';  // must be the VPA of the bank account that sends credit-alert emails
 const STORE  = "Your's Store";
-document.getElementById('upi-display-id').textContent = maskUPI(UPI_ID);
-// YouPI PG (free self-hosted UPI gateway). Leave YOUPI_URL empty to keep the manual QR flow only.
-const YOUPI_URL = '';  // your deployed gateway, e.g. 'https://pay.yourdomain.com'
-const YOUPI_KEY = '';  // merchant public key from the YouPI admin panel
 let allProducts = [], cart = {}, _activeFilter = 'all';
 let cartData = {}, productsData = [], cartTotal = 0;
 let _storeClosed = false;
@@ -443,6 +425,12 @@ async function initAuthGate() {
     text.textContent = 'Access denied';
     text.classList.remove('hidden');
     signout.classList.remove('hidden');
+  } else if (result.status === 'offline') {
+    btn.classList.add('hidden');
+    text.textContent = 'No connection. Retrying…';
+    text.classList.remove('hidden');
+    signout.classList.add('hidden');
+    setTimeout(initAuthGate, 4000);
   } else {
     btn.classList.remove('hidden');
     text.classList.add('hidden');
@@ -512,6 +500,8 @@ function startApp(approvedEmail) {
   // changed, so this doesn't cause flicker or interrupt anyone mid-tap.
   setInterval(() => loadProducts({ background: true }), 15000);
   window.addEventListener('focus', () => loadProducts({ background: true }));
+  setInterval(refreshSessionIfNeeded, 4 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshSessionIfNeeded(); });
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -523,6 +513,7 @@ async function checkAccessStillValid() {
   } catch {
     return; // network hiccup — don't kick someone out over that
   }
+  if (result.status === 'offline') return;
   if (result.status !== 'approved') signOutGate();
 }
 
@@ -780,7 +771,7 @@ function proceedToPayment() {
   sessionStorage.setItem('ss_cart', JSON.stringify(cart));
   sessionStorage.setItem('ss_products', JSON.stringify(allProducts));
   renderOrder();
-  buildQR();
+  resetPayPanel();
   switchView('payment');
   window.scrollTo(0, 0);
 }
@@ -846,46 +837,108 @@ function renderOrder() {
   if (profitEl) profitEl.textContent = `₹${cartProfit.toFixed(2)}`;
 }
 
-function buildQR() {
-  const link = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(STORE)}&am=${cartTotal.toFixed(2)}&cu=INR`;
+async function sbRpc(fn, args) {
+  await refreshSessionIfNeeded();
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers: _sbHeaders(), body: JSON.stringify(args) });
+  if (!r.ok) throw new Error(await r.text().catch(() => 'rpc failed'));
+  return r.json();
+}
+
+let _poll = null, _pollEnds = 0;
+function _stopPoll() { clearInterval(_poll); _poll = null; }
+
+function resetPayPanel() {
+  _stopPoll();
+  document.getElementById('pay-start').classList.remove('hidden');
+  document.getElementById('pay-live').classList.add('hidden');
+  const btn = document.getElementById('pay-btn');
+  btn.disabled = false;
+}
+
+function _setStatus(txt, state) {
+  document.getElementById('pay-status-txt').textContent = txt;
+  document.getElementById('pay-status').dataset.state = state || '';
+}
+
+function _drawQR(amount, ref) {
+  const q = `pa=${UPI_ID}&pn=${encodeURIComponent(STORE)}&am=${amount.toFixed(2)}&cu=INR`;
+  const link = 'upi://pay?' + q;
+  document.getElementById('upi-open').href    = link;
+  document.getElementById('upi-gpay').href    = 'tez://upi/pay?' + q;
+  document.getElementById('upi-phonepe').href = 'phonepe://pay?' + q;
+  document.getElementById('upi-paytm').href   = 'paytmmp://pay?' + q;
+  document.getElementById('upi-apps').classList.toggle('hidden', !/Android|iPhone|iPad/i.test(navigator.userAgent));
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(link)}`;
   window._qrUrl = qrUrl;
-  const img = document.getElementById('qr-img');
-  const spinner = document.getElementById('qr-spinner');
-  // Reset
+  const img = document.getElementById('qr-img'), spinner = document.getElementById('qr-spinner');
   img.style.display = 'none';
   spinner.style.display = 'flex';
-  spinner.innerHTML = '<div class="spinner" style="margin:0;width:24px;height:24px"></div>';
   img.onload = () => { spinner.style.display = 'none'; img.style.display = 'block'; };
-  img.onerror = () => { spinner.innerHTML = '<p style="font-size:.65rem;color:var(--t3);text-align:center">QR unavailable</p>'; };
+  img.onerror = () => { spinner.innerHTML = '<p style="font-size:.65rem;color:var(--t3);text-align:center">QR unavailable. Use Open UPI app.</p>'; };
   img.src = qrUrl;
+}
+
+async function startPayment() {
+  if (isStoreClosed()) { toast('Store is currently closed. Please come back later.'); return; }
+  const btn = document.getElementById('pay-btn');
+  if (btn.disabled) return;
+  btn.disabled = true;
+
+  const items = [];
+  for (const [id, qty] of Object.entries(cartData)) {
+    const p = productsData.find(x => x.id === id); if (!p) continue;
+    items.push({ id, name: p.name, qty, sub: +(qty * p.price).toFixed(2) });
+  }
+  const total = +items.reduce((s, i) => s + i.sub, 0).toFixed(2);
+  const ref = 'ORD' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
+
+  let amount;
+  try {
+    amount = Number(await sbRpc('create_upi_order', { p_items: items, p_total: total, p_ref: ref }));
+  } catch (e) {
+    btn.disabled = false;
+    toast('Could not start payment. Please try again.');
+    return;
+  }
+
+  _haptic(12);
+  document.getElementById('pay-exact-amt').textContent = '₹' + amount.toFixed(2);
+  document.getElementById('pay-start').classList.add('hidden');
+  document.getElementById('pay-live').classList.remove('hidden');
+  _setStatus('Waiting for payment…');
+  _drawQR(amount, ref);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+
+  _pollEnds = Date.now() + 10 * 60 * 1000;
+  _stopPoll();
+  _poll = setInterval(async () => {
+    if (!document.getElementById('view-payment').classList.contains('active')) { _stopPoll(); return; }
+    if (Date.now() > _pollEnds) {
+      _stopPoll();
+      _setStatus('Not detected yet. Show this screen at the store and we will confirm it.', 'warn');
+      return;
+    }
+    try {
+      if (await sbRpc('is_order_paid', { p_ref: ref }) === true) {
+        _stopPoll();
+        _setStatus('Payment received', 'ok');
+        _showOrderSuccess(true);
+      }
+    } catch (_) { /* keep polling */ }
+  }, 3000);
 }
 
 async function saveQR() {
   if (!window._qrUrl) { toast('QR not ready yet'); return; }
   try {
-    const res = await fetch(window._qrUrl);
-    const blob = await res.blob();
+    const blob = await (await fetch(window._qrUrl)).blob();
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = 'payment-qr.png';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    a.href = blobUrl; a.download = 'payment-qr.png';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     toast('QR saved!');
-  } catch(e) { toast('Download failed'); }
-}
-
-let _ct;
-function copyUPI() {
-  navigator.clipboard.writeText(UPI_ID).then(() => {
-    const lbl = document.getElementById('copy-lbl');
-    lbl.textContent = 'Copied!';
-    clearTimeout(_ct);
-    _ct = setTimeout(() => { lbl.textContent = 'Copy'; }, 2000);
-  }).catch(() => toast('Copy failed'));
+  } catch (e) { toast('Download failed'); }
 }
 
 // Draws the success checkmark stroke-by-stroke — ring first, then the tick —
@@ -901,113 +954,6 @@ function _drawSuccessCheck() {
   gsap.timeline()
     .to(circle, { strokeDashoffset: 0, duration: .5, ease: 'power2.out' })
     .to(path,   { strokeDashoffset: 0, duration: .35, ease: 'power2.out' }, '-=.1');
-}
-
-/* ═══════════════════════════════
-   YouPI PG — auto-verified UPI payment
-   Browser callback is UX only. The signed webhook (youpi-webhook edge
-   function) is what marks the order paid in Supabase.
-   ═══════════════════════════════ */
-if (YOUPI_URL && YOUPI_KEY) {
-  document.getElementById('youpi-section').classList.remove('hidden');
-  document.getElementById('manual-pay').removeAttribute('open');
-  document.getElementById('manual-pay').classList.add('has-youpi');
-}
-
-function _loadYoupi() {
-  if (window.Youpi) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const el = document.createElement('script');
-    el.src = YOUPI_URL.replace(/\/$/, '') + '/youpi.js';
-    el.setAttribute('data-youpi-key', YOUPI_KEY);
-    el.setAttribute('data-currency', 'INR');
-    el.onload = resolve;
-    el.onerror = () => reject(new Error('gateway unreachable'));
-    document.head.appendChild(el);
-  });
-}
-
-async function payWithYoupi() {
-  const btn = document.getElementById('youpi-btn');
-  if (btn.disabled) return;
-  const originalHTML = btn.innerHTML;
-  btn.disabled = true;
-  btn.textContent = 'Opening payment…';
-  const reset = () => { btn.disabled = false; btn.innerHTML = originalHTML; if (typeof lucide !== 'undefined') lucide.createIcons(); };
-
-  const saleItems = [];
-  for (const [id, qty] of Object.entries(cartData)) {
-    const p = productsData.find(x => x.id === id); if (!p) continue;
-    saleItems.push({ id, name: p.name, qty, sub: +(qty * p.price).toFixed(2) });
-  }
-  const total = +saleItems.reduce((s, i) => s + i.sub, 0).toFixed(2);
-  const orderRef = 'YP-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
-
-  try {
-    await _loadYoupi();
-    await sbPost('orders', { items: saleItems, total, status: 'pending', order_ref: orderRef, created_at: new Date().toISOString() });
-  } catch (e) {
-    reset();
-    toast('Could not start payment. Use the QR below.');
-    return;
-  }
-
-  window.Youpi.pay({
-    order_id: orderRef,
-    amount: total,
-    currency: 'INR',
-    name: STORE,
-    description: 'Store order',
-    handler: () => { reset(); _showOrderSuccess(true); },
-    onClose: () => { reset(); }
-  });
-}
-
-async function confirmPayment() {
-  const btn = document.getElementById('confirm-btn');
-  if (btn.disabled) return; // prevent double-tap
-
-  const originalHTML = btn.innerHTML;
-  const _resetBtn = () => {
-    btn.disabled = false;
-    btn.innerHTML = originalHTML;
-  };
-
-  btn.disabled = true;
-  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Placing order…`;
-
-  // Safety timeout — if something hangs, always re-enable after 12s
-  const _safetyTimer = setTimeout(_resetBtn, 12000);
-
-  const saleItems = [];
-  for (const [id, qty] of Object.entries(cartData)) {
-    const p = productsData.find(x => x.id === id); if (!p) continue;
-    const sub = +(qty * p.price).toFixed(2);
-    saleItems.push({ id, name: p.name, qty, sub });
-  }
-  const total = +saleItems.reduce((s, i) => s + i.sub, 0).toFixed(2);
-
-  let insertedOrder = null;
-  try {
-    const nowISO = new Date().toISOString();
-    const result = await sbPost('orders', {
-      items:      saleItems,
-      total,
-      status:     'pending',
-      created_at: nowISO,
-    });
-    insertedOrder = Array.isArray(result) ? result[0] : result;
-  } catch(e) {
-    clearTimeout(_safetyTimer);
-    _resetBtn();
-    toast('Failed to place order. Please try again.');
-    return;
-  }
-
-  clearTimeout(_safetyTimer);
-  _resetBtn(); // success path never reset it otherwise — next order attempt would find the button permanently stuck disabled
-
-  _showOrderSuccess();
 }
 
 function _showOrderSuccess(paid) {

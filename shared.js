@@ -357,14 +357,19 @@ function _captureGateRedirect() {
   return false;
 }
 
+// A dropped connection must never be mistaken for a rejected login:
+// _NET means "couldn't reach the server", null means "server said no".
+const _NET = { net: true };
+
 async function _gateFetchUser(token) {
   try {
     const res = await fetch(_GATE_AUTH_URL + '/user', {
       headers: { apikey: SB_KEY, Authorization: 'Bearer ' + token }
     });
-    if (!res.ok) return null;
+    if (res.status === 401 || res.status === 403) return null;
+    if (!res.ok) return _NET;
     return await res.json();
-  } catch { return null; }
+  } catch { return _NET; }
 }
 
 async function _gateRefreshSession(refresh_token) {
@@ -374,15 +379,45 @@ async function _gateRefreshSession(refresh_token) {
       headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token }),
     });
-    if (!res.ok) return null;
+    if (res.status === 400 || res.status === 401 || res.status === 403) return null;
+    if (!res.ok) return _NET;
     return await res.json();
-  } catch { return null; }
+  } catch { return _NET; }
+}
+
+// Refresh tokens rotate, so two refreshes at once would invalidate each
+// other and log the user out. Share one request between all callers.
+let _refreshFlight = null;
+function _refreshOnce(refresh_token) {
+  if (!_refreshFlight) _refreshFlight = _gateRefreshSession(refresh_token).finally(() => { _refreshFlight = null; });
+  return _refreshFlight;
+}
+
+function _jwtExpMs(token) {
+  try { return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; }
+  catch { return 0; }
+}
+
+// Keeps a persistent (Google) session's access token fresh so a customer who
+// stays in the app past the 1-hour token life isn't silently signed out.
+async function refreshSessionIfNeeded() {
+  let s;
+  try { s = JSON.parse(localStorage.getItem('sb_session') || 'null'); } catch { return false; }
+  if (!s || !s.access_token || !s.refresh_token) return false;
+  if (_jwtExpMs(s.access_token) - Date.now() > 5 * 60 * 1000) return true;
+  const r = await _refreshOnce(s.refresh_token);
+  if (r && r.access_token) {
+    localStorage.setItem('sb_session', JSON.stringify({ ...r, login_at: s.login_at }));
+    return true;
+  }
+  return false;   // offline or rejected: leave the stored session alone
 }
 
 // Returns one of:
 //   { status: 'approved', email, login_at }  — signed in AND approved
 //   { status: 'pending',  email }            — signed in, request filed, awaiting a decision
 //   { status: 'banned',   email }            — signed in, but blocked
+//   { status: 'offline' }                    — can't reach the server; session is kept
 //   { status: 'signed_out' }                 — no valid session
 async function getGateStatus() {
   _captureGateRedirect();
@@ -401,14 +436,16 @@ async function getGateStatus() {
 
   // Validate against Supabase's server — cannot be spoofed locally.
   let user = await _gateFetchUser(session.access_token);
-  if (!user && session.refresh_token) {
-    const refreshed = await _gateRefreshSession(session.refresh_token);
+  if ((!user || user.net) && session.refresh_token) {
+    const refreshed = await _refreshOnce(session.refresh_token);
+    if (refreshed && refreshed.net) return { status: 'offline' };
     if (refreshed && refreshed.access_token) {
       session = { ...refreshed, login_at: loginAt }; // a token refresh isn't a new login
       localStorage.setItem('sb_session', JSON.stringify(session));
       user = await _gateFetchUser(session.access_token);
     }
   }
+  if (user && user.net) return { status: 'offline' };
   if (!user || !user.email) {
     localStorage.removeItem('sb_session');
     return { status: 'signed_out' };
@@ -442,7 +479,9 @@ async function getGateStatus() {
     // First time this email has signed in — file a pending request so
     // it shows up in the admin's Access tab without any manual step.
     await sbPost('allowed_emails', { email: user.email, status: 'pending' }).catch(() => {});
-  } catch { /* fall through to pending below */ }
+  } catch (e) {
+    if (e instanceof TypeError) return { status: 'offline' };   // fetch failed: network, not a decision
+  }
 
   return { status: 'pending', email: user.email };
 }
