@@ -1612,7 +1612,7 @@ async function loadPendingOrders({ background = false } = {}) {
     setPendingState('loading');
   }
   try {
-    const rows = await sbGet('orders?status=eq.pending&order=created_at.desc&select=id,items,total,status,created_at,paid,payment_ref');
+    const rows = await sbGet('orders?status=eq.pending&order=created_at.desc&select=id,items,total,status,created_at,paid,payment_ref,customer_email,payer_name');
     pendingOrdersMap.clear();
     (rows || []).forEach(row => {
       const orderId = String(row.id);
@@ -1630,6 +1630,8 @@ async function loadPendingOrders({ background = false } = {}) {
         total: String(row.total || '0'),
         paid: !!row.paid,
         ref: row.payment_ref || '',
+        email: row.customer_email || '',
+        payer: row.payer_name || '',
         products: itemsArr.map(i => ({ id: i.id, qty: i.qty })),
       });
     });
@@ -1673,7 +1675,7 @@ function renderPendingOrders() {
           <span>${esc(order.time)}</span>
           <span class="order-card-date">${esc(order.date)}</span>
         </div>
-        <div class="order-card-total">₹${parseFloat(order.total).toFixed(2)}${order.paid ? `<div style="font-size:.6rem;color:var(--green);font-weight:600;margin-top:2px">PAID · UTR ${esc(order.ref)}</div>` : ''}</div>
+        <div class="order-card-total">₹${parseFloat(order.total).toFixed(2)}${order.paid ? `<div style="font-size:.6rem;color:var(--green);font-weight:600;margin-top:2px">PAID · UTR ${esc(order.ref)}</div>` : ''}${order.paid && order.payer ? `<div style="font-size:.62rem;color:var(--t2);margin-top:2px">Paid by ${esc(order.payer)}</div>` : ''}${order.email ? `<div style="font-size:.62rem;color:var(--t2);margin-top:2px;max-width:190px;overflow-wrap:anywhere">Ordered by ${esc(order.email)}</div>` : ''}</div>
       </div>
       <div class="order-card-items">
         ${(order.itemsArr && order.itemsArr.length

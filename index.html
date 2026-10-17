@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="style.css"/>
   <!-- Preconnect to font origin so the TCP handshake is done before CSS requests it -->
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap" rel="stylesheet"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link rel="preconnect" href="https://unpkg.com"/>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin/>
@@ -121,7 +122,7 @@
       <div class="hero-content">
         <div class="hero-left">
           <div class="hero-eyebrow"><span class="hero-tag"><span class="hero-tag-dot"></span>Open now</span></div>
-          <div class="hero-title">Your's Store</div>
+          <div class="hero-title">Your’s Store</div>
           <div class="hero-sub">Fresh stock every day. Pay with UPI.</div>
         </div>
         <div class="hero-right">
@@ -213,7 +214,7 @@
             <i data-lucide="smartphone" style="width:15px;height:15px"></i> Pay with UPI app
           </a>
           <div class="upi-app-row">
-            <a id="upi-gpay" href="#">GPay</a><a id="upi-phonepe" href="#">PhonePe</a><a id="upi-paytm" href="#">Paytm</a>
+            <a id="upi-gpay" href="#">GPay</a><a id="upi-phonepe" href="#">PhonePe</a><a id="upi-paytm" href="#">Paytm</a><a id="upi-cred" href="#">CRED</a>
           </div>
           <div class="divider-or">or scan the QR</div>
         </div>
@@ -845,7 +846,8 @@ async function sbRpc(fn, args) {
   return r.json();
 }
 
-let _poll = null, _pollEnds = 0;
+let _poll = null, _pollFn = null, _pollEnds = 0;
+document.addEventListener('visibilitychange', () => { if (!document.hidden && _poll && _pollFn) _pollFn(); });
 function _stopPoll() { clearInterval(_poll); _poll = null; }
 
 function resetPayPanel() {
@@ -862,13 +864,24 @@ function _setStatus(txt, state) {
 }
 
 function _drawQR(amount, ref) {
-  const q = `pa=${UPI_ID}&pn=${encodeURIComponent(STORE)}&am=${amount.toFixed(2)}&cu=INR`;
+  const q = new URLSearchParams({ pa: UPI_ID, pn: STORE, am: amount.toFixed(2), tn: ref }).toString();
   const link = 'upi://pay?' + q;
-  document.getElementById('upi-open').href    = link;
-  document.getElementById('upi-gpay').href    = 'tez://upi/pay?' + q;
-  document.getElementById('upi-phonepe').href = 'phonepe://pay?' + q;
-  document.getElementById('upi-paytm').href   = 'paytmmp://pay?' + q;
-  document.getElementById('upi-apps').classList.toggle('hidden', !/Android|iPhone|iPad/i.test(navigator.userAgent));
+  const android = /Android/i.test(navigator.userAgent), ios = /iPhone|iPad/i.test(navigator.userAgent);
+  // Android: an explicit-package intent opens that exact app. iOS: each app's own scheme.
+  const intent = pkg => `intent://pay?${q}#Intent;scheme=upi;package=${pkg};end`;
+  const target = {
+    gpay:    android ? intent('com.google.android.apps.nbu.paisa.user') : `gpay://upi/pay?${q}`,
+    phonepe: android ? intent('com.phonepe.app')                        : `phonepe://pay?${q}`,
+    paytm:   android ? intent('net.one97.paytm')                        : `paytmmp://pay?${q}`,
+    cred:    android ? intent('com.dreamplug.androidapp')               : ''
+  };
+  document.getElementById('upi-open').href = link;
+  for (const k of Object.keys(target)) {
+    const el = document.getElementById('upi-' + k);
+    el.href = target[k] || '#';
+    el.classList.toggle('hidden', !target[k]);
+  }
+  document.getElementById('upi-apps').classList.toggle('hidden', !(android || ios));
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(link)}`;
   window._qrUrl = qrUrl;
   const img = document.getElementById('qr-img'), spinner = document.getElementById('qr-spinner');
@@ -912,7 +925,7 @@ async function startPayment() {
 
   _pollEnds = Date.now() + 10 * 60 * 1000;
   _stopPoll();
-  _poll = setInterval(async () => {
+  _pollFn = async () => {
     if (!document.getElementById('view-payment').classList.contains('active')) { _stopPoll(); return; }
     if (Date.now() > _pollEnds) {
       _stopPoll();
@@ -926,7 +939,8 @@ async function startPayment() {
         _showOrderSuccess(true);
       }
     } catch (_) { /* keep polling */ }
-  }, 3000);
+  };
+  _poll = setInterval(_pollFn, 2000);
 }
 
 async function saveQR() {

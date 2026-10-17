@@ -1251,3 +1251,9 @@ nav, .navbar { backdrop-filter:blur(22px) saturate(1.5) !important; -webkit-back
   .hero-eyebrow, .hero-title, .hero-sub, .hero-right { animation:none; }
   .p-card, .p-card .card-img img { transition:none !important; }
 }
+
+.upi-app-row { grid-template-columns:repeat(4,1fr); }
+.upi-app-row a.hidden { display:none; }
+
+/* Hero heading: refined serif, one line */
+.hero-title { font-family:'Fraunces',Georgia,serif !important; font-weight:400 !important; font-size:clamp(2.3rem,9.5vw,3.6rem) !important; letter-spacing:-.025em !important; line-height:1.05 !important; white-space:nowrap; margin-bottom:12px !important; }
