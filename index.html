@@ -93,6 +93,9 @@
       <button class="nav-link-icon" id="notify-bell-btn" onclick="toggleCustomerNotify()" title="Get notified">
         <i data-lucide="bell" id="notify-bell-icon" style="width:14px;height:14px"></i>
       </button>
+      <button class="nav-link-icon" id="logout-btn" onclick="if (confirm('Log out of Your’s Store?')) signOutGate();" title="Log out">
+        <i data-lucide="log-out" style="width:14px;height:14px"></i>
+      </button>
       <!-- Icon only for admin, no label -->
       <a class="nav-link-icon" href="admin.html" title="Admin">
         <i data-lucide="settings" style="width:14px;height:14px"></i>
@@ -405,6 +408,8 @@ async function initAuthGate() {
   }
 
   if (result.status === 'approved') {
+    _markReturning(true);
+    sessionStorage.removeItem('ys_auto');
     _stopGateMedia();
     gate.classList.add('hidden');
     startApp(result.email);
@@ -436,6 +441,18 @@ async function initAuthGate() {
     signout.classList.add('hidden');
     setTimeout(initAuthGate, 4000);
   } else {
+    // A returning user whose saved session vanished (not a deliberate logout):
+    // go straight to Google, which signs them back in without a tap. Tried
+    // once per tab so a failed attempt can never loop.
+    if (_isReturning() && !sessionStorage.getItem('ys_auto')) {
+      sessionStorage.setItem('ys_auto', '1');
+      btn.classList.add('hidden');
+      text.textContent = 'Signing you in…';
+      text.classList.remove('hidden');
+      signout.classList.add('hidden');
+      startGoogleLogin();
+      return;
+    }
     btn.classList.remove('hidden');
     text.classList.add('hidden');
     signout.classList.add('hidden');

@@ -335,6 +335,14 @@ function placeholderSVG() {
 const _GATE_AUTH_URL = SB_URL + '/auth/v1';
 
 // Kicks off the Supabase Google OAuth redirect flow.
+// Marks this browser as one that has signed in before, so a session that
+// vanished unexpectedly can be restored silently. Cleared on every deliberate
+// or forced sign-out, so logging out (or a ban / "log everyone out") sticks.
+function _markReturning(on) {
+  document.cookie = 'ys_returning=' + (on ? '1; max-age=31536000' : '; max-age=0') + '; path=/; SameSite=Lax';
+}
+function _isReturning() { return /(?:^|;\s*)ys_returning=1/.test(document.cookie); }
+
 function startGoogleLogin() {
   const redirectTo = window.location.origin + window.location.pathname;
   window.location.href =
@@ -419,7 +427,7 @@ async function refreshSessionIfNeeded() {
 //   { status: 'banned',   email }            — signed in, but blocked
 //   { status: 'offline' }                    — can't reach the server; session is kept
 //   { status: 'signed_out' }                 — no valid session
-async function getGateStatus() {
+async function getGateStatus(_retried) {
   _captureGateRedirect();
 
   // The gate only ever writes to localStorage, but read via
@@ -447,6 +455,10 @@ async function getGateStatus() {
   }
   if (user && user.net) return { status: 'offline' };
   if (!user || !user.email) {
+    // Another tab or an in-flight refresh may have rotated the token while we
+    // were checking. Use that newer session instead of logging the user out.
+    const latest = _readSbSession();
+    if (!_retried && latest && latest !== raw) return getGateStatus(true);
     localStorage.removeItem('sb_session');
     return { status: 'signed_out' };
   }
@@ -457,6 +469,7 @@ async function getGateStatus() {
   try {
     const cfg = await getStoreConfig();
     if (cfg.forceLogoutAt && cfg.forceLogoutAt > loginAt) {
+      _markReturning(false);
       localStorage.removeItem('sb_session');
       return { status: 'signed_out' };
     }
@@ -480,7 +493,8 @@ async function getGateStatus() {
     // it shows up in the admin's Access tab without any manual step.
     await sbPost('allowed_emails', { email: user.email, status: 'pending' }).catch(() => {});
   } catch (e) {
-    if (e instanceof TypeError) return { status: 'offline' };   // fetch failed: network, not a decision
+    // Any failure to read the list means "couldn't check", never "not approved".
+    return { status: 'offline' };
   }
 
   return { status: 'pending', email: user.email };
@@ -492,13 +506,14 @@ async function signOutGate() {
     try {
       const s = JSON.parse(raw);
       if (s.access_token) {
-        fetch(_GATE_AUTH_URL + '/logout', {
+        fetch(_GATE_AUTH_URL + '/logout?scope=local', {
           method: 'POST',
           headers: { apikey: SB_KEY, Authorization: 'Bearer ' + s.access_token },
         }).catch(() => {});
       }
     } catch {}
   }
+  _markReturning(false);
   localStorage.removeItem('sb_session');
   window.location.reload();
 }
