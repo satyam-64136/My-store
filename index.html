@@ -450,7 +450,7 @@ async function initAuthGate() {
       text.textContent = 'Signing you in…';
       text.classList.remove('hidden');
       signout.classList.add('hidden');
-      startGoogleLogin();
+      startGoogleLogin(true);
       return;
     }
     btn.classList.remove('hidden');
@@ -919,16 +919,18 @@ async function startPayment() {
     items.push({ id, name: p.name, qty, sub: +(qty * p.price).toFixed(2) });
   }
   const total = +items.reduce((s, i) => s + i.sub, 0).toFixed(2);
-  const ref = 'ORD' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
+  const newRef = 'ORD' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
 
-  let amount;
+  let order;
   try {
-    amount = Number(await sbRpc('create_upi_order', { p_items: items, p_total: total, p_ref: ref }));
+    order = await sbRpc('create_upi_order', { p_items: items, p_total: total, p_ref: newRef });
   } catch (e) {
     btn.disabled = false;
-    toast('Could not start payment. Please try again.');
+    toast(/too many payment/i.test(e.message) ? 'Too many payment attempts. Please wait a few minutes.' : 'Could not start payment. Please try again.');
     return;
   }
+  // The server may hand back an order that is already open for this same cart.
+  const amount = Number(order.amount), ref = order.ref;
 
   // Remember this payment on the phone: if the app closes or the page reloads
   // while the customer is in their UPI app, it resumes on reopen.

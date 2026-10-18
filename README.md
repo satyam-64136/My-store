@@ -45,7 +45,7 @@ There is no server to host. Pages run on GitHub Pages, data and auth live in Sup
 **Access control**
 - Google sign-in gate: anyone can request access, the admin **approves or bans** from the Access tab
 - Login that stays saved: survives flaky connections, refreshes tokens quietly, and signs a returning user back in silently if the browser lost the session
-- One-tap **Log out** in the top bar
+- One-tap **Log out** in the top bar; signing in again always shows Google’s account chooser
 - Store-wide “log everyone out” and open/closed switch; an optional script can close the store automatically each day
 
 **Payments**
@@ -111,31 +111,33 @@ flowchart TD
 stateDiagram-v2
   [*] --> Unpaid: Customer taps Pay by UPI
   Unpaid --> Paid: Bank alert matched
+  Unpaid --> Expired: Not paid in 30 minutes
   Unpaid --> Approved: Admin approves by hand
   Paid --> Approved: Admin approves
   Unpaid --> Rejected: Admin rejects
   Paid --> Rejected: Admin rejects
   Approved --> [*]
   Rejected --> [*]
+  Expired --> [*]
 ```
 
-Paid is a flag on the order, not a separate status: the order stays pending until the admin approves or rejects it. Stock is deducted only on approval, and an order the customer walked away from stays unpaid until the admin rejects it.
+Paid is a flag on the order, not a separate status: the order stays pending until the admin approves or rejects it. Stock is deducted only on approval. Tapping Pay again with the same cart reuses the open order instead of creating another.
 
 ## How the payment detector decides
 
 ```mermaid
 flowchart TD
-  T["Every minute"] --> A["Read new credit alerts in Gmail"]
-  A --> B{"New alert?"}
-  B -- "no" --> G
-  B -- "yes" --> C{"Exactly one unpaid order with this<br/>amount in the last 30 minutes?"}
+  T["Every minute"] --> Q{"Any unpaid order<br/>from the last 30 minutes?"}
+  Q -- "no" --> Z["Stop right away"]
+  Q -- "yes" --> A["Read new credit alerts in Gmail"]
+  A --> C{"Alert amount matches<br/>exactly one unpaid order?"}
   C -- "yes" --> D["Mark it paid with the UTR and payer"]
-  C -- "no" --> E["Log it and ignore the alert"]
-  D --> G{"Any unpaid order<br/>under 10 minutes old?"}
+  C -- "no" --> E["Ignore the alert"]
+  D --> G{"Customer's page open on an order<br/>under 10 minutes old, and daily<br/>fast-check time left?"}
   E --> G
-  G -- "yes" --> H["Wait 4 s and check Gmail again,<br/>until the minute ends"]
+  G -- "yes" --> H["Wait 4 s"]
   H --> A
-  G -- "no" --> Z["Sleep until the next minute"]
+  G -- "no" --> Y["Wait for the next minute"]
 ```
 
 ## Project structure
@@ -204,7 +206,7 @@ flowchart LR
 - **The receiving UPI ID matters.** It must belong to the account that sends the alert emails, otherwise nothing is detected.
 - **Verification speed depends on the bank’s email.** The script checks every few seconds, but it can’t see a payment before the email arrives.
 - **UPI apps can warn on links to personal UPI IDs.** The QR is the fallback, and a merchant UPI ID is the lasting fix.
-- **Apps Script has a daily runtime quota** (about 90 minutes on free accounts). The detector only runs fast while an unpaid order is fresh.
+- **The free Apps Script quota is protected.** Idle minutes stop immediately, fast checking needs a customer’s page to be open on a fresh order and is capped at 30 minutes a day, and each customer is limited to 8 new orders an hour. Outside fast checking, a payment is still caught within about a minute.
 - **Customers may pay up to ₹0.99 extra** so that every open order has its own amount. The screen always shows the exact figure.
 - **Updates reach open devices by themselves.** On open, on returning to the app and every 5 minutes, each page compares its files with the server and reloads once if they changed. It never reloads during a payment or while something is being typed. After a deploy, GitHub Pages can take a minute or two to publish.
 - **Orders still need admin approval** before stock is deducted. A paid order just arrives with proof attached.

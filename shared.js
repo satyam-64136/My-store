@@ -343,10 +343,14 @@ function _markReturning(on) {
 }
 function _isReturning() { return /(?:^|;\s*)ys_returning=1/.test(document.cookie); }
 
-function startGoogleLogin() {
+// A deliberate sign-in always shows Google's account chooser, so logging out
+// really means something. Only the automatic restore of a lost session
+// (silent = true) skips it.
+function startGoogleLogin(silent) {
   const redirectTo = window.location.origin + window.location.pathname;
   window.location.href =
-    _GATE_AUTH_URL + '/authorize?provider=google&redirect_to=' + encodeURIComponent(redirectTo);
+    _GATE_AUTH_URL + '/authorize?provider=google&redirect_to=' + encodeURIComponent(redirectTo) +
+    (silent === true ? '' : '&prompt=select_account');
 }
 
 // After Supabase/Google redirect back, the tokens arrive in the URL
