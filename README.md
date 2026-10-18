@@ -70,6 +70,8 @@ flowchart LR
   G["Apps Script<br/>reads Gmail alerts"] -- "marks orders paid" --> D
   D -- "webhook on new order" --> E["Edge function<br/>send-order-push"]
   E --> P["Web Push<br/>order alerts to admin"]
+  B -- "Send to All" --> BN["Edge function<br/>broadcast-notification"]
+  BN --> CP["Web Push<br/>store updates to customers"]
 ```
 
 ## Payment flow
@@ -188,9 +190,11 @@ sql/                       Run in the Supabase SQL Editor, in this order:
   upi_autopay.sql            paid fields, create_upi_order, is_order_paid
   store_products_rpc.sql     hides purchase price from customers
   store_config_fix.sql       lets customers read the open/closed setting
+  customer_push.sql          customer notification bell + subscriber list
 
 supabase/functions/
   send-order-push/           Web Push on every new order
+  broadcast-notification/    Admin “Send to All” to customers who turned the bell on
 ```
 
 ## Security
@@ -202,6 +206,7 @@ flowchart LR
   C -- "calls" --> F3["is_order_paid"]
   C -- "own row only" --> T3[("allowed_emails")]
   C -- "read only" --> T4[("settings:<br/>store_config")]
+  C -- "calls" --> F4["save and remove<br/>push subscription"]
   F1 --> T1[("products")]
   F2 --> T2[("orders")]
   F3 --> T2
@@ -228,7 +233,7 @@ flowchart LR
    - Add the script property `SB_SERVICE_KEY` (Supabase service-role key).
    - Run `install()` once and accept the permissions.
    - If your bank isn’t Kotak, change `GMAIL_QUERY` to its sender and subject.
-5. **Push alerts (optional).** Deploy `send-order-push`, set the VAPID secrets, and add a Database Webhook on `orders` INSERT. Broadcasts to customers (the bell) also need a `customer_push_subscriptions` table and a broadcast function, which are not included in `sql/`.
+5. **Push alerts (optional).** Deploy `send-order-push`, set the VAPID secrets, and add a Database Webhook on `orders` INSERT. For the customer bell, run `customer_push.sql` and deploy `broadcast-notification` (it reuses the same VAPID secrets).
 
 ## Good to know
 

@@ -1120,12 +1120,20 @@ function _setBellState(subscribed) {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+function _saveSubscription(sub) {
+  const raw = sub.toJSON();
+  return sbRpc('save_push_subscription', { p_endpoint: raw.endpoint, p_p256dh: raw.keys.p256dh, p_auth: raw.keys.auth });
+}
+
 async function _checkCustomerNotifyState() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
   try {
     const reg = await navigator.serviceWorker.getRegistration();
     const sub = reg && await reg.pushManager.getSubscription();
     _setBellState(!!sub);
+    // Quietly re-save a device that is subscribed in the browser but missing
+    // from the store's list (for example, subscribed before saving worked).
+    if (sub) _saveSubscription(sub).catch(() => {});
   } catch (_) {}
 }
 
@@ -1142,7 +1150,7 @@ async function toggleCustomerNotify() {
       // Already subscribed — tapping again unsubscribes
       const endpoint = sub.endpoint;
       await sub.unsubscribe().catch(() => {});
-      await sbDelete(`customer_push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`).catch(() => {});
+      await sbRpc('remove_push_subscription', { p_endpoint: endpoint }).catch(() => {});
       _setBellState(false);
       toast("You won't get store notifications anymore");
       return;
@@ -1157,12 +1165,14 @@ async function toggleCustomerNotify() {
       userVisibleOnly: true,
       applicationServerKey: _urlBase64ToUint8Array(_VAPID_PUBLIC_KEY),
     });
-    const raw = sub.toJSON();
-    await sbPost('customer_push_subscriptions', {
-      endpoint: raw.endpoint,
-      p256dh: raw.keys.p256dh,
-      auth: raw.keys.auth,
-    }).catch(() => {});
+    try {
+      await _saveSubscription(sub);
+    } catch (e) {
+      // Don't leave a device "subscribed" that the store can't actually reach.
+      await sub.unsubscribe().catch(() => {});
+      toast('Could not turn on notifications. Please try again.');
+      return;
+    }
     _setBellState(true);
     toast("You'll now get store updates");
   } catch (_) {
