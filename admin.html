@@ -1322,7 +1322,9 @@ async function _sendBroadcast(title, message) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Broadcast failed');
-    toast(`Sent to ${data.sent} of ${data.total} subscriber${data.total === 1 ? '' : 's'}`);
+    toast(data.total === 0
+      ? 'No subscribers yet. Customers must turn on the bell first.'
+      : `Sent to ${data.sent} of ${data.total} subscriber${data.total === 1 ? '' : 's'}`);
     const msgInput = document.getElementById('broadcast-message');
     const titleInput = document.getElementById('broadcast-title');
     if (msgInput) msgInput.value = '';

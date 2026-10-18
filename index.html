@@ -501,6 +501,9 @@ function startApp(approvedEmail) {
   window.addEventListener('focus', checkAccessStillValid);
   setInterval(checkAccessStillValid, 20000);
   resumePayment();
+  // Needs a signed-in session to save the device, so it runs here, not at page load.
+  _checkCustomerNotifyState();
+  setTimeout(_showNotifyPromptIfNeeded, 1400);   // small delay so it doesn't compete with the load animation
 
   // Show cached products instantly — zero-wait first paint
   const cached = _cacheGet(_cacheKey('products'));
@@ -1220,11 +1223,6 @@ async function _acceptNotifyPrompt() {
   await toggleCustomerNotify();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  _checkCustomerNotifyState();
-  // Small delay so this doesn't compete with the page's own load animation
-  setTimeout(_showNotifyPromptIfNeeded, 1400);
-});
 
 /* ── GSAP page-enter animations ─────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
