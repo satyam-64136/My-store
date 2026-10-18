@@ -63,71 +63,46 @@ There is no server to host. Pages run on GitHub Pages, data and auth live in Sup
 ## How it fits together
 
 ```mermaid
-flowchart LR
-  A["index.html<br/>storefront"] --> D[("Supabase<br/>Postgres, RLS, Auth")]
-  B["admin.html<br/>admin panel"] --> D
-  S["stats.html<br/>admin only"] --> D
-  G["Apps Script<br/>reads Gmail alerts"] -- "marks orders paid" --> D
-  D -- "webhook on new order" --> E["Edge function<br/>send-order-push"]
-  E --> P["Web Push<br/>order alerts to admin"]
-  B -- "Send to All" --> BN["Edge function<br/>broadcast-notification"]
-  BN --> CP["Web Push<br/>store updates to customers"]
+flowchart TD
+  A["Storefront<br/>index.html"] --> D[("Supabase<br/>database, sign-in, security rules")]
+  B["Admin panel<br/>admin.html and stats.html"] --> D
+  G["Apps Script<br/>reads bank alerts in Gmail"] -- "marks orders paid" --> D
+  D -- "new order" --> E["send-order-push"]
+  E --> P1["Alert to the admin's phone"]
+  B -- "Send to All" --> F["broadcast-notification"]
+  F --> P2["Notification to customers"]
 ```
 
 ## Payment flow
 
-The customer’s screen and the Gmail reader both start watching as soon as the QR appears, so they run side by side with the payment itself.
-
 ```mermaid
-sequenceDiagram
-  autonumber
-  participant C as Customer
-  participant S as Store page
-  participant DB as Supabase
-  participant U as UPI app and bank
-  participant G as Gmail and Apps Script
-  C->>S: Tap Pay by UPI
-  S->>DB: create_upi_order
-  Note right of DB: Checks access, recomputes the total,<br/>picks a unique amount, saves a pending order
-  DB-->>S: Exact amount to pay
-  S-->>C: Show QR and UPI app buttons
-  par Customer pays
-    C->>U: Pay the exact amount
-    U-->>G: Bank emails a credit alert to Gmail
-  and Store page watches
-    loop Every 2 seconds
-      S->>DB: is_order_paid
-      DB-->>S: not yet
-    end
-  and Detector watches
-    loop Every few seconds while the order is under 10 minutes old
-      G->>G: Read new credit alerts in Gmail
-    end
-    Note over G: After 10 minutes it checks once a minute, until 30 minutes
-  end
-  G->>DB: Match the amount and mark the order paid with UTR
-  S->>DB: is_order_paid
-  DB-->>S: paid
-  S-->>C: Payment received
+flowchart TD
+  A["Customer taps Pay by UPI"] --> B["Server saves a pending order<br/>and picks an exact amount"]
+  B --> C["Page shows the QR and UPI app buttons"]
+  C --> D["Customer pays in their UPI app"]
+  D --> E["Bank emails a credit alert to Gmail"]
+  E --> F["Apps Script matches the amount<br/>and marks the order paid with the UTR"]
+  F --> G["Page shows Payment received"]
+  C -. "page asks every 2 s: paid yet?" .-> G
+  G --> H["Admin approves the order<br/>and stock is deducted"]
 ```
 
 ## Sign-in flow
 
 ```mermaid
 flowchart TD
-  O["Open the app"] --> S{"Saved login?"}
-  S -- yes --> V{"Server check"}
-  S -- no --> R{"Returning user?<br/>not after a logout"}
-  V -- approved --> ST["Store opens"]
-  V -- "no connection" --> W["Login kept, retry in 4 s"] --> V
-  V -- "rejected or expired" --> R
-  V -- pending --> P["Waiting for approval"]
-  V -- banned --> X["Access denied"]
-  R -- yes --> A["Silent Google sign-in, tried once"]
-  R -- no --> L["Login screen"]
-  L -- "Continue with Google" --> A
-  A -- "signed in" --> V
-  A -- "failed or cancelled" --> L
+  A["Open the app"] --> B{"Saved login still valid?"}
+  B -- "approved" --> S["Store opens"]
+  B -- "pending" --> P["Waiting for admin approval"]
+  B -- "banned" --> X["Access denied"]
+  B -- "server unreachable" --> R["Keep the login, retry in 4 s"]
+  R --> B
+  B -- "missing or expired" --> C{"Signed in here before<br/>and did not log out?"}
+  C -- "yes" --> G["Silent Google sign-in, tried once"]
+  C -- "no" --> L["Login screen"]
+  G -- "worked" --> B
+  G -- "failed" --> L
+  L -- "Continue with Google" --> B
 ```
 
 ## Order lifecycle
@@ -135,37 +110,32 @@ flowchart TD
 ```mermaid
 stateDiagram-v2
   [*] --> Unpaid: Customer taps Pay by UPI
-  Unpaid --> Unpaid: Customer leaves, order waits here
   Unpaid --> Paid: Bank alert matched
   Unpaid --> Approved: Admin approves by hand
-  Paid --> Approved: Admin approves and stock is deducted
+  Paid --> Approved: Admin approves
   Unpaid --> Rejected: Admin rejects
   Paid --> Rejected: Admin rejects
   Approved --> [*]
   Rejected --> [*]
-  note right of Paid
-    The status stays pending.
-    Only the paid flag is set.
-  end note
 ```
+
+Paid is a flag on the order, not a separate status: the order stays pending until the admin approves or rejects it. Stock is deducted only on approval, and an order the customer walked away from stays unpaid until the admin rejects it.
 
 ## How the payment detector decides
 
 ```mermaid
 flowchart TD
-  T["Trigger: every minute"] --> A["Read credit alerts in Gmail"]
-  A --> B{"Alert already processed?"}
-  B -- yes --> N["Skip it"]
-  B -- no --> C["Read amount, RRN and payer name"]
-  C --> D{"Exactly one unpaid order with<br/>this amount in the last 30 min?"}
-  D -- yes --> E["Mark it paid with UTR and payer"]
-  D -- "none or several" --> F["Log it, change nothing,<br/>do not retry this alert"]
-  E --> G{"Any unpaid order<br/>under 10 min old?"}
-  F --> G
-  N --> G
-  G -- yes --> H["Wait 4 s, read Gmail again<br/>until the minute ends"]
+  T["Every minute"] --> A["Read new credit alerts in Gmail"]
+  A --> B{"New alert?"}
+  B -- "no" --> G
+  B -- "yes" --> C{"Exactly one unpaid order with this<br/>amount in the last 30 minutes?"}
+  C -- "yes" --> D["Mark it paid with the UTR and payer"]
+  C -- "no" --> E["Log it and ignore the alert"]
+  D --> G{"Any unpaid order<br/>under 10 minutes old?"}
+  E --> G
+  G -- "yes" --> H["Wait 4 s and check Gmail again,<br/>until the minute ends"]
   H --> A
-  G -- no --> Z["Stop until the next minute"]
+  G -- "no" --> Z["Sleep until the next minute"]
 ```
 
 ## Project structure
@@ -201,20 +171,14 @@ supabase/functions/
 
 ```mermaid
 flowchart LR
-  C["Approved customer"] -- "calls" --> F1["get_store_products"]
-  C -- "calls" --> F2["create_upi_order"]
-  C -- "calls" --> F3["is_order_paid"]
-  C -- "own row only" --> T3[("allowed_emails")]
-  C -- "read only" --> T4[("settings:<br/>store_config")]
-  C -- "calls" --> F4["save and remove<br/>push subscription"]
-  F1 --> T1[("products")]
-  F2 --> T2[("orders")]
-  F3 --> T2
-  AD["Admin account"] -- "full access by policy" --> T1
-  AD --> T2
-  AD --> T3
-  AD --> T4
-  GS["Apps Script<br/>service key"] -- "marks paid" --> T2
+  C["Approved customer"] --> F["Five database functions:<br/>list products, create order, check paid,<br/>save and remove a notification device"]
+  C --> M["Their own access request<br/>and the open or closed setting, read only"]
+  AD["Admin account"] --> ALL["Everything, by database policy"]
+  SK["Apps Script and edge functions<br/>using the service key"] --> O["Orders and notification lists"]
+  F --> DB[("Supabase tables")]
+  M --> DB
+  ALL --> DB
+  O --> DB
 ```
 
 - **Row Level Security everywhere.** Customers can’t read or change orders directly; they only call two functions: `create_upi_order` and `is_order_paid`.
