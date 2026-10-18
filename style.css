@@ -1242,3 +1242,13 @@ nav, .navbar { backdrop-filter:blur(22px) saturate(1.5) !important; -webkit-back
 
 /* Hero heading: refined serif, one line */
 .hero-title { font-family:'Fraunces',Georgia,serif !important; font-weight:400 !important; font-size:clamp(2.3rem,9.5vw,3.6rem) !important; letter-spacing:-.025em !important; line-height:1.05 !important; white-space:nowrap; margin-bottom:12px !important; }
+
+/* Nav icon buttons: no stuck hover on touch screens, clear on/off for the bell */
+.nav-link-icon { position:relative; background:none; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.nav-link-icon:hover { color:var(--t2); background:transparent; }
+.nav-link-icon:focus { outline:none; }
+.nav-link-icon:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.nav-link-icon:active { background:rgba(255,255,255,.08); }
+@media (hover:hover) { .nav-link-icon:hover { color:var(--t1); background:rgba(255,255,255,.06); } }
+.nav-link-icon.on { color:var(--t1); }
+.nav-link-icon.on::after { content:''; position:absolute; top:6px; right:6px; width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 0 2px var(--bg); }

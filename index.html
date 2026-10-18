@@ -90,8 +90,8 @@
     </a>
     <div class="nav-links">
       <!-- Order button removed — already on the store page -->
-      <button class="nav-link-icon" id="notify-bell-btn" onclick="toggleCustomerNotify()" title="Get notified">
-        <i data-lucide="bell" id="notify-bell-icon" style="width:14px;height:14px"></i>
+      <button class="nav-link-icon" id="notify-bell-btn" onclick="toggleCustomerNotify()" title="Turn on store notifications" aria-pressed="false">
+        <i data-lucide="bell-off" style="width:14px;height:14px"></i>
       </button>
       <button class="nav-link-icon" id="logout-btn" onclick="if (confirm('Log out of Your’s Store?')) signOutGate();" title="Log out">
         <i data-lucide="log-out" style="width:14px;height:14px"></i>
@@ -1115,13 +1115,13 @@ function _urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
-function _setBellState(subscribed) {
-  const icon = document.getElementById('notify-bell-icon');
-  const btn  = document.getElementById('notify-bell-btn');
-  if (!icon || !btn) return;
-  icon.setAttribute('data-lucide', subscribed ? 'bell-ring' : 'bell');
-  btn.title = subscribed ? "You'll get store updates" : 'Get notified';
-  btn.style.color = subscribed ? 'var(--accent)' : '';
+function _setBellState(on) {
+  const btn = document.getElementById('notify-bell-btn');
+  if (!btn) return;
+  btn.classList.toggle('on', !!on);
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  btn.title = on ? 'Store notifications are on. Tap to turn off' : 'Turn on store notifications';
+  btn.innerHTML = `<i data-lucide="${on ? 'bell-ring' : 'bell-off'}" style="width:14px;height:14px"></i>`;
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -1131,7 +1131,10 @@ function _saveSubscription(sub) {
 }
 
 async function _checkCustomerNotifyState() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    document.getElementById('notify-bell-btn')?.classList.add('hidden');   // nothing it could do here
+    return;
+  }
   try {
     const reg = await navigator.serviceWorker.getRegistration();
     const sub = reg && await reg.pushManager.getSubscription();
@@ -1148,7 +1151,8 @@ async function toggleCustomerNotify() {
     return;
   }
   try {
-    const reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.register('sw.js');
+    const reg = await navigator.serviceWorker.ready;   // subscribing needs an active worker
     let sub = await reg.pushManager.getSubscription();
 
     if (sub) {
@@ -1161,9 +1165,13 @@ async function toggleCustomerNotify() {
       return;
     }
 
-    const perm = await Notification.requestPermission();
+    if (Notification.permission === 'denied') {
+      toast('Notifications are blocked for this site. Allow them in your browser settings.');
+      return;
+    }
+    const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
     if (perm !== 'granted') {
-      toast('Notifications permission was not granted');
+      toast('Notifications were not allowed');
       return;
     }
     sub = await reg.pushManager.subscribe({
