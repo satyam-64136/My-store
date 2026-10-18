@@ -398,6 +398,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Runs before anything else loads — only an approved, signed-in
 // Google account gets past this into startApp().
+let _gateTries = 0;
+
 async function initAuthGate() {
   const gate = document.getElementById('auth-gate');
   let result;
@@ -413,6 +415,13 @@ async function initAuthGate() {
     _stopGateMedia();
     gate.classList.add('hidden');
     startApp(result.email);
+    return;
+  }
+
+  // A signed-in user hitting a network hiccup must never see the login screen:
+  // keep the loading screen and try again. Only give up after a while.
+  if (result.status === 'offline' && _readSbSession() && _gateTries++ < 8) {
+    setTimeout(initAuthGate, Math.min(1000 * _gateTries, 4000));
     return;
   }
 

@@ -135,7 +135,7 @@ flowchart TD
   C -- "no" --> E["Ignore the alert"]
   D --> G{"Customer's page open on an order<br/>under 10 minutes old, and daily<br/>fast-check time left?"}
   E --> G
-  G -- "yes" --> H["Wait 4 s"]
+  G -- "yes" --> H["Wait 3 s"]
   H --> A
   G -- "no" --> Y["Wait for the next minute"]
 ```
@@ -206,7 +206,7 @@ flowchart LR
 - **The receiving UPI ID matters.** It must belong to the account that sends the alert emails, otherwise nothing is detected.
 - **Verification speed depends on the bank’s email.** The script checks every few seconds, but it can’t see a payment before the email arrives.
 - **UPI apps can warn on links to personal UPI IDs.** The QR is the fallback, and a merchant UPI ID is the lasting fix.
-- **The free Apps Script quota is protected.** Idle minutes stop immediately, fast checking needs a customer’s page to be open on a fresh order and is capped at 30 minutes a day, and each customer is limited to 8 new orders an hour. Outside fast checking, a payment is still caught within about a minute.
+- **The free Apps Script quota is protected.** Idle minutes stop immediately, fast checking needs a customer’s page to be open on a fresh order and is capped at 50 minutes a day, and each customer is limited to 8 new orders an hour. Outside fast checking, a payment is still caught within about a minute.
 - **Customers may pay up to ₹0.99 extra** so that every open order has its own amount. The screen always shows the exact figure.
 - **Updates reach open devices by themselves.** On open, on returning to the app and every 5 minutes, each page compares its files with the server and reloads once if they changed. It never reloads during a payment or while something is being typed. After a deploy, GitHub Pages can take a minute or two to publish.
 - **Orders still need admin approval** before stock is deducted. A paid order just arrives with proof attached.

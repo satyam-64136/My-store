@@ -467,40 +467,41 @@ async function getGateStatus(_retried) {
     return { status: 'signed_out' };
   }
 
-  // A store-wide "log everyone out" resets forceLogoutAt to now() — any
-  // session that started before that point is stale, even if the token
-  // itself is still technically valid.
-  try {
-    const cfg = await getStoreConfig();
-    if (cfg.forceLogoutAt && cfg.forceLogoutAt > loginAt) {
-      _markReturning(false);
-      localStorage.removeItem('sb_session');
-      return { status: 'signed_out' };
-    }
-  } catch { /* if we can't check, don't punish the user for a network hiccup */ }
+  // The two checks below don't depend on each other, so run them side by side.
+  // A store-wide "log everyone out" resets forceLogoutAt to now(): any session
+  // that started before that point is stale, even if its token is still valid.
+  // RLS only lets a signed-in user read their OWN row, so the second check
+  // reflects the server's real decision. The admin account skips it, matching
+  // the SQL policies' bypass.
+  const isAdmin = user.email === 'satyam64136@gmail.com';
+  const [cfgR, rowsR] = await Promise.allSettled([
+    getStoreConfig(),
+    isAdmin ? Promise.resolve(null) : sbGet('allowed_emails?email=eq.' + encodeURIComponent(user.email) + '&select=status')
+  ]);
 
-  // The admin account always gets through the store gate, same as the
-  // SQL policies' bypass — no need for it to go through the request list.
-  if (user.email === 'satyam64136@gmail.com') return { status: 'approved', email: user.email, login_at: loginAt };
-
-  // RLS only lets a signed-in user read their OWN row, so this reflects
-  // the server's actual decision, not anything the client could fake.
-  try {
-    const rows = await sbGet('allowed_emails?email=eq.' + encodeURIComponent(user.email) + '&select=status');
-    if (Array.isArray(rows) && rows.length > 0) {
-      const s = rows[0].status;
-      if (s === 'approved') return { status: 'approved', email: user.email, login_at: loginAt };
-      if (s === 'banned')   return { status: 'banned',   email: user.email };
-      return { status: 'pending', email: user.email };
-    }
-    // First time this email has signed in — file a pending request so
-    // it shows up in the admin's Access tab without any manual step.
-    await sbPost('allowed_emails', { email: user.email, status: 'pending' }).catch(() => {});
-  } catch (e) {
-    // Any failure to read the list means "couldn't check", never "not approved".
-    return { status: 'offline' };
+  // If the store config can't be read, don't punish the user for a hiccup.
+  const cfg = cfgR.status === 'fulfilled' ? cfgR.value : null;
+  if (cfg && cfg.forceLogoutAt && cfg.forceLogoutAt > loginAt) {
+    _markReturning(false);
+    localStorage.removeItem('sb_session');
+    return { status: 'signed_out' };
   }
 
+  if (isAdmin) return { status: 'approved', email: user.email, login_at: loginAt };
+
+  // Any failure to read the list means "couldn't check", never "not approved".
+  if (rowsR.status === 'rejected') return { status: 'offline' };
+
+  const rows = rowsR.value;
+  if (Array.isArray(rows) && rows.length > 0) {
+    const st = rows[0].status;
+    if (st === 'approved') return { status: 'approved', email: user.email, login_at: loginAt };
+    if (st === 'banned')   return { status: 'banned',   email: user.email };
+    return { status: 'pending', email: user.email };
+  }
+  // First time this email has signed in: file a pending request so it shows up
+  // in the admin's Access tab without any manual step.
+  await sbPost('allowed_emails', { email: user.email, status: 'pending' }).catch(() => {});
   return { status: 'pending', email: user.email };
 }
 
