@@ -517,3 +517,52 @@ async function signOutGate() {
   localStorage.removeItem('sb_session');
   window.location.reload();
 }
+
+
+/* ═══════════════════════════════════════════════════════
+   Auto-update
+   GitHub Pages lets browsers reuse a page for up to 10 minutes, so after a
+   deploy many devices keep running the old version. Here a page compares the
+   copy it loaded (browser cache) with the one on the server. If they differ it
+   refreshes its own files and reloads once, with no manual refreshing.
+   ═══════════════════════════════════════════════════════ */
+const _UPD_FILES = [location.pathname, 'shared.js', 'style.css'];
+
+async function _updSig(url, mode) {
+  try {
+    const res = await fetch(url, { cache: mode, method: mode === 'no-store' ? 'HEAD' : 'GET' });
+    return res.headers.get('etag') || res.headers.get('last-modified') || '';
+  } catch { return ''; }
+}
+
+async function _hasNewVersion() {
+  for (const f of _UPD_FILES) {
+    const [cached, live] = await Promise.all([_updSig(f, 'force-cache'), _updSig(f, 'no-store')]);
+    if (cached && live && cached !== live) return true;
+  }
+  return false;
+}
+
+async function _applyUpdate() {
+  // At most one automatic reload every 2 minutes, so a CDN hiccup can never loop.
+  if (Date.now() - Number(sessionStorage.getItem('ys_upd') || 0) < 120000) return;
+  sessionStorage.setItem('ys_upd', String(Date.now()));
+  try { await Promise.all(_UPD_FILES.map(f => fetch(f, { cache: 'reload' }))); } catch { return; }
+  if (typeof toast === 'function') toast('Updating to the latest version…');
+  setTimeout(() => location.reload(), 600);
+}
+
+let _updChecking = false;
+async function checkForUpdate() {
+  if (_updChecking || !navigator.onLine) return;
+  const pay = document.getElementById('view-payment');
+  if (pay && pay.classList.contains('active')) return;              // never interrupt a payment
+  const el = document.activeElement;
+  if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;   // never wipe something being typed
+  _updChecking = true;
+  try { if (await _hasNewVersion()) await _applyUpdate(); } finally { _updChecking = false; }
+}
+
+window.addEventListener('load', () => setTimeout(checkForUpdate, 1500));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(); });
+setInterval(checkForUpdate, 5 * 60 * 1000);

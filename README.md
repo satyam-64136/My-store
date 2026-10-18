@@ -206,6 +206,7 @@ flowchart LR
 - **UPI apps can warn on links to personal UPI IDs.** The QR is the fallback, and a merchant UPI ID is the lasting fix.
 - **Apps Script has a daily runtime quota** (about 90 minutes on free accounts). The detector only runs fast while an unpaid order is fresh.
 - **Customers may pay up to ₹0.99 extra** so that every open order has its own amount. The screen always shows the exact figure.
+- **Updates reach open devices by themselves.** On open, on returning to the app and every 5 minutes, each page compares its files with the server and reloads once if they changed. It never reloads during a payment or while something is being typed. After a deploy, GitHub Pages can take a minute or two to publish.
 - **Orders still need admin approval** before stock is deducted. A paid order just arrives with proof attached.
 
 ---
