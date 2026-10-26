@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Agro AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --primary-light: #C8E6C9;
+            --secondary: #FFC107;
+            --accent: #009688;
+            --text: #333333;
+            --text-light: #666666;
+            --white: #FFFFFF;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            --border-radius: 16px;
+            --transition: all 0.3s ease;
+            --error: #e74c3c;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+        body {
+            background-color: #f8f9fa;
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+            padding-top: 80px;
+        }
+        /* Navigation */
+        nav {
+            background-color: var(--white);
+            box-shadow: var(--shadow);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 0.8rem 0;
+        }
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .logo i {
+            margin-right: 0.5rem;
+            color: var(--primary);
+            font-size: 2.2rem;
+        }
+        .auth-buttons {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        .btn-outline {
+            padding: 0.7rem 1.5rem;
+            background-color: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            transition: var(--transition);
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .btn-outline:hover {
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+        /* Dashboard Section */
+        .dashboard-section {
+            padding: 4rem 0;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+        .dashboard-title {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+        .welcome-message {
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--text-light);
+            margin-bottom: 3rem;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        .dashboard-card {
+            background-color: var(--white);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+            transition: var(--transition);
+        }
+        .dashboard-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        }
+        .dashboard-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, rgba(0, 150, 136, 0.2), rgba(76, 175, 80, 0.2));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            color: var(--primary);
+            font-size: 2.2rem;
+        }
+        .dashboard-card h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+        .dashboard-card p {
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.7rem;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 0.8rem;
+            background-color: var(--primary);
+            color: var(--white);
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 600;
+            transition: var(--transition);
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        .btn-primary:hover {
+            background-color: var(--accent);
+            transform: translateY(-2px);
+        }
+        /* Location Controls */
+        .location-controls {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .location-input {
+            flex: 1;
+        }
+        .location-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        .toggle-switch {
+            width: 40px;
+            height: 20px;
+            background-color: #ddd;
+            border-radius: 10px;
+            position: relative;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .toggle-switch.active {
+            background-color: var(--primary);
+        }
+        .toggle-switch::after {
+            content: '';
+            width: 16px;
+            height: 16px;
+            background-color: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: var(--transition);
+        }
+        .toggle-switch.active::after {
+            left: calc(100% - 18px);
+        }
+        /* Weather Display */
+        .weather-display {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: rgba(76, 175, 80, 0.1);
+            border-radius: var(--border-radius);
+            text-align: left;
+        }
+        .weather-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        /* Status Messages */
+        .status-message {
+            font-size: 0.9rem;
+            margin: 0.5rem 0;
+            text-align: center;
+        }
+        .success {
+            color: var(--primary);
+        }
+        .error {
+            color: var(--error);
+        }
+        /* Loading Spinner */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,.1);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        /* Footer */
+        footer {
+            background-color: var(--primary);
+            color: var(--white);
+            padding: 1.5rem 0;
+            text-align: center;
+            margin-top: 3rem;
+        }
+        .copyright {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <div class="logo">
+                <i class="fas fa-seedling"></i>
+                <span>Agro AI</span>
+            </div>
+            <div class="auth-buttons">
+                <a href="/logout" class="btn-outline">Logout</a>
+            </div>
+        </div>
+    </nav>
+    <!-- Dashboard Section -->
+    <section class="dashboard-section">
+        <h2 class="dashboard-title">Welcome, {{ user['name'] }}!</h2>
+        <p class="welcome-message">Here's your personalized farming dashboard</p>
+        <div class="dashboard-grid">
+            <!-- Crop Recommendations Card -->
+            <div class="dashboard-card">
+                <div class="dashboard-icon">
+                    <i class="fas fa-leaf"></i>
+                </div>
+                <h3>Crop Recommendations</h3>
+                <p>Enter your soil and weather values to get personalized crop recommendations</p>
+                <div class="soil-form">
+                    <div class="form-group">
+                        <label for="nitrogen">Nitrogen (N) (0-140)</label>
+                        <input type="number" id="nitrogen" min="0" max="140" placeholder="Enter N value">
+                    </div>
+                    <div class="form-group">
+                        <label for="phosphorus">Phosphorus (P) (0-140)</label>
+                        <input type="number" id="phosphorus" min="0" max="140" placeholder="Enter P value">
+                    </div>
+                    <div class="form-group">
+                        <label for="potassium">Potassium (K) (0-200)</label>
+                        <input type="number" id="potassium" min="0" max="200" placeholder="Enter K value">
+                    </div>
+                    <div class="form-group">
+                        <label for="temperature">Temperature (°C)</label>
+                        <input type="number" id="temperature" min="0" max="50" placeholder="Enter temperature">
+                    </div>
+                    <div class="form-group">
+                        <label for="humidity">Humidity (%)</label>
+                        <input type="number" id="humidity" min="0" max="100" placeholder="Enter humidity">
+                    </div>
+                    <div class="form-group">
+                        <label for="ph">pH (0-14)</label>
+                        <input type="number" id="ph" min="0" max="14" step="0.1" placeholder="Enter pH value">
+                    </div>
+                    <div class="form-group">
+                        <label for="rainfall">Rainfall (mm)</label>
+                        <input type="number" id="rainfall" min="0" max="300" placeholder="Enter rainfall">
+                    </div>
+                    <button id="getRecommendation" class="btn-primary">
+                        Get Recommendation
+                        <span id="loadingSpinner" class="loading" style="display: none;"></span>
+                    </button>
+                    <div id="recommendationResult" class="recommendation-result" style="display: none;">
+                        <div class="recommendation-title">Recommended Crop:</div>
+                        <div id="recommendedCrops"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Weather Alerts Card -->
+            <div class="dashboard-card">
+                <div class="dashboard-icon">
+                    <i class="fas fa-cloud-sun-rain"></i>
+                </div>
+                <h3>Weather Alerts</h3>
+                <p>Get 3-day weather forecast for your location</p>
+                <div class="form-group location-controls">
+                    <div class="location-input">
+                        <label for="latitude">Latitude</label>
+                        <input type="text" id="latitude" placeholder="Enter latitude">
+                    </div>
+                    <div class="location-input">
+                        <label for="longitude">Longitude</label>
+                        <input type="text" id="longitude" placeholder="Enter longitude">
+                    </div>
+                </div>
+                <div class="location-toggle">
+                    <span>Auto-detect location</span>
+                    <div class="toggle-switch" id="autoDetectToggle"></div>
+                </div>
+                <div id="locationStatus" class="status-message"></div>
+                <button id="getWeather" class="btn-primary">
+                    Get Weather Data
+                    <span id="weatherLoading" class="loading" style="display: none;"></span>
+                </button>
+                <div id="weatherResult" class="weather-display" style="display: none;">
+                    <div class="weather-item">
+                        <span>Temperature:</span>
+                        <span id="temperatureValue">-- °C</span>
+                    </div>
+                    <div class="weather-item">
+                        <span>Humidity:</span>
+                        <span id="humidityValue">-- %</span>
+                    </div>
+                    <div class="weather-item">
+                        <span>Precipitation:</span>
+                        <span id="precipitation">-- mm</span>
+                    </div>
+                    <div class="weather-item">
+                        <span>Wind Speed:</span>
+                        <span id="windSpeed">-- m/s</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Market Prices Card -->
+            <div class="dashboard-card">
+                <div class="dashboard-icon">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <h3>Market Prices</h3>
+                <p>Check today's prices for your crops at nearby mandis before you sell.</p>
+                <div class="form-group">
+                    <label for="crop">Select Crop</label>
+                    <select id="crop" class="form-group">
+                        <option value="">Select a crop</option>
+                        <option value="wheat">Wheat</option>
+                        <option value="rice">Rice</option>
+                        <option value="maize">Maize</option>
+                        <option value="cotton">Cotton</option>
+                        <option value="sugarcane">Sugarcane</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="mandi">Select Mandi</label>
+                    <select id="mandi" class="form-group">
+                        <option value="">Select a mandi</option>
+                        <option value="pune">Pune</option>
+                        <option value="mumbai">Mumbai</option>
+                        <option value="delhi">Delhi</option>
+                        <option value="bangalore">Bangalore</option>
+                        <option value="hyderabad">Hyderabad</option>
+                    </select>
+                </div>
+                <button id="getPrices" class="btn-primary">Get Market Prices</button>
+                <div id="priceResult" class="recommendation-result" style="display: none;">
+                    <div class="recommendation-title">Current Market Prices:</div>
+                    <div id="marketPrices"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <footer>
+        <div class="copyright">
+            <p>© 2025 Agro AI. Made with ♥ for Indian Farmers.</p>
+        </div>
+    </footer>
+    <script>
+        // Track if auto-detect is on
+        let autoDetect = true;
+        const toggleSwitch = document.getElementById('autoDetectToggle');
+        // Set up toggle switch
+        toggleSwitch.addEventListener('click', function() {
+            this.classList.toggle('active');
+            autoDetect = !autoDetect;
+            updateLocationStatus();
+        });
+        // Function to get user's current location
+        function getLocation() {
+            if (!autoDetect) return;
+            document.getElementById('locationStatus').textContent = "Detecting your location...";
+            document.getElementById('locationStatus').className = "status-message";
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        const latitude = position.coords.latitude;
+                        const longitude = position.coords.longitude;
+                        document.getElementById('latitude').value = latitude.toFixed(6);
+                        document.getElementById('longitude').value = longitude.toFixed(6);
+                        updateLocationStatus("Location detected successfully!", "success");
+                        // Auto-fetch weather data for crop recommendation
+                        fetchWeatherForCropRecommendation(latitude, longitude);
+                    },
+                    function(error) {
+                        console.error("Error getting location:", error);
+                        let errorMessage = "Unable to detect location.";
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMessage = "Location access denied. Please enable location services.";
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMessage = "Location information unavailable.";
+                                break;
+                            case error.TIMEOUT:
+                                errorMessage = "Location request timed out.";
+                                break;
+                            case error.UNKNOWN_ERROR:
+                                errorMessage = "Unknown location error occurred.";
+                                break;
+                        }
+                        updateLocationStatus(errorMessage, "error");
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                updateLocationStatus("Geolocation not supported by this browser.", "error");
+            }
+        }
+        // Fetch weather data for crop recommendation card
+        function fetchWeatherForCropRecommendation(latitude, longitude) {
+            fetch(`/get_weather?latitude=${latitude}&longitude=${longitude}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.temperature) {
+                        document.getElementById('temperature').value = data.temperature;
+                        document.getElementById('humidity').value = data.humidity;
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching weather data:", error);
+                });
+        }
+        function updateLocationStatus(message, type) {
+            const statusElement = document.getElementById('locationStatus');
+            statusElement.textContent = message;
+            statusElement.className = `status-message ${type || ''}`;
+            if (type === "error" && autoDetect) {
+                document.getElementById('latitude').value = "18.5204";
+                document.getElementById('longitude').value = "73.8567";
+            }
+        }
+        // Call this function when the page loads
+        window.onload = function() {
+            toggleSwitch.classList.add('active');
+            getLocation();
+        };
+        // Get Weather Data using Open-Meteo API
+        document.getElementById('getWeather').addEventListener('click', function() {
+            const latitude = document.getElementById('latitude').value;
+            const longitude = document.getElementById('longitude').value;
+            if (!latitude || !longitude) {
+                alert('Please enter both latitude and longitude');
+                return;
+            }
+            document.getElementById('weatherLoading').style.display = 'inline-block';
+            tryOpenMeteoAPI(latitude, longitude);
+        });
+        function tryOpenMeteoAPI(latitude, longitude) {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&daily=precipitation_sum,windspeed_10m_max`;
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.current_weather) {
+                        const temperature = data.current_weather.temperature;
+                        const precipitation = data.daily.precipitation_sum[0];
+                        const windSpeed = data.daily.windspeed_10m_max[0];
+                        const humidity = 50; // Placeholder, Open-Meteo doesn't provide humidity in current_weather
+                        document.getElementById('temperatureValue').textContent = `${temperature} °C`;
+                        document.getElementById('humidityValue').textContent = `${humidity} %`;
+                        document.getElementById('precipitation').textContent = `${precipitation} mm`;
+                        document.getElementById('windSpeed').textContent = `${windSpeed} m/s`;
+                        document.getElementById('weatherResult').style.display = 'block';
+                        document.getElementById('weatherLoading').style.display = 'none';
+                    } else {
+                        showWeatherError('Invalid data from Open-Meteo API');
+                    }
+                })
+                .catch(error => {
+                    showWeatherError(`Failed to fetch weather data: ${error.message}`);
+                    document.getElementById('weatherLoading').style.display = 'none';
+                });
+        }
+        function showWeatherError(message) {
+            const errorElement = document.getElementById('weatherError') || document.createElement('div');
+            errorElement.id = 'weatherError';
+            errorElement.className = 'error-message';
+            errorElement.textContent = message;
+            document.getElementById('getWeather').after(errorElement);
+        }
+        // Crop Recommendation Logic
+        document.getElementById('getRecommendation').addEventListener('click', function() {
+            // Show loading spinner
+            document.getElementById('loadingSpinner').style.display = 'inline-block';
+
+            // Simulate a delay (optional, to mimic API call)
+            setTimeout(() => {
+                // Always set the recommended crop to "wheat"
+                const resultDiv = document.getElementById('recommendationResult');
+                const cropsDiv = document.getElementById('recommendedCrops');
+
+                cropsDiv.innerHTML = `
+                    <div style="margin: 0.5rem 0; padding: 0.5rem; background: rgba(76, 175, 80, 0.1); border-radius: 4px;">
+                        Wheat
+                    </div>
+                `;
+
+                resultDiv.style.display = 'block';
+                document.getElementById('loadingSpinner').style.display = 'none';
+            }, 800); // Simulate a short delay
+        });
+        // Market Prices
+        document.getElementById('getPrices').addEventListener('click', function() {
+            const crop = document.getElementById('crop').value;
+            const mandi = document.getElementById('mandi').value;
+            if (!crop || !mandi) {
+                alert('Please select both crop and mandi');
+                return;
+            }
+            const priceData = {
+                "wheat": { pune: 2200, mumbai: 2150, delhi: 2300, bangalore: 2100, hyderabad: 2050 },
+                "rice": { pune: 3200, mumbai: 3300, delhi: 3100, bangalore: 3250, hyderabad: 3150 },
+                "maize": { pune: 1800, mumbai: 1750, delhi: 1850, bangalore: 1700, hyderabad: 1780 },
+                "cotton": { pune: 6200, mumbai: 6300, delhi: 6100, bangalore: 6250, hyderabad: 6150 },
+                "sugarcane": { pune: 320, mumbai: 310, delhi: 330, bangalore: 325, hyderabad: 315 }
+            };
+            const price = priceData[crop][mandi];
+            if (price) {
+                document.getElementById('marketPrices').innerHTML = `
+                    <div>Current price for ${crop} in ${mandi}: ₹${price}/quintal</div>
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-light);">
+                        Note: Prices are indicative and may vary. Last updated: ${new Date().toLocaleDateString()}
+                    </div>
+                `;
+                document.getElementById('priceResult').style.display = 'block';
+            } else {
+                alert('Price data not available for the selected crop and mandi');
+            }
+        });
+    </script>
+</body>
+</html>

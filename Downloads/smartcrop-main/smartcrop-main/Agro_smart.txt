@@ -1,0 +1,137 @@
+                                [ Home Page ]
+                                      |
+        -----------------------------------------------------------------
+        |                               |                               |
+ [About Project]                 [Crop Recommendation]             [Data Insights]
+                                        |                               |
+                                ---------------------         --------------------------
+                                |                   |         |                        |
+                         [Input Form]         [Results]  [District Map]          [Charts/Stats]
+                                |
+                        -----------------
+                        |               |
+               [Best Crop Suggestion]   [Fertilizer Advice]
+
+
+        -----------------------------------------------------------------
+                                |
+                           [Contact Us]
+
+
+
+📌 Page-by-Page Explanation
+1. Home Page
+
+Intro to project: “AI-based Crop Recommendation for Punjab Farmers”
+
+Call to action: Start Recommendation →
+
+2. About Project
+
+Why this project is important (Punjab’s soil diversity, crop yield issues).
+
+Tech stack: ML model, soil data, weather API.
+
+Impact: Better yield, optimized resources, sustainability.
+
+3. Crop Recommendation (Core Feature)
+
+Input Form → Farmer inputs:
+
+District & Village (drop-down / search)
+
+Soil Parameters (pH, Nitrogen, Phosphorus, Potassium)
+
+Weather (auto from API or manual)
+
+Results Page
+
+Recommended crop(s) ✅
+
+Fertilizer suggestions
+
+Water requirement estimate
+
+4. Data Insights
+
+Punjab map (district-wise clickable).
+
+Charts showing soil fertility trends, rainfall, crop productivity.
+
+Option to explore dataset visually.
+
+5. Contact Us
+
+Form for farmers/researchers to connect.
+
+Email/social handles.
+
+⚡ Optional Future Additions
+
+Language Toggle (English / Punjabi).
+
+Farmer Dashboard (save past results).
+
+Mobile-first UI (PWA).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+🌱 Home Page Flow (Farmer-Friendly)
+
+1. Header (Top Section)
+
+Logo (Farm-related, simple, recognizable)
+
+Navigation Menu: Home | About | FAQ | Contact
+
+Language Selector 🌐
+
+Login / Sign Up button
+
+2. Hero Section (Main Banner)
+
+Background image (farm, crops, or farmers at work)
+
+Welcome text: “Get smart, simple farming advice.”
+
+Central Call-To-Action Button: 👉 Get Recommendation
+
+3. Quick Access Section
+
+Three large, farmer-friendly icons with text below:
+
+🌤️ Weather Updates (Current + Forecast)
+
+📊 Market Prices (Latest mandi prices by district)
+
+🌾 Crop Info (Select crop to learn basics)
+
+4. Features / Why Choose Us
+
+Three short points with visuals/icons:
+✔ Personalized Advice
+✔ Easy-to-Understand Language
+✔ Voice Assistance Option
+
+5. Footer (Bottom Section)
+
+Links: Help, Privacy Policy, Terms
+
+📞 Contact info (Phone number, SMS helpline, WhatsApp)
+
+Small credits (e.g., “Made for SIH 2025”)

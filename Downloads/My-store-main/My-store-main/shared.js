@@ -8,11 +8,18 @@ const SB_KEY = 'sb_publishable_E3W5FNr_zAmej5fLElsvCA_OeDkde6L';
 
 /* ── Supabase REST helpers ─────────────────────────────── */
 
+// Session lives in localStorage for a persistent (Google) login, or
+// sessionStorage for a password login that should clear when the tab/app
+// closes. Check both so either login method's session gets picked up.
+function _readSbSession() {
+  return localStorage.getItem('sb_session') || sessionStorage.getItem('sb_session');
+}
+
 function _sbHeaders(extras = {}) {
   // Use authenticated JWT if available (admin), fall back to anon key (store)
   let token = SB_KEY;
   try {
-    const raw = sessionStorage.getItem('sb_session');
+    const raw = _readSbSession();
     if (raw) {
       const s = JSON.parse(raw);
       if (s.access_token) token = s.access_token;
@@ -31,7 +38,7 @@ function _sbHeaders(extras = {}) {
 async function sbGet(tableAndQuery) {
   let token = SB_KEY;
   try {
-    const raw = sessionStorage.getItem('sb_session');
+    const raw = _readSbSession();
     if (raw) { const s = JSON.parse(raw); if (s.access_token) token = s.access_token; }
   } catch {}
   const res = await fetch(
@@ -259,4 +266,130 @@ function _toUTCms(val) {
 
 function placeholderSVG() {
   return '<svg viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="1.2" opacity=".25"><rect x="2" y="7" width="20" height="14" rx="2"/><circle cx="12" cy="14" r="3"/><path d="M2 10h20"/></svg>';
+}
+
+/* ── Customer Google-login gate (index.html) ─────────────
+   Separate from admin.html's own Google/password auth block —
+   this is the "only approved emails can view the store" gate.
+   Uses localStorage (persistent), matching _readSbSession's
+   convention that a Google session should survive tab/app close. ── */
+
+const _GATE_AUTH_URL = SB_URL + '/auth/v1';
+
+// Kicks off the Supabase Google OAuth redirect flow.
+function startGoogleLogin() {
+  const redirectTo = window.location.origin + window.location.pathname;
+  window.location.href =
+    _GATE_AUTH_URL + '/authorize?provider=google&redirect_to=' + encodeURIComponent(redirectTo);
+}
+
+// After Supabase/Google redirect back, the tokens arrive in the URL
+// hash (#access_token=...&refresh_token=...). Pull them out, save
+// them persistently, and clean the URL so they don't linger.
+function _captureGateRedirect() {
+  if (!window.location.hash) return false;
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const access_token  = params.get('access_token');
+  const refresh_token = params.get('refresh_token');
+  if (access_token && refresh_token) {
+    localStorage.setItem('sb_session', JSON.stringify({ access_token, refresh_token }));
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    return true;
+  }
+  return false;
+}
+
+async function _gateFetchUser(token) {
+  try {
+    const res = await fetch(_GATE_AUTH_URL + '/user', {
+      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + token }
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+async function _gateRefreshSession(refresh_token) {
+  try {
+    const res = await fetch(_GATE_AUTH_URL + '/token?grant_type=refresh_token', {
+      method: 'POST',
+      headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+// Returns one of:
+//   { status: 'approved', email }  — signed in AND approved
+//   { status: 'pending',  email }  — signed in, request filed, awaiting a decision
+//   { status: 'banned',   email }  — signed in, but blocked
+//   { status: 'signed_out' }       — no valid session
+async function getGateStatus() {
+  _captureGateRedirect();
+
+  // The gate only ever writes to localStorage, but read via
+  // _readSbSession so an admin's sessionStorage password-session on
+  // this same tab isn't mistaken for a customer session (it will
+  // simply fail the allowed_emails check below and land on pending).
+  const raw = _readSbSession();
+  if (!raw) return { status: 'signed_out' };
+
+  let session;
+  try { session = JSON.parse(raw); } catch { localStorage.removeItem('sb_session'); return { status: 'signed_out' }; }
+  if (!session.access_token) { localStorage.removeItem('sb_session'); return { status: 'signed_out' }; }
+
+  // Validate against Supabase's server — cannot be spoofed locally.
+  let user = await _gateFetchUser(session.access_token);
+  if (!user && session.refresh_token) {
+    const refreshed = await _gateRefreshSession(session.refresh_token);
+    if (refreshed && refreshed.access_token) {
+      session = refreshed;
+      localStorage.setItem('sb_session', JSON.stringify(session));
+      user = await _gateFetchUser(session.access_token);
+    }
+  }
+  if (!user || !user.email) {
+    localStorage.removeItem('sb_session');
+    return { status: 'signed_out' };
+  }
+
+  // The admin account always gets through the store gate, same as the
+  // SQL policies' bypass — no need for it to go through the request list.
+  if (user.email === 'satyam64136@gmail.com') return { status: 'approved', email: user.email };
+
+  // RLS only lets a signed-in user read their OWN row, so this reflects
+  // the server's actual decision, not anything the client could fake.
+  try {
+    const rows = await sbGet('allowed_emails?email=eq.' + encodeURIComponent(user.email) + '&select=status');
+    if (Array.isArray(rows) && rows.length > 0) {
+      const s = rows[0].status;
+      if (s === 'approved') return { status: 'approved', email: user.email };
+      if (s === 'banned')   return { status: 'banned',   email: user.email };
+      return { status: 'pending', email: user.email };
+    }
+    // First time this email has signed in — file a pending request so
+    // it shows up in the admin's Access tab without any manual step.
+    await sbPost('allowed_emails', { email: user.email, status: 'pending' }).catch(() => {});
+  } catch { /* fall through to pending below */ }
+
+  return { status: 'pending', email: user.email };
+}
+
+async function signOutGate() {
+  const raw = _readSbSession();
+  if (raw) {
+    try {
+      const s = JSON.parse(raw);
+      if (s.access_token) {
+        fetch(_GATE_AUTH_URL + '/logout', {
+          method: 'POST',
+          headers: { apikey: SB_KEY, Authorization: 'Bearer ' + s.access_token },
+        }).catch(() => {});
+      }
+    } catch {}
+  }
+  localStorage.removeItem('sb_session');
+  window.location.reload();
 }

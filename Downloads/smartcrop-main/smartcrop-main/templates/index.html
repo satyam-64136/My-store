@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agro AI - Smart Crop Recommendation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --primary-light: #C8E6C9;
+            --secondary: #FFC107;
+            --accent: #009688;
+            --text: #333333;
+            --text-light: #666666;
+            --white: #FFFFFF;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            --border-radius: 16px;
+            --transition: all 0.3s ease;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+        body {
+            background-color: #F8F9FA;
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        /* Navigation */
+        nav {
+            background-color: var(--white);
+            box-shadow: var(--shadow);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 0.8rem 0;
+        }
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .logo i {
+            margin-right: 0.5rem;
+            color: var(--primary);
+            font-size: 2.2rem;
+        }
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text);
+            font-weight: 500;
+            padding: 0.7rem 0;
+            position: relative;
+            transition: var(--transition);
+            font-size: 1.05rem;
+        }
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background-color: var(--accent);
+            transition: var(--transition);
+        }
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+        .nav-links a.active {
+            color: var(--accent);
+            font-weight: 600;
+        }
+        .nav-links a.active::after {
+            width: 100%;
+        }
+        .hamburger {
+            display: none;
+            cursor: pointer;
+            font-size: 1.6rem;
+            color: var(--primary);
+        }
+        .auth-buttons {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        .btn-primary {
+            padding: 0.7rem 1.5rem;
+            background-color: var(--primary);
+            color: var(--white);
+            border: none;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            transition: var(--transition);
+            cursor: pointer;
+            font-size: 0.95rem;
+            text-decoration: none;
+        }
+        .btn-primary:hover {
+            background-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .btn-outline {
+            padding: 0.7rem 1.5rem;
+            background-color: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            transition: var(--transition);
+            cursor: pointer;
+            font-size: 0.95rem;
+            text-decoration: none;
+        }
+        .btn-outline:hover {
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            background: linear-gradient(rgba(10, 10, 18, 0.7), rgba(10, 10, 18, 0.7)),
+                        url('https://images.unsplash.com/photo-1620712943543-bcc4688e7485?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1332&q=80') no-repeat center center;
+            background-size: cover;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: var(--white);
+            padding: 2rem;
+            margin-top: 80px;
+        }
+        .hero-content {
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem;
+            background: rgba(10, 10, 18, 0.6);
+            border-radius: var(--border-radius);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(90deg, #FFD700, #4CAF50, #009688);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.1;
+        }
+        .hero p {
+            font-size: 1.4rem;
+            margin-bottom: 2.5rem;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.6;
+        }
+        .hero-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        /* Footer Links */
+        .footer-links {
+            position: fixed;
+            bottom: 2rem;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            margin: 0 1rem;
+            transition: var(--transition);
+        }
+        .footer-links a:hover {
+            color: var(--secondary);
+            text-decoration: underline;
+        }
+        /* Features Section */
+        .section {
+            padding: 5rem 0;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+        .section-subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--text-light);
+            margin-bottom: 4rem;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2.5rem;
+        }
+        .feature-card {
+            background-color: var(--white);
+            padding: 2.5rem;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+            transition: var(--transition);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+        }
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+            border-color: rgba(0, 0, 0, 0.1);
+        }
+        .feature-icon {
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        .feature-icon::after {
+            content: '';
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+        }
+        .feature-card h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+        .feature-card p {
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+        /* Quick Access Section */
+        .quick-access {
+            background-color: var(--primary-light);
+            padding: 4rem 0;
+        }
+        .quick-access-title {
+            text-align: center;
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+        .quick-access-subtitle {
+            text-align: center;
+            font-size: 1.1rem;
+            color: var(--text-light);
+            margin-bottom: 3rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .quick-access-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+        .quick-access-card {
+            background-color: var(--white);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            text-align: center;
+            transition: var(--transition);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        .quick-access-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 60px;
+            height: 100%;
+            background: linear-gradient(45deg, transparent, rgba(0, 150, 136, 0.1));
+        }
+        .quick-access-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+        }
+        .quick-access-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, rgba(0, 150, 136, 0.2), rgba(76, 175, 80, 0.2));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            color: var(--primary);
+            font-size: 2.2rem;
+            border: 2px dashed rgba(76, 175, 80, 0.3);
+        }
+        .quick-access-card h3 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+        .quick-access-card p {
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+        /* How It Works */
+        .how-it-works {
+            background-color: var(--white);
+            padding: 5rem 0;
+        }
+        .how-it-works-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2.5rem;
+        }
+        .how-it-works-card {
+            text-align: center;
+            padding: 2rem;
+        }
+        .how-it-works-icon {
+            width: 96px;
+            height: 96px;
+            background-color: var(--primary-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+        }
+        .how-it-works-card h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+        .how-it-works-card p {
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+        /* CTA Section */
+        .cta-section {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            padding: 5rem 0;
+            color: var(--white);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon fill="rgba(255,255,255,0.03)" points="0,0 100,0 50,50"/></svg>') repeat;
+            animation: float 15s linear infinite;
+        }
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0); }
+        }
+        .cta-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+        .cta-subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 2.5rem;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            opacity: 0.9;
+        }
+        .cta-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+        .cta-btn-primary {
+            padding: 1rem 2.5rem;
+            background-color: var(--secondary);
+            color: var(--primary);
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: var(--transition);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        .cta-btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+            background-color: var(--white);
+            color: var(--primary);
+        }
+        .cta-btn-secondary {
+            padding: 1rem 2.5rem;
+            background-color: transparent;
+            color: var(--white);
+            border: 2px solid var(--white);
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+        .cta-btn-secondary:hover {
+            background-color: var(--white);
+            color: var(--primary);
+        }
+        .cta-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: var(--border-radius);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            margin-top: 2rem;
+        }
+        /* Footer */
+        footer {
+            background-color: var(--primary);
+            color: var(--white);
+            padding: 3rem 0 0;
+            width: 100%;
+        }
+        .footer-content {
+            padding: 3rem 0;
+        }
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2.5rem;
+        }
+        .footer-column h4 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-bottom: 0.5rem;
+        }
+        .footer-column h4::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 50px;
+            height: 2px;
+            background-color: var(--secondary);
+        }
+        .footer-column ul {
+            list-style: none;
+        }
+        .footer-column ul li {
+            margin-bottom: 0.8rem;
+        }
+        .footer-column ul li a {
+            color: var(--white);
+            text-decoration: none;
+            transition: color 0.3s;
+            opacity: 0.9;
+        }
+        .footer-column ul li a:hover {
+            color: var(--secondary);
+            opacity: 1;
+        }
+        .contact-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .contact-info i {
+            margin-right: 0.8rem;
+            color: var(--secondary);
+            font-size: 1.1rem;
+        }
+        .social-links {
+            display: flex;
+            gap: 1.2rem;
+            margin-top: 1.5rem;
+        }
+        .social-links a {
+            color: var(--white);
+            font-size: 1.4rem;
+            transition: all 0.3s;
+            opacity: 0.9;
+        }
+        .social-links a:hover {
+            color: var(--secondary);
+            transform: translateY(-3px);
+            opacity: 1;
+        }
+        .copyright {
+            text-align: center;
+            padding: 1.5rem 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 0.9rem;
+            opacity: 0.8;
+            background-color: #1B5E20;
+        }
+        .hackathon-badge {
+            display: inline-block;
+            background-color: var(--secondary);
+            color: var(--primary);
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        /* Mobile Menu */
+        .mobile-menu {
+            display: none;
+            position: fixed;
+            top: 70px;
+            left: 0;
+            right: 0;
+            background-color: var(--white);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 999;
+            padding: 1rem 0;
+        }
+        .mobile-menu.active {
+            display: block;
+        }
+        .mobile-menu-links {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 0 1.5rem;
+        }
+        .mobile-menu-links a {
+            padding: 1rem;
+            color: var(--text);
+            text-decoration: none;
+            transition: all 0.2s;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            text-align: center;
+            font-size: 1rem;
+        }
+        .mobile-menu-links a:last-child {
+            border-bottom: none;
+        }
+        .mobile-menu-links a:hover {
+            background-color: rgba(76, 175, 80, 0.1);
+            color: var(--primary);
+        }
+        .mobile-menu-links a.active {
+            background-color: rgba(76, 175, 80, 0.2);
+            color: var(--primary);
+            font-weight: 600;
+        }
+        .mobile-auth-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            padding: 1rem 1.5rem 1.5rem;
+        }
+        .mobile-auth-buttons .btn-primary,
+        .mobile-auth-buttons .btn-outline {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1rem;
+        }
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hamburger {
+                display: block;
+            }
+            .nav-links {
+                display: none;
+            }
+            .auth-buttons {
+                display: none;
+            }
+            body {
+                padding-top: 60px;
+            }
+            .hero h1 {
+                font-size: 2.2rem;
+            }
+            .hero p {
+                font-size: 1.1rem;
+                margin-bottom: 1.5rem;
+            }
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            .section {
+                padding: 3rem 0;
+            }
+            .section-title {
+                font-size: 1.8rem;
+            }
+            .section-subtitle {
+                font-size: 1rem;
+                margin-bottom: 2rem;
+            }
+            .features-grid,
+            .quick-access-grid,
+            .how-it-works-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            .feature-card,
+            .quick-access-card {
+                padding: 1.8rem;
+            }
+            .feature-icon,
+            .quick-access-icon {
+                width: 70px;
+                height: 70px;
+                margin-bottom: 1rem;
+            }
+            .cta-title {
+                font-size: 1.8rem;
+            }
+            .cta-subtitle {
+                font-size: 1rem;
+                margin-bottom: 2rem;
+            }
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            .cta-btn-primary,
+            .cta-btn-secondary {
+                width: 100%;
+                max-width: 300px;
+                padding: 1rem 1.5rem;
+                font-size: 1rem;
+                margin-bottom: 1rem;
+            }
+            .cta-image {
+                max-height: 200px;
+                margin-top: 1.5rem;
+            }
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            .footer-column {
+                text-align: center;
+            }
+            .copyright {
+                font-size: 0.8rem;
+            }
+            .mobile-menu-links a {
+                font-size: 1rem;
+                padding: 1rem;
+            }
+            .mobile-auth-buttons .btn-primary,
+            .mobile-auth-buttons .btn-outline {
+                font-size: 1rem;
+                padding: 1rem;
+            }
+        }
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <div class="logo">
+                <i class="fas fa-seedling"></i>
+                <span>Agro AI</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#tools">Tools</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+            <div class="auth-buttons">
+                <a href="/login" class="btn-outline">Login</a>
+                <a href="/signup" class="btn-primary">Sign Up</a>
+            </div>
+            <div class="hamburger" id="hamburger">
+                <i class="fas fa-bars"></i>
+            </div>
+        </div>
+        <!-- Mobile Menu -->
+        <div class="mobile-menu" id="mobile-menu">
+            <div class="mobile-menu-links">
+                <a href="#features">Features</a>
+                <a href="#tools">Tools</a>
+                <a href="#how-it-works">How It Works</a>
+                <a href="#contact">Contact</a>
+            </div>
+            <div class="mobile-auth-buttons">
+                <a href="/login" class="btn-outline">Login</a>
+                <a href="/signup" class="btn-primary">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Smart Crop Recommendation<br>(Powered by NASA Data)</h1>
+            <p>Get data-driven, hyper-local crop advice using satellite imagery and AI. Optimize yields, reduce costs, and farm smarter.</p>
+            <div class="hero-buttons">
+                <a href="/signup" class="btn-primary">Get Recommendations</a>
+                <a href="#how-it-works" class="btn-outline">See How It Works</a>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- Features Section -->
+    <section id="features" class="section">
+        <div class="container">
+            <h2 class="section-title">Designed For Indian Farmers</h2>
+            <p class="section-subtitle">Simple tools that work on any phone, in your language, with no technical knowledge needed</p>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-language"></i>
+                    </div>
+                    <h3>Your Local Language</h3>
+                    <p>Get information in Hindi, Tamil, Telugu, Marathi, Bengali, and other Indian languages.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-cloud-sun-rain"></i>
+                    </div>
+                    <h3>Weather Alerts</h3>
+                    <p>Get 3-day weather forecasts for your village by SMS or voice call.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <h3>Market Prices</h3>
+                    <p>Check today's prices for your crops at nearby mandis before you sell.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Access Tools -->
+    <section id="tools" class="quick-access">
+        <div class="container">
+            <h2 class="quick-access-title">Simple Tools for Better Farming</h2>
+            <p class="quick-access-subtitle">Get instant access to the information you need, when you need it</p>
+            <div class="quick-access-grid">
+                <div class="quick-access-card">
+                    <div class="quick-access-icon">
+                        <i class="fas fa-leaf"></i>
+                    </div>
+                    <h3>Farming Advice</h3>
+                    <p>Get crop recommendations and fertilizer advice tailored to your soil and weather conditions.</p>
+                </div>
+                <div class="quick-access-card">
+                    <div class="quick-access-icon">
+                        <i class="fas fa-satellite"></i>
+                    </div>
+                    <h3>Weather Forecasts</h3>
+                    <p>Receive 3-day weather forecasts for your village, powered by NASA satellite data.</p>
+                </div>
+                <div class="quick-access-card">
+                    <div class="quick-access-icon">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <h3>Expert Help</h3>
+                    <p>Ask questions and get free advice from agricultural experts in your language via SMS or WhatsApp.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section id="how-it-works" class="how-it-works">
+        <div class="container">
+            <h2 class="section-title">How It Works</h2>
+            <p class="section-subtitle">3 easy steps to get farming advice</p>
+            <div class="how-it-works-grid">
+                <div class="how-it-works-card">
+                    <div class="how-it-works-icon">
+                        <i class="fas fa-mobile-alt" style="color: var(--primary); font-size: 2.5rem;"></i>
+                    </div>
+                    <h3>Step 1: Register</h3>
+                    <p>Sign up with your phone number (works on any phone).</p>
+                </div>
+                <div class="how-it-works-card">
+                    <div class="how-it-works-icon">
+                        <i class="fas fa-comment-dots" style="color: var(--primary); font-size: 2.5rem;"></i>
+                    </div>
+                    <h3>Step 2: Tell Us About Your Farm</h3>
+                    <p>Share your location and crop details (we'll guide you through it).</p>
+                </div>
+                <div class="how-it-works-card">
+                    <div class="how-it-works-icon">
+                        <i class="fas fa-lightbulb" style="color: var(--primary); font-size: 2.5rem;"></i>
+                    </div>
+                    <h3>Step 3: Get Advice</h3>
+                    <p>Receive personalized recommendations by SMS or voice call.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section id="contact" class="cta-section">
+        <div class="container">
+            <h2 class="cta-title">Ready to Try Agro AI?</h2>
+            <p class="cta-subtitle">Join thousands of farmers who are getting better yields with simple, practical advice</p>
+            <div class="cta-buttons">
+                <a href="/signup" class="cta-btn-primary">Sign Up Free</a>
+                <a href="#features" class="cta-btn-secondary">Learn More</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="container">
+                <div class="footer-grid">
+                    <div class="footer-column">
+                        <div class="logo" style="color: white; margin-bottom: 1.5rem; justify-content: flex-start;">
+                            <i class="fas fa-seedling"></i>
+                            <span style="margin-left: 0.5rem;">Agro AI</span>
+                        </div>
+                        <p style="margin-bottom: 1rem;">Your Personal Farming Assistant</p>
+                        <div class="hackathon-badge">Made in India 🇮🇳</div>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Quick Links</h4>
+                        <ul>
+                            <li><a href="#features">Features</a></li>
+                            <li><a href="#tools">Tools</a></li>
+                            <li><a href="#how-it-works">How It Works</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Contact Us</h4>
+                        <div class="contact-info">
+                            <i class="fas fa-phone-alt"></i>
+                            <span>📞 Call: 1800-123-4567</span>
+                        </div>
+                        <div class="contact-info">
+                            <i class="fas fa-comment-dots"></i>
+                            <span>💬 SMS: AGRO to 56767</span>
+                        </div>
+                        <div class="contact-info">
+                            <i class="fab fa-whatsapp" style="color: #25D366;"></i>
+                            <span>📱 WhatsApp: +91 98765 43210</span>
+                        </div>
+                        <div class="social-links">
+                            <a href="#"><i class="fab fa-facebook-f"></i></a>
+                            <a href="#"><i class="fab fa-youtube"></i></a>
+                            <a href="#"><i class="fab fa-twitter"></i></a>
+                        </div>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Languages</h4>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
+                            <span style="background: rgba(255,255,255,0.2); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;">हिन्दी</span>
+                            <span style="background: rgba(255,255,255,0.2); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;">தமிழ்</span>
+                            <span style="background: rgba(255,255,255,0.2); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;">తెలుగు</span>
+                            <span style="background: rgba(255,255,255,0.2); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;">मराठी</span>
+                            <span style="background: rgba(255,255,255,0.2); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;">বাংলা</span>
+                            <span style="background: rgba(255,255,255,0.2); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;">ગુજરાતી</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="copyright">
+            <p>© 2025 Agro AI. Made with ♥ for Indian Farmers.</p>
+            <p class="mt-2 text-xs">No smartphone needed. Works on all basic phones.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Mobile menu toggle
+        const hamburger = document.getElementById('hamburger');
+        const mobileMenu = document.getElementById('mobile-menu');
+        if (hamburger && mobileMenu) {
+            hamburger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                mobileMenu.classList.toggle('active');
+            });
+            // Close mobile menu when clicking a link
+            document.querySelectorAll('.mobile-menu-links a').forEach(link => {
+                link.addEventListener('click', () => {
+                    mobileMenu.classList.remove('active');
+                });
+            });
+            // Close mobile menu when clicking outside
+            document.addEventListener('click', (event) => {
+                if (!hamburger.contains(event.target) && !mobileMenu.contains(event.target)) {
+                    mobileMenu.classList.remove('active');
+                }
+            });
+        }
+        // Smooth scrolling for navigation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (mobileMenu) mobileMenu.classList.remove('active');
+                const targetId = this.getAttribute('href');
+                if (targetId === '#') return;
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

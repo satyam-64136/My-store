@@ -4,11 +4,16 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <meta name="theme-color" content="#0c0c0d"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <title>Satyam's Store</title>
   <link rel="stylesheet" href="style.css"/>
   <!-- Preconnect to font origin so the TCP handshake is done before CSS requests it -->
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="preconnect" href="https://unpkg.com"/>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin/>
   <!-- Font CSS with display=swap — doesn't block render, swaps in when ready -->
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
   <noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/></noscript>
@@ -49,6 +54,30 @@
   </div>
 </div>
 
+<!-- ════ AUTH GATE — only approved Google accounts get past this ════ -->
+<div id="auth-gate" class="hidden">
+  <video id="gate-video" autoplay muted loop playsinline preload="auto">
+    <source src="login-bg.mp4" type="video/mp4">
+  </video>
+  <audio id="gate-audio" loop preload="auto">
+    <source src="login-bg.mp3" type="audio/mpeg">
+  </audio>
+  <div class="gate-overlay"></div>
+  <div class="gate-content">
+    <button id="gate-g-btn" class="gate-google-btn" onclick="startGoogleLogin()">
+      <svg width="18" height="18" viewBox="0 0 48 48" style="flex-shrink:0">
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/>
+        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 18.9 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4c-7.4 0-13.8 4.1-17.1 10.2z"/>
+        <path fill="#4CAF50" d="M24 44c5.5 0 10.4-1.9 14.3-5.1l-6.6-5.4C29.6 35.4 26.9 36.4 24 36.4c-5.2 0-9.6-3.3-11.2-7.9l-6.6 5.1C9.9 39.7 16.4 44 24 44z"/>
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.6 5.4C41.4 35.9 44 30.3 44 24c0-1.3-.1-2.7-.4-3.5z"/>
+      </svg>
+      <span>Sign in with Google</span>
+    </button>
+    <p id="gate-status-text" class="gate-status-text hidden"></p>
+    <button id="gate-signout-link" class="gate-signout-link hidden" onclick="signOutGate()">Sign out</button>
+  </div>
+</div>
+
 <!-- ════ NAV ════ -->
 <nav class="site-nav" id="main-nav">
   <div class="nav-inner">
@@ -58,6 +87,9 @@
     </a>
     <div class="nav-links">
       <!-- Order button removed — already on the store page -->
+      <button class="nav-link-icon" id="notify-bell-btn" onclick="toggleCustomerNotify()" title="Get notified">
+        <i data-lucide="bell" id="notify-bell-icon" style="width:14px;height:14px"></i>
+      </button>
       <!-- Icon only for admin, no label -->
       <a class="nav-link-icon" href="admin.html" title="Admin">
         <i data-lucide="settings" style="width:14px;height:14px"></i>
@@ -227,14 +259,37 @@
 <!-- ════ MODALS ════ -->
 <div id="toast" class="toast hidden"></div>
 
+<div id="notify-prompt-overlay" class="overlay hidden">
+  <div class="modal" style="max-width:340px;text-align:center">
+    <div class="success-icon" style="margin-bottom:12px">
+      <i data-lucide="bell-ring" style="width:22px;height:22px;color:var(--accent)"></i>
+    </div>
+    <div class="modal-title">Stay in the loop</div>
+    <p class="modal-sub" style="margin:6px 0 18px;line-height:1.6">Get notified the moment the store opens, closes, or has an update — nothing else, no spam.</p>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="_acceptNotifyPrompt()">
+        <i data-lucide="bell" style="width:12px;height:12px"></i> Turn on notifications
+      </button>
+      <button class="btn-ghost" onclick="_dismissNotifyPrompt()">Maybe later</button>
+    </div>
+  </div>
+</div>
+
 <div id="success-overlay" class="overlay hidden">
   <div class="modal" style="max-width:320px;text-align:center">
     <div class="success-icon" style="margin-bottom:12px">
-      <i data-lucide="check-circle-2" style="width:24px;height:24px;color:var(--green)"></i>
+      <svg id="success-check-svg" width="26" height="26" viewBox="0 0 52 52" fill="none">
+        <circle id="success-check-circle" cx="26" cy="26" r="23" fill="none" stroke="var(--green)" stroke-width="2.5"/>
+        <path id="success-check-path" d="M15 27l7 7 15-15" fill="none" stroke="var(--green)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
     </div>
     <div class="modal-title">Order Placed</div>
     <p class="modal-sub" style="margin-top:5px">Pending admin approval.</p>
-    <p style="font-size:.68rem;color:var(--t3);margin-top:10px">Redirecting to store…</p>
+    <div class="pickup-notice">
+      <i data-lucide="map-pin" style="width:15px;height:15px;flex-shrink:0"></i>
+      <span>Please come collect your order from the store</span>
+    </div>
+    <button class="btn-primary" style="margin-top:14px;width:100%" onclick="_dismissSuccess()">Got it</button>
   </div>
 </div>
 
@@ -249,31 +304,39 @@ function switchView(name) {
   const bar      = document.getElementById('bottom-bar');
   if (!incoming || incoming === outgoing) return;
 
+  // Native-app-style directional push: payment slides in from the right,
+  // going back to the store slides in from the left. Most visitors are on
+  // phones, so this is the transition they'll feel on every single tap.
+  const forward = name === 'payment';
+  const offset  = forward ? 22 : -22;
+
   const _activate = () => {
-    // Hide all, show incoming — but keep it invisible so GSAP can fade in
     document.querySelectorAll('.view').forEach(v => {
       v.classList.remove('active');
       v.style.opacity = '';
+      if (typeof gsap !== 'undefined') gsap.set(v, { clearProps: 'transform' });
     });
     document.getElementById('main-nav').classList.toggle('hidden', name !== 'store');
     document.getElementById('pay-nav').classList.toggle('hidden',  name !== 'payment');
     if (bar) bar.style.display = (name === 'store') ? 'flex' : 'none';
 
-    // Pre-set opacity to 0 BEFORE making it active (kills the 1-frame flash)
-    if (typeof gsap !== 'undefined') gsap.set(incoming, { opacity: 0 });
     incoming.classList.add('active');
     window.scrollTo(0, 0);
 
+    if (typeof gsap !== 'undefined') {
+      gsap.fromTo(incoming,
+        { opacity: 0, x: offset },
+        { opacity: 1, x: 0, duration: .42, ease: 'power3.out', clearProps: 'all' }
+      );
+    }
+
     requestAnimationFrame(() => {
       if (typeof lucide !== 'undefined') lucide.createIcons();
-      if (typeof gsap !== 'undefined') {
-        gsap.to(incoming, { opacity: 1, duration: .35, ease: 'power2.out', delay: .03 });
-      }
     });
   };
 
   if (typeof gsap !== 'undefined' && outgoing) {
-    gsap.to(outgoing, { opacity: 0, duration: .18, ease: 'power2.in', onComplete: _activate });
+    gsap.to(outgoing, { opacity: 0, x: -offset, duration: .22, ease: 'power2.in', onComplete: _activate });
   } else {
     _activate();
   }
@@ -325,6 +388,81 @@ async function checkStoreStatus() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  else window.addEventListener('lucide-ready', () => lucide.createIcons());
+  initAuthGate();
+});
+
+// Runs before anything else loads — only an approved, signed-in
+// Google account gets past this into startApp().
+async function initAuthGate() {
+  const gate = document.getElementById('auth-gate');
+  let result;
+  try {
+    result = await getGateStatus();
+  } catch {
+    result = { status: 'signed_out' };
+  }
+
+  if (result.status === 'approved') {
+    _stopGateMedia();
+    gate.classList.add('hidden');
+    startApp();
+    return;
+  }
+
+  hideLoader();
+  gate.classList.remove('hidden');
+  _playGateMedia();
+
+  const btn     = document.getElementById('gate-g-btn');
+  const text    = document.getElementById('gate-status-text');
+  const signout = document.getElementById('gate-signout-link');
+
+  if (result.status === 'pending') {
+    btn.classList.add('hidden');
+    text.textContent = 'Request sent — waiting for approval';
+    text.classList.remove('hidden');
+    signout.classList.remove('hidden');
+  } else if (result.status === 'banned') {
+    btn.classList.add('hidden');
+    text.textContent = 'Access denied';
+    text.classList.remove('hidden');
+    signout.classList.remove('hidden');
+  } else {
+    btn.classList.remove('hidden');
+    text.classList.add('hidden');
+    signout.classList.add('hidden');
+  }
+}
+
+// The video autoplays fine (it's muted, which browsers always allow),
+// but audio with sound needs a user gesture first in most browsers.
+// Try right away — some contexts allow it — and if that's blocked,
+// retry on the first tap/click/key anywhere on the gate.
+function _playGateMedia() {
+  const audio = document.getElementById('gate-audio');
+  const video = document.getElementById('gate-video');
+  if (video && video.paused) video.play().catch(() => {});
+  if (!audio) return;
+  const tryPlay = () => audio.play().catch(() => {});
+  tryPlay();
+  if (audio.paused) {
+    const retry = () => { tryPlay(); };
+    ['pointerdown', 'keydown'].forEach(evt =>
+      window.addEventListener(evt, retry, { once: true, passive: true })
+    );
+  }
+}
+
+function _stopGateMedia() {
+  const audio = document.getElementById('gate-audio');
+  const video = document.getElementById('gate-video');
+  if (audio) { audio.pause(); audio.currentTime = 0; }
+  if (video) { video.pause(); }
+}
+
+function startApp() {
   const saved = sessionStorage.getItem('ss_cart');
   if (saved) { try { cart = JSON.parse(saved); } catch(e){} }
   checkStoreStatus();
@@ -344,9 +482,16 @@ document.addEventListener('DOMContentLoaded', () => {
     loadProducts({ background: false });
   }
 
+  // Keep stock live while someone's browsing — without this, an item can
+  // sell out (via admin approving someone else's order) and still show as
+  // available here until the page happens to reload. Background mode
+  // always fetches fresh and only re-renders if something actually
+  // changed, so this doesn't cause flicker or interrupt anyone mid-tap.
+  setInterval(() => loadProducts({ background: true }), 15000);
+  window.addEventListener('focus', () => loadProducts({ background: true }));
+
   if (typeof lucide !== 'undefined') lucide.createIcons();
-  else window.addEventListener('lucide-ready', () => lucide.createIcons());
-});
+}
 
 async function loadProducts({ background = false } = {}) {
   if (!background) showState('loading');
@@ -360,6 +505,7 @@ async function loadProducts({ background = false } = {}) {
       const newStr = JSON.stringify(fresh.map(p => ({ id: p.id, stock: p.stock, price: p.price, hidden: p.hidden })));
       if (oldStr !== newStr) {
         allProducts = fresh;
+        _clampCartToStock();
         _renderFiltered();
         updateCartBar();
       }
@@ -380,6 +526,29 @@ async function loadProducts({ background = false } = {}) {
   }
 }
 
+// If a background stock refresh finds less stock than someone already has
+// in their cart (someone else's order just got approved on that item, for
+// example), trim their cart down to what's actually left instead of
+// letting them proceed to pay for more than exists.
+function _clampCartToStock() {
+  let changed = false;
+  for (const id of Object.keys(cart)) {
+    const p = allProducts.find(x => x.id === id);
+    const available = p ? p.stock : 0;
+    if (cart[id] > available) {
+      changed = true;
+      if (available <= 0) {
+        toast(`${p ? p.name : 'An item'} just sold out — removed from your cart`);
+        delete cart[id];
+      } else {
+        toast(`Only ${available} left of ${p.name} — updated your cart`);
+        cart[id] = available;
+      }
+    }
+  }
+  if (changed) sessionStorage.setItem('ss_cart', JSON.stringify(cart));
+}
+
 function _renderFiltered() {
   const visible = allProducts.filter(p => !p.hidden);
   const filtered = _activeFilter === 'all'
@@ -391,7 +560,11 @@ function _renderFiltered() {
 function setFilter(cat) {
   _activeFilter = cat;
   document.querySelectorAll('.filter-chip').forEach(c => {
-    c.classList.toggle('active', c.dataset.cat === cat);
+    const isNowActive = c.dataset.cat === cat;
+    c.classList.toggle('active', isNowActive);
+    if (isNowActive && typeof gsap !== 'undefined') {
+      gsap.fromTo(c, { scale: .88 }, { scale: 1, duration: .4, ease: 'back.out(3)' });
+    }
   });
   _renderFiltered();
 }
@@ -402,7 +575,10 @@ function renderGrid(products) {
   const grid = document.getElementById('product-grid');
   grid.innerHTML = products.map(p => buildCard(p)).join('');
   const cnt = document.getElementById('hero-prod-count');
-  if (cnt) cnt.textContent = products.length;
+  if (cnt) {
+    const prev = parseInt(cnt.textContent) || 0;
+    _animateNumber(cnt, prev, products.length, { duration: .45 });
+  }
   requestAnimationFrame(() => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
     _animateCardsIn();
@@ -453,6 +629,7 @@ function changeQty(id, delta) {
   const cur = cart[id] || 0;
   const next = Math.max(0, Math.min(cur + delta, p.stock));
   if (delta > 0 && next === cur) { toast("Can't add more, stock limit reached"); return; }
+  _haptic(delta > 0 ? 10 : 6);
   if (next === 0) delete cart[id]; else cart[id] = next;
   sessionStorage.setItem('ss_cart', JSON.stringify(cart));
 
@@ -526,8 +703,9 @@ function updateCartBar() {
   const countEl = document.getElementById('cart-count');
   const totalEl = document.getElementById('cart-total');
   const prevCount = parseInt(countEl.textContent) || 0;
+  const prevTotal = parseFloat(totalEl.textContent) || 0;
   countEl.textContent = count;
-  totalEl.textContent = total.toFixed(2);
+  _animateNumber(totalEl, prevTotal, total, { decimals: 2, duration: .4 });
   const bar = document.getElementById('bottom-bar');
 
   // Show/hide bar based on cart being empty
@@ -563,6 +741,7 @@ function updateCartBar() {
 function proceedToPayment() {
   if (isStoreClosed()) { toast('Store is currently closed. Please come back later.'); return; }
   if (!Object.keys(cart).length) { toast('Add items first'); return; }
+  _haptic(12);
   cartData = cart;
   productsData = allProducts;
   sessionStorage.setItem('ss_cart', JSON.stringify(cart));
@@ -587,9 +766,22 @@ function _animateCardsIn() {
   const cards = document.querySelectorAll('.p-card');
   if (!cards.length) return;
   gsap.fromTo(cards,
-    { opacity: 0 },
-    { opacity: 1, duration: .4, ease: 'power1.out', stagger: .025, clearProps: 'opacity' }
+    { opacity: 0, y: 14, scale: .95 },
+    { opacity: 1, y: 0, scale: 1, duration: .5, ease: 'power3.out', stagger: .03, clearProps: 'all' }
   );
+}
+
+// Smooth number count-up — used for the cart total and hero product count
+// so values glide instead of snapping, without needing a GSAP plugin.
+function _animateNumber(el, from, to, { decimals = 0, prefix = '', duration = .5 } = {}) {
+  if (typeof gsap === 'undefined' || from === to) { el.textContent = prefix + to.toFixed(decimals); return; }
+  gsap.killTweensOf(el);
+  const obj = { v: from };
+  gsap.to(obj, {
+    v: to, duration, ease: 'power2.out',
+    onUpdate: () => { el.textContent = prefix + obj.v.toFixed(decimals); },
+    onComplete: () => { el.textContent = prefix + to.toFixed(decimals); }
+  });
 }
 
 /* ═══════════════════════════════
@@ -663,6 +855,21 @@ function copyUPI() {
   }).catch(() => toast('Copy failed'));
 }
 
+// Draws the success checkmark stroke-by-stroke — ring first, then the tick —
+// so the payment-confirmed moment feels earned rather than just appearing.
+function _drawSuccessCheck() {
+  const circle = document.getElementById('success-check-circle');
+  const path   = document.getElementById('success-check-path');
+  if (!circle || !path) return;
+  const circleLen = circle.getTotalLength();
+  const pathLen   = path.getTotalLength();
+  gsap.set(circle, { strokeDasharray: circleLen, strokeDashoffset: circleLen });
+  gsap.set(path,   { strokeDasharray: pathLen,   strokeDashoffset: pathLen });
+  gsap.timeline()
+    .to(circle, { strokeDashoffset: 0, duration: .5, ease: 'power2.out' })
+    .to(path,   { strokeDashoffset: 0, duration: .35, ease: 'power2.out' }, '-=.1');
+}
+
 async function confirmPayment() {
   const btn = document.getElementById('confirm-btn');
   if (btn.disabled) return; // prevent double-tap
@@ -705,6 +912,7 @@ async function confirmPayment() {
   }
 
   clearTimeout(_safetyTimer);
+  _resetBtn(); // success path never reset it otherwise — next order attempt would find the button permanently stuck disabled
 
   // Webhook sync — fire and forget
   if (insertedOrder && ORDERS_WEBHOOK) {
@@ -718,6 +926,7 @@ async function confirmPayment() {
   sessionStorage.removeItem('ss_cart');
   sessionStorage.removeItem('ss_products');
   cart = {};
+  _haptic(16);
 
   const overlay = document.getElementById('success-overlay');
   overlay.classList.remove('hidden');
@@ -726,29 +935,191 @@ async function confirmPayment() {
       { opacity: 0, scale: .96 },
       { opacity: 1, scale: 1, duration: .3, ease: 'back.out(1.5)' }
     );
+    _drawSuccessCheck();
   }
   if (typeof lucide !== 'undefined') lucide.createIcons();
 
-  setTimeout(() => {
-    if (typeof gsap !== 'undefined') {
-      gsap.to(overlay, {
-        opacity: 0, scale: .96, duration: .2, ease: 'power2.in',
-        onComplete: () => {
-          overlay.classList.add('hidden');
-          updateCartBar();
-          switchView('store');
-        }
-      });
-    } else {
-      overlay.classList.add('hidden');
-      updateCartBar();
-      switchView('store');
-    }
-  }, 2400);
+  // Auto-dismiss is just a safety net now — the "Got it" button is the
+  // primary way people leave this screen, so they actually read the
+  // pickup notice instead of it vanishing on them.
+  clearTimeout(_successAutoTimer);
+  _successAutoTimer = setTimeout(_dismissSuccess, 6000);
+}
+
+let _successAutoTimer = null;
+function _dismissSuccess() {
+  clearTimeout(_successAutoTimer);
+  const overlay = document.getElementById('success-overlay');
+  if (overlay.classList.contains('hidden')) return;
+  if (typeof gsap !== 'undefined') {
+    gsap.to(overlay, {
+      opacity: 0, scale: .96, duration: .2, ease: 'power2.in',
+      onComplete: () => {
+        overlay.classList.add('hidden');
+        updateCartBar();
+        switchView('store');
+      }
+    });
+  } else {
+    overlay.classList.add('hidden');
+    updateCartBar();
+    switchView('store');
+  }
 }
 
 document.addEventListener('contextmenu', e => e.preventDefault());
 // Note: do NOT call preventDefault() on touchstart — it kills scroll on mobile
+
+// Tiny haptic tick on key actions — Android Chrome supports the Vibration
+// API, iOS Safari silently ignores it, so this is a free upgrade with no
+// downside. Kept very short (6-15ms) so it reads as a tick, not a buzz.
+function _haptic(ms = 10) {
+  try { if (navigator.vibrate) navigator.vibrate(ms); } catch(_) {}
+}
+
+// Edge swipe-back — swiping in from the left edge of the payment screen
+// returns to the store, mirroring the native iOS/Android back gesture.
+// Edge-only + mostly-horizontal checks keep it from firing during normal
+// scrolling or while using the QR/copy buttons.
+(function initSwipeBack() {
+  const EDGE = 24, THRESHOLD = 70, MAX_VERTICAL = 55;
+  let startX = 0, startY = 0, tracking = false;
+
+  document.addEventListener('touchstart', (e) => {
+    const payView = document.getElementById('view-payment');
+    if (!payView || !payView.classList.contains('active')) { tracking = false; return; }
+    const t = e.touches[0];
+    if (t.clientX > EDGE) { tracking = false; return; }
+    startX = t.clientX; startY = t.clientY; tracking = true;
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX;
+    const dy = Math.abs(t.clientY - startY);
+    if (dx > THRESHOLD && dy < MAX_VERTICAL) switchView('store');
+  }, { passive: true });
+})();
+
+/* ── Customer "notify me" push subscription ────────────
+   Opt-in only — never auto-prompts. Tapping the bell asks for
+   notification permission with real context (they just chose to), which
+   both respects the user and gets a far higher accept rate than a
+   surprise permission popup on page load. */
+const _VAPID_PUBLIC_KEY = 'BHH1a5bC0RxhrOrgW6xP5wSsAvZw3CCn8wKdnizQ276iSQmw_gqvQx4gOX-gsSQwK5bIQ7bfmgxmmQBGQrXxSNg';
+
+function _urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+function _setBellState(subscribed) {
+  const icon = document.getElementById('notify-bell-icon');
+  const btn  = document.getElementById('notify-bell-btn');
+  if (!icon || !btn) return;
+  icon.setAttribute('data-lucide', subscribed ? 'bell-ring' : 'bell');
+  btn.title = subscribed ? "You'll get store updates" : 'Get notified';
+  btn.style.color = subscribed ? 'var(--accent)' : '';
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function _checkCustomerNotifyState() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    _setBellState(!!sub);
+  } catch (_) {}
+}
+
+async function toggleCustomerNotify() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    toast('Notifications are not supported on this browser');
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.register('sw.js');
+    let sub = await reg.pushManager.getSubscription();
+
+    if (sub) {
+      // Already subscribed — tapping again unsubscribes
+      const endpoint = sub.endpoint;
+      await sub.unsubscribe().catch(() => {});
+      await sbDelete(`customer_push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`).catch(() => {});
+      _setBellState(false);
+      toast("You won't get store notifications anymore");
+      return;
+    }
+
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+      toast('Notifications permission was not granted');
+      return;
+    }
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: _urlBase64ToUint8Array(_VAPID_PUBLIC_KEY),
+    });
+    const raw = sub.toJSON();
+    await sbPost('customer_push_subscriptions', {
+      endpoint: raw.endpoint,
+      p256dh: raw.keys.p256dh,
+      auth: raw.keys.auth,
+    }).catch(() => {});
+    _setBellState(true);
+    toast("You'll now get store updates");
+  } catch (_) {
+    toast('Could not enable notifications');
+  }
+}
+
+/* ── Automatic notification prompt ──────────────────────
+   Shown prominently and automatically (not buried as a small icon
+   someone has to notice) — but it's dismissible and never blocks
+   browsing or ordering. It only shows once: after the person answers
+   either way, it doesn't nag them again on future visits. */
+const _NOTIFY_PROMPT_DISMISS_KEY = 'ss_notify_prompt_dismissed';
+
+function _shouldShowNotifyPrompt() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  if (Notification.permission !== 'default') return false; // already answered, one way or the other
+  if (localStorage.getItem(_NOTIFY_PROMPT_DISMISS_KEY)) return false;
+  return true;
+}
+
+function _showNotifyPromptIfNeeded() {
+  if (!_shouldShowNotifyPrompt()) return;
+  const overlay = document.getElementById('notify-prompt-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('hidden');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function _hideNotifyPrompt() {
+  const overlay = document.getElementById('notify-prompt-overlay');
+  if (overlay) overlay.classList.add('hidden');
+}
+
+function _dismissNotifyPrompt() {
+  localStorage.setItem(_NOTIFY_PROMPT_DISMISS_KEY, '1');
+  _hideNotifyPrompt();
+}
+
+async function _acceptNotifyPrompt() {
+  _hideNotifyPrompt();
+  localStorage.setItem(_NOTIFY_PROMPT_DISMISS_KEY, '1'); // don't ask again either way
+  await toggleCustomerNotify();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  _checkCustomerNotifyState();
+  // Small delay so this doesn't compete with the page's own load animation
+  setTimeout(_showNotifyPromptIfNeeded, 1400);
+});
 
 /* ── GSAP page-enter animations ─────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
