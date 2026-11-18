@@ -1,0 +1,10 @@
+# secrets - never commit
+secrets.h
+# arduino / editors / os
+build/
+*.bin
+*.elf
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

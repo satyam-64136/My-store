@@ -1,0 +1,55 @@
+SMART DOOR LOCK v2 - WIRING (text version, see docs/wiring.png)
+================================================================
+Parts: 12V battery, buck converter, NodeMCU ESP8266, 4-ch relay, 12V solenoid lock,
+       16x2 I2C LCD, 1N5819 diode, 100uF capacitor (optional). No fuse (see notes).
+
+STEP 0  Set the buck converter to 5.0 V
+        Power ONLY the buck from the battery, measure OUT+ / OUT- with a multimeter,
+        turn the trimmer until it reads 5.0 V. Disconnect the battery.
+        The buck input must accept 15 V or more (a full 12 V battery reads ~13.8 V).
+
+WIRE-BY-WIRE (battery disconnected while wiring)
+ #  FROM                          TO                          WIRE
+ 1  Battery (+)                   Buck IN+                    red
+ 2  Battery (+)                   Relay CH1 COM               red
+ 3  Battery (-)                   Buck IN-                    black
+ 4  Battery (-)                   Solenoid (-)                black
+ 5  Buck OUT+ (5V)                NodeMCU VIN                 orange
+ 6  Buck OUT+ (5V)                Relay VCC                   orange
+ 7  Buck OUT+ (5V)                LCD VCC                     orange
+ 8  Buck OUT-                     NodeMCU GND                 black
+ 9  Buck OUT-                     Relay GND                   black
+10  Buck OUT-                     LCD GND                     black
+11  NodeMCU D5 (GPIO14)           Relay IN1                   blue
+12  NodeMCU D2 (GPIO4)            LCD SDA                     blue
+13  NodeMCU D1 (GPIO5)            LCD SCL                     blue
+14  Relay CH1 NO                  Solenoid (+)                red
+15  1N5819 diode, STRIPE end      Solenoid (+)                (diode across the coil)
+16  1N5819 diode, other end       Solenoid (-)
+17  100uF cap, long leg (+)       Buck OUT+                   optional
+18  100uF cap, striped side (-)   Buck OUT-                   optional (rated 10V or more)
+
+NETS (everything on one line is joined together)
+ +12V : Battery (+) = Buck IN+ = Relay CH1 COM
+ +5V  : Buck OUT+ = NodeMCU VIN = Relay VCC = LCD VCC (= cap +)
+ GND  : Battery (-) = Buck IN- = Buck OUT- = NodeMCU GND = Relay GND = LCD GND = Solenoid (-) (= cap -)
+ SIG  : D5-IN1, D2-SDA, D1-SCL
+ LOAD : Relay CH1 NO = Solenoid (+)
+
+RULES
+ - Common ground: all GND points must be connected.
+ - The solenoid runs from 12V through the relay. NEVER from the buck or the NodeMCU.
+ - Diode: a reversed diode shorts the supply every unlock. Stripe goes to the solenoid (+).
+ - No fuse: connect the battery LAST, insulate every joint, add a switch on battery (+) if possible,
+   and fit a 2 A fuse before permanent installation.
+ - Most 4-ch relays are active LOW. If the lock acts backwards set RELAY_ACTIVE_LOW = false in the sketch.
+ - Do not use D0, D3, D4, D8 for the relay (they affect boot). Leave CH2-CH4 unconnected.
+ - LCD backpacks pull SDA/SCL up to 5V. A 3.3V level shifter is safest. LCD address is usually 0x27 or 0x3F.
+ - Firmware shows status on the LCD and auto-detects the address (0x27, 0x3F, 0x26, 0x20).
+ - LCD blank? Turn the blue contrast trimmer on the backpack, and check Serial Monitor for "[LCD] found at 0x..".
+
+FIRST POWER-UP CHECK
+ 1. Connect the battery WITHOUT the solenoid wires on COM/NO.
+ 2. NodeMCU LED lights, Serial Monitor (115200) shows "[MQTT] connected".
+ 3. Request a code, unlock: the relay clicks for 5 s, then clicks back.
+ 4. Disconnect the battery, connect the solenoid, reconnect, repeat.

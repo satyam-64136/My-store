@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0d12">
+<title>Front door</title>
+<style>
+:root{
+  --bg:#0a0d12;--s1:#11161e;--s2:#171d28;--line:rgba(255,255,255,.07);--fg:#eef2f8;--mut:#8a97ab;
+  --acc:#6d9bff;--ok:#38e0b0;--bad:#ff6b78;--dur:5s;
+  --ease:cubic-bezier(.22,1,.36,1);--spring:cubic-bezier(.34,1.56,.64,1);--t1:.16s;--t2:.28s;--t3:.48s;
+  --sh:0 1px 1px #0003,0 4px 8px #0002,0 18px 36px -10px #0006,inset 0 1px 0 #ffffff0d;
+  color-scheme:dark}
+@media(prefers-color-scheme:light){:root{--bg:#e8ecf2;--s1:#fff;--s2:#f2f5f9;--line:rgba(15,23,42,.08);--fg:#0f1722;--mut:#5b6a80;
+  --acc:#2f63e6;--ok:#0c9a72;--bad:#d63546;--sh:0 1px 1px #0f172a0d,0 4px 8px #0f172a0d,0 18px 36px -10px #0f172a26,inset 0 1px 0 #fff;color-scheme:light}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body{margin:0;min-height:100dvh;display:grid;place-items:center;color:var(--fg);padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+  font:16px/1.45 ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",sans-serif;font-feature-settings:"tnum";
+  background:radial-gradient(70% 50% at 15% 0%,color-mix(in srgb,var(--acc) 16%,transparent),transparent 70%),
+             radial-gradient(60% 45% at 95% 100%,color-mix(in srgb,var(--ok) 9%,transparent),transparent 70%),var(--bg);transition:background var(--t3)}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.06;mix-blend-mode:overlay;
+  background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+main{position:relative;width:min(404px,100%);display:grid;gap:20px;padding:24px 0}
+main>*{animation:rise var(--t3) var(--ease) backwards;animation-delay:calc(var(--i,0)*70ms)}
+header{display:flex;justify-content:space-between;align-items:center}
+h1{margin:0;font-size:1.2rem;font-weight:650;letter-spacing:-.02em}
+.pill{display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:99px;background:var(--s1);box-shadow:var(--sh);font-size:.78rem;color:var(--mut)}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--bad);transition:background var(--t2),box-shadow var(--t2)}
+body[data-s=locked] .pill i,body[data-s=unlocked] .pill i{background:var(--ok);box-shadow:0 0 0 4px color-mix(in srgb,var(--ok) 22%,transparent)}
+body[data-s=wait] .pill i{background:var(--mut);animation:pulse 1.2s infinite}
+.bar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:14px;font-size:.85rem;
+  background:color-mix(in srgb,var(--bad) 12%,var(--s1));box-shadow:var(--sh);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent)}
+.bar[hidden]{display:none}.bar button{padding:7px 12px;font-size:.8rem;border-radius:10px;flex:none}
+.dial{position:relative;width:min(256px,74vw);aspect-ratio:1;margin:4px auto;display:grid;place-items:center}
+.dial .ring{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:5;stroke-linecap:round}
+.ring .track{stroke:var(--line)}
+.ring .prog{stroke:var(--ok);stroke-dasharray:679;stroke-dashoffset:679;opacity:0;filter:drop-shadow(0 0 6px var(--ok))}
+body[data-s=unlocked] .prog{opacity:1;animation:drain var(--dur) linear forwards}
+body[data-s=wait] .ring .track{animation:pulse 1.6s infinite}
+.core{width:78%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;align-content:center;gap:6px;
+  background:linear-gradient(160deg,var(--s2),var(--s1));box-shadow:var(--sh);transition:box-shadow var(--t3) var(--ease),opacity var(--t3),transform var(--t3) var(--spring)}
+body[data-s=unlocked] .core{transform:scale(1.03);box-shadow:var(--sh),0 0 70px -12px color-mix(in srgb,var(--ok) 60%,transparent)}
+body[data-s=offline] .core,body[data-s=wait] .core{opacity:.6}
+.lock{width:54px;height:54px;fill:none;stroke:var(--fg);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;transition:stroke var(--t3)}
+.lock .sh{transition:transform var(--t3) var(--spring);transform-origin:32px 28px}
+body[data-s=unlocked] .lock{stroke:var(--ok)}
+body[data-s=unlocked] .lock .sh{transform:translateY(-7px) rotate(-18deg)}
+.lbl{font-weight:650;font-size:1.1rem;letter-spacing:-.01em;transition:color var(--t3)}
+body[data-s=unlocked] .lbl{color:var(--ok)}
+body[data-s=wait] .lbl{background:linear-gradient(90deg,var(--mut),var(--fg),var(--mut));background-size:200%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 1.6s linear infinite}
+.sub{font-size:.76rem;color:var(--mut);min-height:1.1em}
+.panel{display:grid;gap:12px;animation:rise var(--t3) var(--ease)}
+.panel[hidden]{display:none}
+button{font:inherit;font-weight:600;border:0;border-radius:14px;padding:15px;color:#fff;cursor:pointer;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--acc) 82%,#fff),var(--acc));
+  box-shadow:0 1px 1px #0003,0 6px 14px -4px color-mix(in srgb,var(--acc) 60%,transparent),inset 0 1px 0 #ffffff40;
+  transition:transform var(--t1) var(--ease),box-shadow var(--t2),opacity var(--t2),filter var(--t2)}
+button:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.06)}
+button:active:not(:disabled){transform:scale(.97)}
+button:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+button:focus-visible,.otp input:focus-visible+b{outline:2px solid var(--acc);outline-offset:3px}
+button.ghost{background:var(--s1);color:var(--fg);box-shadow:var(--sh)}
+.otp{position:relative;display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.otp b{height:60px;display:grid;place-items:center;border-radius:14px;background:var(--s1);box-shadow:var(--sh);position:relative;
+  font:600 1.6rem ui-monospace,Menlo,monospace;transition:transform var(--t2) var(--spring),box-shadow var(--t2)}
+.otp b.on{transform:translateY(-3px);box-shadow:var(--sh),0 0 0 2px var(--acc)}
+.otp b.on:empty::after{content:"";width:2px;height:26px;background:var(--acc);animation:blink 1s steps(1) infinite}
+.otp input{position:absolute;inset:0;width:100%;opacity:0;font-size:16px;z-index:1}
+.otp.shake{animation:shake .4s}
+.log{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:.78rem;color:var(--mut)}
+.log li{display:flex;gap:10px;animation:rise var(--t2) var(--ease)}.log time{opacity:.7;min-width:5.2em}
+.log:empty{display:none}
+.gear{justify-self:center;background:none;box-shadow:none;color:var(--mut);font-size:.78rem;font-weight:500;padding:6px 10px}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,24px);opacity:0;pointer-events:none;max-width:90vw;
+  padding:12px 18px;border-radius:14px;background:var(--s2);box-shadow:var(--sh);font-size:.88rem;transition:transform var(--t3) var(--spring),opacity var(--t2);z-index:9}
+#toast.show{transform:translate(-50%,0);opacity:1}#toast.err{color:var(--bad)}#toast.good{color:var(--ok)}
+dialog{border:0;border-radius:20px;background:var(--s1);color:var(--fg);box-shadow:var(--sh),0 0 0 1px var(--line);width:min(370px,92vw);padding:24px}
+dialog::backdrop{background:#0008;backdrop-filter:blur(6px)}
+dialog[open]{animation:rise var(--t3) var(--ease)}
+dialog h2{margin:0 0 14px;font-size:1.05rem;letter-spacing:-.01em}
+dialog label{display:grid;gap:5px;font-size:.78rem;color:var(--mut);margin-bottom:12px}
+dialog input{font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--fg);transition:border-color var(--t2)}
+dialog input:focus{outline:0;border-color:var(--acc)}
+.row{display:flex;gap:8px;margin-top:6px}.row button{flex:1}
+.err-t{color:var(--bad);font-size:.78rem;min-height:1.2em;margin:0 0 6px}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}}
+@keyframes drain{to{stroke-dashoffset:0}}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+@keyframes pulse{50%{opacity:.35}}@keyframes blink{50%{opacity:0}}@keyframes shimmer{to{background-position:-200%}}
+@media(prefers-reduced-motion:reduce){*,::before{animation-duration:.01s!important;animation-delay:0s!important;transition-duration:.01s!important}}
+</style></head>
+<body data-s="wait"><main>
+<header style="--i:0"><h1>Front door</h1><div class="pill"><i></i><span id="conn">Connecting</span></div></header>
+<div class="bar" id="bar" hidden style="--i:1"><span id="barT"></span><button id="barB">Retry</button></div>
+<div class="dial" style="--i:1">
+  <svg class="ring" viewBox="0 0 240 240" aria-hidden="true"><circle class="track" cx="120" cy="120" r="108"/><circle class="prog" cx="120" cy="120" r="108"/></svg>
+  <div class="core">
+    <svg class="lock" viewBox="0 0 64 64" aria-hidden="true"><path class="sh" d="M21 28V20a11 11 0 0 1 22 0v8"/><rect x="15" y="28" width="34" height="25" rx="7"/><circle cx="32" cy="40" r="2.5"/></svg>
+    <div class="lbl" id="lbl">Connecting</div><div class="sub" id="sub"></div>
+  </div>
+</div>
+<div style="--i:2;display:grid;gap:12px">
+<section class="panel" id="p1" hidden><button id="req">Send code to Telegram</button></section>
+<section class="panel" id="p2" hidden>
+  <label class="otp" id="otpbox"><input id="otp" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" aria-label="6-digit code"><b></b><b></b><b></b><b></b><b></b><b></b></label>
+  <div class="row"><button class="ghost" id="resend">Resend code</button><button id="go" disabled>Unlock</button></div>
+</section>
+<section class="panel" id="p3" hidden><button class="ghost" id="lock">Lock now</button></section>
+</div>
+<ul class="log" id="log" style="--i:3" aria-label="Recent activity"></ul>
+<button class="gear" id="cfg" style="--i:4">Connection settings</button>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<dialog id="dlg"><h2>Connection settings</h2>
+  <label>Broker host<input id="f_host" placeholder="xxxxxxxx.ala.region.emqxsl.com" autocapitalize="off" autocomplete="off"></label>
+  <label>WebSocket (wss) port<input id="f_port" inputmode="numeric" placeholder="8084" autocomplete="off"></label>
+  <label>Username<input id="f_user" autocapitalize="off" autocomplete="off"></label>
+  <label>Password<input id="f_pass" type="password" autocomplete="off"></label>
+  <label>Topic prefix<input id="f_prefix" placeholder="lock/yourSecret" autocapitalize="off" autocomplete="off"></label>
+  <p class="err-t" id="f_err"></p>
+  <div class="row"><button class="ghost" id="reset" title="Remove saved details">Reset</button><button class="ghost" id="cancel">Cancel</button><button id="save">Save</button></div>
+</dialog>
+
+<script>
+const $=id=>document.getElementById(id);
+const UNLOCK_SECONDS=5,COOLDOWN=15,SEND_TIMEOUT=14000,VERIFY_TIMEOUT=5000;   // match firmware
+const CDNS=['https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js','https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js'];
+document.documentElement.style.setProperty('--dur',UNLOCK_SECONDS+'s');
+
+let C=null;try{C=JSON.parse(localStorage.getItem('lockcfg'))}catch(e){}
+let m=null,T={},brokerUp=false,st='unknown',codeStep=false,sending=false,verifying=false,t0=0,coolUntil=0,pend=null,toastT,stT,connT;
+
+/* ---------- helpers ---------- */
+function toast(t,k=''){const e=$('toast');e.textContent=t;e.className='show '+k;clearTimeout(toastT);if(t)toastT=setTimeout(()=>e.className='',k==='err'?6000:3500)}
+function buzz(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+function bar(t,label,fn){const b=$('bar');if(!t){b.hidden=true;return}$('barT').textContent=t;$('barB').textContent=label||'Retry';$('barB').onclick=fn||(()=>location.reload());b.hidden=false}
+function log(t){const li=document.createElement('li'),tm=document.createElement('time');
+  tm.textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  li.append(tm,document.createTextNode(t));const l=$('log');l.prepend(li);while(l.children.length>4)l.lastChild.remove()}
+function setPend(ms,msg){clearPend();pend=setTimeout(()=>{pend=null;sending=verifying=false;toast(msg,'err');render()},ms)}
+function clearPend(){clearTimeout(pend);pend=null}
+const validHost=h=>/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/i.test(h||'');
+const validCfg=c=>!!(c&&validHost(c.host)&&c.user&&c.pass&&c.prefix&&!/\s/.test(c.prefix)&&!/^\/|\/$/.test(c.prefix));
+
+/* ---------- rendering ---------- */
+function render(){
+  let s;
+  if(!brokerUp||st==='unknown')s='wait';else s=st==='offline'?'offline':st;
+  document.body.dataset.s=s;
+  const online=brokerUp&&(st==='locked'||st==='unlocked');
+  $('conn').textContent=!navigator.onLine?'No internet':!brokerUp?'Connecting':st==='offline'?'Lock offline':st==='unknown'?'Checking lock':'Connected';
+  $('lbl').textContent={wait:'Connecting',offline:'Offline',locked:'Locked',unlocked:'Unlocked'}[s];
+  if(s!=='unlocked')$('sub').textContent=s==='locked'?'Ready':'';
+  $('p1').hidden=!(online&&st==='locked'&&!codeStep);
+  $('p2').hidden=!(online&&st==='locked'&&codeStep);
+  $('p3').hidden=!(online&&st==='unlocked');
+  $('req').disabled=sending;$('req').textContent=sending?'Sending...':'Send code to Telegram';
+  paint();
+}
+function paint(){
+  const v=$('otp').value,bs=document.querySelectorAll('.otp b'),f=document.activeElement===$('otp');
+  bs.forEach((b,i)=>{b.textContent=v[i]||'';b.classList.toggle('on',f&&i===Math.min(v.length,5))});
+  $('go').disabled=v.length!==6||verifying;
+}
+setInterval(()=>{const l=Math.ceil((coolUntil-Date.now())/1000);
+  $('resend').disabled=l>0||sending;$('resend').textContent=l>0?'Resend in '+l+'s':'Resend code'},400);
+
+/* ---------- commands ---------- */
+function send(o){
+  if(!m||!m.connected){toast('Not connected. Reconnecting...','err');return false}
+  m.publish(T.cmd,JSON.stringify(o),{qos:0},err=>{if(err){clearPend();sending=verifying=false;toast('Could not send. Try again.','err');render()}});
+  return true}
+function requestCode(){
+  if(sending||st!=='locked')return;
+  if(!send({a:'req'}))return;
+  sending=true;coolUntil=Date.now()+COOLDOWN*1000;setPend(SEND_TIMEOUT,'The lock did not answer. Check it is online.');render()}
+function submit(){
+  const v=$('otp').value;if(v.length!==6||st!=='locked'||verifying)return;
+  t0=performance.now();if(!send({a:'otp',v}))return;
+  verifying=true;setPend(VERIFY_TIMEOUT,'No response from the lock. Try again.');paint()}
+
+/* ---------- ui events ---------- */
+$('req').onclick=requestCode;$('resend').onclick=requestCode;$('go').onclick=submit;
+$('lock').onclick=()=>{if(send({a:'lock'}))buzz(20)};
+$('otp').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,6);paint();if(e.target.value.length===6)submit()});
+$('otp').addEventListener('focus',paint);$('otp').addEventListener('blur',paint);
+$('cfg').onclick=()=>{['host','port','user','pass','prefix'].forEach(k=>$('f_'+k).value=C?.[k]||(k==='port'?'8084':''));$('f_err').textContent='';$('dlg').showModal()};
+$('cancel').onclick=()=>$('dlg').close();
+$('reset').onclick=()=>{try{localStorage.removeItem('lockcfg')}catch(e){}location.reload()};
+$('save').onclick=()=>{
+  const n={host:$('f_host').value.trim().replace(/^\w+:\/\//,'').replace(/[:\/].*$/,''),port:parseInt($('f_port').value,10)||8084,user:$('f_user').value.trim(),
+           pass:$('f_pass').value,prefix:$('f_prefix').value.trim().replace(/^\/+|\/+$/g,'')};
+  if(!validHost(n.host))return $('f_err').textContent='Enter the broker host, like abc123.ala.region.emqxsl.com';
+  if(n.port<1||n.port>65535)return $('f_err').textContent='Port must be 1-65535 (EMQX uses 8084).';
+  if(!n.user||!n.pass)return $('f_err').textContent='Username and password are required.';
+  if(!n.prefix||/\s/.test(n.prefix))return $('f_err').textContent='Topic prefix is required and cannot contain spaces.';
+  try{localStorage.setItem('lockcfg',JSON.stringify(n))}catch(e){return $('f_err').textContent='Browser storage is blocked. Allow site data and retry.'}
+  location.reload()};
+addEventListener('online',()=>{toast('Back online','good');if(m&&!m.connected)m.reconnect();render()});
+addEventListener('offline',()=>{toast('No internet connection','err');render()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&m&&!m.connected)m.reconnect()});
+addEventListener('error',()=>toast('Something went wrong. Reload the page.','err'));
+addEventListener('unhandledrejection',()=>toast('Something went wrong. Reload the page.','err'));
+
+/* ---------- broker ---------- */
+function loadMqtt(){return new Promise((res,rej)=>{let i=0;(function next(){
+  if(window.mqtt)return res();if(i>=CDNS.length)return rej();
+  const s=document.createElement('script');s.src=CDNS[i++];s.onload=next;s.onerror=next;document.head.appendChild(s)})()})}
+
+function onStatus(s){
+  const was=st;st=s==='unlocked'||s==='locked'?s:'offline';clearTimeout(stT);
+  if(st==='offline'){bar('The lock is offline. Check its power and WiFi.','Check again',()=>{bar('');st='unknown';render();stT=setTimeout(noStatus,4000)});if(was!=='offline'&&was!=='unknown')log('Lock went offline')}
+  else{bar('');if(was==='offline'||was==='unknown')log('Lock online');codeStep=codeStep&&st==='locked'}
+  render()}
+function noStatus(){if(st==='unknown'){st='offline';bar('No response from the lock. Check its power and WiFi.','Reload');render()}}
+
+function start(){
+  T={cmd:C.prefix+'/cmd',evt:C.prefix+'/evt',st:C.prefix+'/status'};
+  m=mqtt.connect('wss://'+C.host+':'+(C.port||8084)+'/mqtt',{username:C.user,password:C.pass,keepalive:15,reconnectPeriod:1500,
+    connectTimeout:8000,clientId:'web-'+Math.random().toString(16).slice(2,8)});
+  connT=setTimeout(()=>{if(!brokerUp)bar("Can't reach the broker. Check your internet, host name and port.",'Settings',()=>$('cfg').click())},10000);
+  m.on('connect',()=>{brokerUp=true;clearTimeout(connT);bar('');
+    m.subscribe([T.evt,T.st],{qos:0},err=>{if(err)toast('Could not subscribe to the lock','err')});
+    clearTimeout(stT);stT=setTimeout(noStatus,4000);render()});
+  m.on('close',()=>{brokerUp=false;st='unknown';clearPend();sending=verifying=false;render()});
+  m.on('error',err=>{
+    const msg=String(err&&err.message||'');
+    if(/refused|not authorized|bad user|credentials/i.test(msg)){m.end(true);clearTimeout(connT);
+      bar('Login rejected by the broker. Check username and password.','Settings',()=>$('cfg').click());render()}
+    else toast('Connection problem. Retrying...','err')});
+  m.on('message',(t,p)=>{
+    const s=p.toString();
+    if(t===T.st)return onStatus(s);
+    let e;try{e=JSON.parse(s)}catch(x){return}
+    clearPend();
+    const M={tg_fail:'Telegram failed. Try again.',low_mem:'Lock is low on memory. Try again.',no_otp:'Request a code first.',
+      expired:'Code expired. Request a new one.',locked_out:'Too many tries. Wait 60 seconds.',wait:'Please wait a few seconds.',bad_req:'Invalid request.'};
+    if(e.e==='sending')return setPend(SEND_TIMEOUT,'Telegram is taking too long. Try again.');
+    if(e.e==='otp_sent'){sending=false;codeStep=true;toast('Code sent. Check Telegram.','good');log('Code sent');render();$('otp').focus();return}
+    if(e.e==='unlocked'){verifying=false;const ms=t0?Math.round(performance.now()-t0):0;t0=0;
+      $('otp').value='';codeStep=false;$('sub').textContent=ms?'Opened in '+ms+' ms':'';log('Unlocked'+(ms?' in '+ms+' ms':''));buzz([30,40,30]);render();return}
+    if(e.e==='locked'){log('Locked');return}
+    sending=verifying=false;
+    if(e.e==='bad'){const b=$('otpbox');b.classList.remove('shake');void b.offsetWidth;b.classList.add('shake');
+      $('otp').value='';toast('Wrong code. '+e.left+(e.left===1?' try':' tries')+' left.','err');log('Wrong code');buzz(120)}
+    else{toast(M[e.e]||'Unexpected reply from the lock.','err');if(e.e==='expired'||e.e==='locked_out'){codeStep=false;$('otp').value=''}}
+    render()})}
+
+render();
+if(!validCfg(C)){st='offline';render();toast('Add your broker details to get started.');setTimeout(()=>$('cfg').click(),300)}
+else loadMqtt().then(start).catch(()=>{bar('Could not load the connection library. Check your internet.','Retry')})
+</script></body></html>
